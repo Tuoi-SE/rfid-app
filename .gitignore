@@ -1,0 +1,50 @@
+# Environment variables
+.env
+.env.*
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Mobile / Android
+*.apk
+*.aab
+*.keystore
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/.expo/
+
+# Mobile / iOS
+mobile/ios/Pods/
+mobile/ios/build/
+
+# Database files
+*.db
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Claude
+.claude/

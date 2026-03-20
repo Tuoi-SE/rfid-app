@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "mobile",
+    "slug": "mobile",
+    "newArchEnabled": false,
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rfid.inventory",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Cần kết nối Bluetooth để sử dụng máy quét RFID",
+        "NSBluetoothPeripheralUsageDescription": "Cần kết nối Bluetooth để sử dụng máy quét RFID"
+      }
+    },
+    "android": {
+      "package": "com.rfid.inventory",
+      "permissions": [
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "bluetoothAlwaysPermission": "Cần kết nối Bluetooth để sử dụng máy quét mã vạch RFID"
+        }
+      ],
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "86595f9a-0754-4004-988e-c30f779d216c"
+      }
+    }
+  }
+}

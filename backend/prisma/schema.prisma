@@ -1,0 +1,41 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tag {
+  id          String   @id @default(uuid())
+  epc         String   @unique
+  name        String
+  description String?
+  category    String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  scans       Scan[]
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  name        String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  totalTags   Int       @default(0)
+  scans       Scan[]
+}
+
+model Scan {
+  id        String   @id @default(uuid())
+  tagEpc    String
+  tag       Tag      @relation(fields: [tagEpc], references: [epc], onDelete: Cascade)
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rssi      Int
+  scannedAt DateTime @default(now())
+}
