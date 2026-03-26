@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-26T07:58:59.615Z"
+status: phase_complete
+last_updated: "2026-03-26T09:02:52.581Z"
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 5
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 
 **Initialized:** 2026-03-26
 **Milestone:** v1.0
-**Status:** Executing Phase 04
+**Status:** Executing Phase 05
 
 ## Key Decisions
 
@@ -37,6 +37,8 @@ progress:
 | 2026-03-26 | D-17: Added HOTEL, RESORT, SPA to LocationType enum | Customer locations (khach san/resort/spa) |
 | 2026-03-26 | D-18: Added WAREHOUSE_TO_CUSTOMER to TransferType enum | Phase 5 outbound flow preparation |
 | 2026-03-26 | D-19: Tags transferred to customer get status=OUT_OF_STOCK | Tags at customer marked as "da xuat" |
+| 2026-03-26 | D-20: WAREHOUSE_TO_CUSTOMER 1-step workflow | Transfer created as COMPLETED immediately, no confirm() needed |
+| 2026-03-26 | D-22: Stock limit validation for WAREHOUSE_TO_CUSTOMER | Tags must be at source warehouse before export |
 
 ## Performance Metrics
 
@@ -47,6 +49,7 @@ progress:
 | 02 | 02-02 | 4 min | 3 | 6 | 2026-03-26 |
 | 03 | 03 | 7 min | 3 | 4 | 2026-03-26 |
 | 04 | 04 | 3 min | 3 | 3 | 2026-03-26 |
+| 05 | 05 | 2 min | 1 | 1 | 2026-03-26 |
 
 ## Notes
 
