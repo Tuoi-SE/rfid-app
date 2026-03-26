@@ -55,6 +55,20 @@ export class TransfersService {
       throw new BadRequestException('Loại transfer không hợp lệ');
     }
 
+    // D-22: WAREHOUSE_TO_CUSTOMER - validate stock limit
+    // All tags must be at source warehouse before export
+    if (dto.type === 'WAREHOUSE_TO_CUSTOMER') {
+      const tagsAtSource = await this.prisma.tag.findMany({
+        where: { id: { in: dto.tagIds } },
+      });
+      const notAtSource = tagsAtSource.filter(t => t.locationId !== dto.sourceId);
+      if (notAtSource.length > 0) {
+        throw new BadRequestException(
+          `${notAtSource.length} tag(s) không có tại warehouse nguồn. Chỉ xuất được tag đang ở warehouse.`
+        );
+      }
+    }
+
     // Generate unique code: TRF-{timestamp}-{random}
     const code = `TRF-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
 
@@ -77,18 +91,24 @@ export class TransfersService {
       throw new BadRequestException('Một số tag đang trong transfer PENDING khác');
     }
 
-    // Create transfer with items
+    // D-20: WAREHOUSE_TO_CUSTOMER - 1-step workflow (tạo = COMPLETED ngay)
+    const isWarehouseToCustomer = dto.type === 'WAREHOUSE_TO_CUSTOMER';
+
+    // Create transfer - WAREHOUSE_TO_CUSTOMER created as COMPLETED immediately
     const transfer = await this.prisma.transfer.create({
       data: {
         code,
         type: dto.type,
-        status: TransferStatus.PENDING,
+        status: isWarehouseToCustomer ? TransferStatus.COMPLETED : TransferStatus.PENDING,
         sourceId: dto.sourceId,
         destinationId: dto.destinationId,
         createdById: userId,
+        completedAt: isWarehouseToCustomer ? new Date() : null,  // D-20: set completedAt immediately
         items: {
           create: dto.tagIds.map(tagId => ({
             tagId,
+            scannedAt: isWarehouseToCustomer ? new Date() : null,  // D-20: Mark as scanned
+            condition: isWarehouseToCustomer ? 'GOOD' : undefined,
           })),
         },
       },
@@ -99,6 +119,20 @@ export class TransfersService {
         items: { include: { tag: true } },
       },
     });
+
+    // D-20: WAREHOUSE_TO_CUSTOMER - update tags immediately to COMPLETED
+    if (isWarehouseToCustomer) {
+      // D-19: Tags at customer get OUT_OF_STOCK status
+      await this.prisma.tag.updateMany({
+        where: { id: { in: dto.tagIds } },
+        data: {
+          locationId: dto.destinationId,
+          status: TagStatus.OUT_OF_STOCK,
+        },
+      });
+      this.events.server.emit('transferUpdate', transfer);
+      return transfer;
+    }
 
     this.events.server.emit('transferUpdate', transfer);
     return transfer;
