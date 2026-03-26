@@ -17,11 +17,11 @@ Plans:
 
 **Requirement IDs:** WORKSHOP-01, TAGS-02
 
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [x] 02-PLAN.md — Transfer model và API (2-step workflow: Admin tạo PENDING → Workshop confirm COMPLETED)
-- [ ] 02-02-PLAN.md — Location CRUD API với filter type=WORKSHOP (Workshop management)
+- [x] 02-02-PLAN.md — Location CRUD API với filter type=WORKSHOP (Workshop management)
 
 ## Phase 3: Warehouse Transfer
 
