@@ -35,12 +35,16 @@ enum LocationType {
   ADMIN
   WORKSHOP
   WAREHOUSE
-  CUSTOMER
+  HOTEL       // Phase 4 - D-17
+  RESORT      // Phase 4 - D-17
+  SPA         // Phase 4 - D-17
+  CUSTOMER    // kept for backward compat
 }
 
 enum TransferType {
   ADMIN_TO_WORKSHOP
   WORKSHOP_TO_WAREHOUSE  // Phase 3
+  WAREHOUSE_TO_CUSTOMER  // Phase 4 - D-18
 }
 
 enum TransferStatus {
