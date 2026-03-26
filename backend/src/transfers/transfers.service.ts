@@ -15,18 +15,31 @@ export class TransfersService {
   ) {}
 
   async create(dto: CreateTransferDto, userId: string) {
-    // Validate source is ADMIN location
+    // Validate source location based on transfer type (per D-12)
     const source = await this.prisma.location.findUnique({ where: { id: dto.sourceId } });
     if (!source) throw new NotFoundException('Không tìm thấy vị trí nguồn');
-    if (source.type !== LocationType.ADMIN) {
-      throw new BadRequestException('Vị trí nguồn phải là ADMIN');
-    }
 
-    // Validate destination is WORKSHOP location
+    // Validate destination location based on transfer type (per D-13)
     const destination = await this.prisma.location.findUnique({ where: { id: dto.destinationId } });
     if (!destination) throw new NotFoundException('Không tìm thấy vị trí đích');
-    if (destination.type !== LocationType.WORKSHOP) {
-      throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+
+    // Type-specific validation
+    if (dto.type === 'ADMIN_TO_WORKSHOP') {
+      if (source.type !== LocationType.ADMIN) {
+        throw new BadRequestException('Vị trí nguồn phải là ADMIN');
+      }
+      if (destination.type !== LocationType.WORKSHOP) {
+        throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+      }
+    } else if (dto.type === 'WORKSHOP_TO_WAREHOUSE') {
+      if (source.type !== LocationType.WORKSHOP) {
+        throw new BadRequestException('Vị trí nguồn phải là WORKSHOP');
+      }
+      if (destination.type !== LocationType.WAREHOUSE) {
+        throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+      }
+    } else {
+      throw new BadRequestException('Loại transfer không hợp lệ');
     }
 
     // Generate unique code: TRF-{timestamp}-{random}
@@ -55,7 +68,7 @@ export class TransfersService {
     const transfer = await this.prisma.transfer.create({
       data: {
         code,
-        type: 'ADMIN_TO_WORKSHOP',
+        type: dto.type,
         status: TransferStatus.PENDING,
         sourceId: dto.sourceId,
         destinationId: dto.destinationId,
@@ -89,17 +102,25 @@ export class TransfersService {
       throw new BadRequestException('Transfer không ở trạng thái PENDING');
     }
 
+    // D-14: Check scanned count before COMPLETED - all tags must be scanned
+    const scannedCount = transfer.items.filter(item => item.scannedAt !== null).length;
+    if (scannedCount < transfer.items.length) {
+      throw new BadRequestException(
+        `Đã quét ${scannedCount}/${transfer.items.length} tag. Phải quét đủ số lượng mới được xác nhận.`
+      );
+    }
+
     // Validate user role is WAREHOUSE_MANAGER (per D-08)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user.role !== Role.WAREHOUSE_MANAGER) {
       throw new ForbiddenException('Chỉ Warehouse Manager mới có thể xác nhận transfer');
     }
 
-    // Update all tags: locationRel = destination workshop, status = IN_STOCK (per D-09, D-11)
+    // Update all tags: locationRel = destination, status = IN_STOCK (per D-09, D-11, D-15)
     await this.prisma.tag.updateMany({
       where: { id: { in: transfer.items.map(item => item.tagId) } },
       data: {
-        locationId: transfer.destinationId,
+        locationRel: { connect: { id: transfer.destinationId } },
         status: TagStatus.IN_STOCK,
       },
     });
