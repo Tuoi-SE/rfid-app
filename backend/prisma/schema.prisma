@@ -1,33 +1,188 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  WAREHOUSE_MANAGER
+}
+
+enum TagStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  IN_TRANSIT
+  MISSING
+}
+
+enum OrderType {
+  INBOUND
+  OUTBOUND
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LocationType {
+  ADMIN
+  WORKSHOP
+  WAREHOUSE
+  CUSTOMER
+}
+
+model Location {
+  id        String       @id @default(uuid())
+  code      String       @unique
+  name      String
+  type      LocationType
+  address   String?
+  deletedAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  tags      Tag[]
+
+  @@index([type])
+  @@index([code])
+  @@index([deletedAt])
+}
+
+model User {
+  id            String         @id @default(uuid())
+  username      String         @unique
+  password      String
+  role          Role           @default(WAREHOUSE_MANAGER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  activityLogs  ActivityLog[]
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+  orders        Order[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  sku         String   @unique
+  description String?
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tags        Tag[]
+  orderItems  OrderItem[]
+
+  @@index([categoryId])
 }
 
 model Tag {
-  id          String   @id @default(uuid())
-  epc         String   @unique
-  name        String
-  description String?
-  category    String?
+  id        String    @id @default(uuid())
+  epc       String    @unique
+  productId String?
+  product   Product?  @relation(fields: [productId], references: [id])
+  status    TagStatus @default(IN_STOCK)
   location    String?
+  locationId  String?
+  locationRel Location?  @relation(fields: [locationId], references: [id])
+  lastSeenAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  scans     Scan[]
+  events    TagEvent[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([locationId])
+}
+
+model TagEvent {
+  id          String   @id @default(uuid())
+  tagId       String
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  type        String   // "CREATED", "ASSIGNED", "SCANNED", "MOVED", "MISSING"
+  location    String?
+  description String?
+  userId      String?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  scans       Scan[]
+
+  @@index([tagId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  code      String      @unique
+  type      OrderType
+  status    OrderStatus @default(PENDING)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+  sessions  Session[]
+
+  @@index([type])
+  @@index([status])
+  @@index([userId])
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Int
+  scannedQuantity Int      @default(0)
+  
+  @@index([orderId])
+  @@index([productId])
 }
 
 model Session {
-  id          String    @id @default(uuid())
-  name        String
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  totalTags   Int       @default(0)
-  scans       Scan[]
+  id        String    @id @default(uuid())
+  name      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  totalTags Int       @default(0)
+  scans     Scan[]
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  orderId   String?
+  order     Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([userId])
+  @@index([orderId])
 }
 
 model Scan {
@@ -38,4 +193,24 @@ model Scan {
   session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   rssi      Int
   scannedAt DateTime @default(now())
+
+  @@index([tagEpc])
+  @@index([sessionId])
+  @@index([scannedAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
 }
