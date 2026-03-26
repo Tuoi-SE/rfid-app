@@ -38,6 +38,19 @@ export class TransfersService {
       if (destination.type !== LocationType.WAREHOUSE) {
         throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
       }
+    } else if (dto.type === 'WAREHOUSE_TO_CUSTOMER') {
+      // D-18: WAREHOUSE_TO_CUSTOMER: source=WAREHOUSE, destination=HOTEL/RESORT/SPA
+      if (source.type !== LocationType.WAREHOUSE) {
+        throw new BadRequestException('Vị trí nguồn phải là WAREHOUSE');
+      }
+      if (
+        destination.type !== LocationType.HOTEL &&
+        destination.type !== LocationType.RESORT &&
+        destination.type !== LocationType.SPA &&
+        destination.type !== 'CUSTOMER' // backward compat
+      ) {
+        throw new BadRequestException('Vị trí đích phải là HOTEL, RESORT, hoặc SPA');
+      }
     } else {
       throw new BadRequestException('Loại transfer không hợp lệ');
     }
@@ -112,16 +125,19 @@ export class TransfersService {
 
     // Validate user role is WAREHOUSE_MANAGER (per D-08)
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user.role !== Role.WAREHOUSE_MANAGER) {
+    if (!user || user.role !== Role.WAREHOUSE_MANAGER) {
       throw new ForbiddenException('Chỉ Warehouse Manager mới có thể xác nhận transfer');
     }
 
-    // Update all tags: locationRel = destination, status = IN_STOCK (per D-09, D-11, D-15)
+    // D-19: Update all tags: locationId = destination
+    // For WAREHOUSE_TO_CUSTOMER: status = OUT_OF_STOCK (đã xuất cho customer)
+    // For other transfers: status = IN_STOCK
+    const isWarehouseToCustomer = transfer.type === 'WAREHOUSE_TO_CUSTOMER';
     await this.prisma.tag.updateMany({
       where: { id: { in: transfer.items.map(item => item.tagId) } },
       data: {
-        locationRel: { connect: { id: transfer.destinationId } },
-        status: TagStatus.IN_STOCK,
+        locationId: transfer.destinationId,
+        status: isWarehouseToCustomer ? TagStatus.OUT_OF_STOCK : TagStatus.IN_STOCK,
       },
     });
 
