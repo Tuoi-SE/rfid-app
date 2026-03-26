@@ -20,7 +20,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-PLAN.md — Transfer model và API (2-step workflow: Admin tạo PENDING → Workshop confirm COMPLETED)
+- [x] 02-PLAN.md — Transfer model và API (2-step workflow: Admin tạo PENDING → Workshop confirm COMPLETED)
 - [ ] 02-02-PLAN.md — Location CRUD API với filter type=WORKSHOP (Workshop management)
 
 ## Phase 3: Warehouse Transfer
