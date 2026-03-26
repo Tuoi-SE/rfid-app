@@ -38,6 +38,16 @@ enum LocationType {
   CUSTOMER
 }
 
+enum TransferType {
+  ADMIN_TO_WORKSHOP
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 model Location {
   id        String       @id @default(uuid())
   code      String       @unique
@@ -48,10 +58,49 @@ model Location {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   tags      Tag[]
+  transfersFrom Transfer[] @relation("TransferSource")
+  transfersTo   Transfer[] @relation("TransferDestination")
 
   @@index([type])
   @@index([code])
   @@index([deletedAt])
+}
+
+model Transfer {
+  id              String          @id @default(uuid())
+  code            String          @unique
+  type            TransferType    @default(ADMIN_TO_WORKSHOP)
+  status          TransferStatus  @default(PENDING)
+  sourceId        String
+  source          Location        @relation("TransferSource", fields: [sourceId], references: [id])
+  destinationId   String
+  destination     Location        @relation("TransferDestination", fields: [destinationId], references: [id])
+  createdById     String
+  createdBy       User            @relation(fields: [createdById], references: [id])
+  items           TransferItem[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  completedAt     DateTime?
+
+  @@index([status])
+  @@index([type])
+  @@index([sourceId])
+  @@index([destinationId])
+  @@index([createdById])
+}
+
+model TransferItem {
+  id          String    @id @default(uuid())
+  transferId  String
+  transfer    Transfer  @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  tagId       String
+  tag         Tag       @relation(fields: [tagId], references: [id])
+  condition   String?
+  scannedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([transferId])
+  @@index([tagId])
 }
 
 model User {
@@ -65,6 +114,7 @@ model User {
   refreshTokens RefreshToken[]
   sessions      Session[]
   orders        Order[]
+  transfers     Transfer[]
 }
 
 model RefreshToken {
@@ -118,6 +168,7 @@ model Tag {
   updatedAt DateTime  @updatedAt
   scans     Scan[]
   events    TagEvent[]
+  transferItems TransferItem[]
 
   @@index([productId])
   @@index([status])
