@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-26T07:25:53Z"
+status: executing
+last_updated: "2026-03-26T07:58:59.615Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 
 **Initialized:** 2026-03-26
 **Milestone:** v1.0
-**Status:** Phase 03 Complete
+**Status:** Executing Phase 04
 
 ## Key Decisions
 
@@ -34,6 +34,9 @@ progress:
 | 2026-03-26 | D-13: WORKSHOP_TO_WAREHOUSE requires source.type=WORKSHOP, destination.type=WAREHOUSE | Type-specific validation in transfers.service.ts |
 | 2026-03-26 | D-14: confirm() requires all tags scanned before COMPLETED | scannedCount check prevents incomplete transfers |
 | 2026-03-26 | D-15: COMPLETED updates Tag.locationRel + status=IN_STOCK | Tags properly linked to warehouse location |
+| 2026-03-26 | D-17: Added HOTEL, RESORT, SPA to LocationType enum | Customer locations (khach san/resort/spa) |
+| 2026-03-26 | D-18: Added WAREHOUSE_TO_CUSTOMER to TransferType enum | Phase 5 outbound flow preparation |
+| 2026-03-26 | D-19: Tags transferred to customer get status=OUT_OF_STOCK | Tags at customer marked as "da xuat" |
 
 ## Performance Metrics
 
@@ -43,6 +46,7 @@ progress:
 | 02 | 02 | 4 min | 4 | 8 | 2026-03-26 |
 | 02 | 02-02 | 4 min | 3 | 6 | 2026-03-26 |
 | 03 | 03 | 7 min | 3 | 4 | 2026-03-26 |
+| 04 | 04 | 3 min | 3 | 3 | 2026-03-26 |
 
 ## Notes
 

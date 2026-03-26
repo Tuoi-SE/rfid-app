@@ -36,9 +36,14 @@ Plans:
 
 ## Phase 4: Customer Management
 
-**Goal:** CRUD khách hàng (khách sạn/resort)
+**Goal:** CRUD khách hàng (khách sạn/resort) + chuẩn bị Outbound Flow
 
-**Requirement IDs:** TBD
+**Requirement IDs:** CUSTOMER-01, TAGS-05
+
+**Plans:** 1 plan
+
+Plans:
+- [x] 04-PLAN.md — Them HOTEL/RESORT/SPA vao LocationType, WAREHOUSE_TO_CUSTOMER vao TransferType, cap nhat transfer service, seed customer locations
 
 ## Phase 5: Outbound Flow
 
