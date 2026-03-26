@@ -1,11 +1,15 @@
-import { IsArray, IsUUID, ArrayMinSize } from 'class-validator';
+import { IsArray, IsEnum, IsUUID, ArrayMinSize } from 'class-validator';
+import { TransferType } from '@prisma/client';
 
 export class CreateTransferDto {
-  @IsUUID()
-  sourceId: string;  // Location ADMIN
+  @IsEnum(TransferType)
+  type: TransferType;  // ADMIN_TO_WORKSHOP or WORKSHOP_TO_WAREHOUSE
 
   @IsUUID()
-  destinationId: string;  // Location WORKSHOP
+  sourceId: string;  // Location nguon (ADMIN hoac WORKSHOP)
+
+  @IsUUID()
+  destinationId: string;  // Location dich (WORKSHOP hoac WAREHOUSE)
 
   @IsArray()
   @IsUUID('4', { each: true })
