@@ -7,6 +7,7 @@ depends_on: []
 files_modified:
   - backend/prisma/schema.prisma
   - backend/src/transfers/transfers.service.ts
+  - backend/src/transfers/dto/create-transfer.dto.ts
 autonomous: true
 requirements:
   - TAGS-03
@@ -22,7 +23,7 @@ must_haves:
       provides: TransferType enum voi WORKSHOP_TO_WAREHOUSE
       contains: "WORKSHOP_TO_WAREHOUSE"
     - path: backend/src/transfers/transfers.service.ts
-      provides: Logic xu ly WORKSHOP_TO_WAREHOUSE, xac thuc source=WORKSHOP, destination=WAREHOUSE
+      provides: Logic xu ly WORKSHOP_TO_WAREHOUSE, xac thuc source=WORKSHOP, destination=WAREHOUSE, kiem tra scannedCount, cap nhat Tag
       exports: create, confirm
     - path: backend/prisma/migrations
       provides: Migration them TransferType WORKSHOP_TO_WAREHOUSE
@@ -34,11 +35,11 @@ must_haves:
     - from: transfers.service.ts confirm()
       to: Tag model
       via: updateMany locationId + status
-      pattern: "locationId.*destination.*status.*IN_STOCK"
+      pattern: "locationRel.*destination.*status.*IN_STOCK"
 ---
 
 <objective>
-Them chuc nang Transfer Workshopâ†’Warehouse. Workshop tao Transfer (PENDING) â†’ Manager kho xac nhan (COMPLETED). Tag duoc cap nhat locationId = Warehouse va status = IN_STOCK khi COMPLETED.
+Them chuc nang Transfer Workshop->Warehouse. Workshop tao Transfer (PENDING) -> Manager kho xac nhan (COMPLETED). Tag duoc cap nhat locationId = Warehouse va status = IN_STOCK khi COMPLETED.
 </objective>
 
 <context>
@@ -88,50 +89,52 @@ Them chuc nang Transfer Workshopâ†’Warehouse. Workshop tao Transfer (PENDING) â†
     - backend/prisma/schema.prisma (TransferType enum)
   </read_first>
   <action>
-    1. Doc transfers.service.ts hien tai - ham create() (dong 17-79) va confirm() (dong 81-133)
+    1. Doc transfers.service.ts hien tai - ham create() va confirm()
 
     2. Cap nhat ham create() de xu ly WORKSHOP_TO_WAREHOUSE:
-       - Them bien `type` vao dto thay vi hardcode 'ADMIN_TO_WORKSHOP' (dong 58)
+       - Field `type` tu dto thay vi hardcode 'ADMIN_TO_WORKSHOP'
        - Thay doi validation:
          - Neu type = ADMIN_TO_WORKSHOP: source.type = ADMIN, destination.type = WORKSHOP
          - Neu type = WORKSHOP_TO_WAREHOUSE: source.type = WORKSHOP, destination.type = WAREHOUSE (per D-13)
        - Tao transfer voi type tu dto, khong con hardcode
 
     3. Cap nhat ham confirm() de kiem tra so luong tag (D-14):
-       - Sau khi xac nhan transfer ton tai va status = PENDING (dong 88-90)
+       - Sau khi xac nhan transfer ton tai va status = PENDING
        - Kiem tra so luong TransferItem da duoc scanned (scannedAt NOT NULL)
-       - Neu scannedCount < totalItems: throw BadRequestException 'Chua quet du so luong tag, khong the xac nhan'
+       - Neu scannedCount < totalItems: throw BadRequestException
        - Chi cho phep COMPLETED khi tat ca tag da duoc scanned
 
-    Cu the, them sau dong 90 (sau khi kiem tra status PENDING):
-    ```typescript
-    // D-14: Kiem tra so luong tag da duoc quet
-    const scannedCount = transfer.items.filter(item => item.scannedAt !== null).length;
-    if (scannedCount < transfer.items.length) {
-      throw new BadRequestException(
-        `Da quet ${scannedCount}/${transfer.items.length} tag. Phai quet du so luong moi duoc xac nhan.`
-      );
-    }
-    ```
+       Cu the, them sau dong kiem tra status PENDING:
+       ```typescript
+       // D-14: Kiem tra so luong tag da duoc quet
+       const scannedCount = transfer.items.filter(item => item.scannedAt !== null).length;
+       if (scannedCount < transfer.items.length) {
+         throw new BadRequestException(
+           `Da quet ${scannedCount}/${transfer.items.length} tag. Phai quet du so luong moi duoc xac nhan.`
+         );
+       }
+       ```
 
-    4. Xoa comment hardcode type o dong 58, sua thanh:
-    ```typescript
-    // Create transfer with items - type duoc truyen tu DTO
-    const transfer = await this.prisma.transfer.create({
-      data: {
-        code,
-        type: dto.type,  // WORKSHOP_TO_WAREHOUSE hoac ADMIN_TO_WORKSHOP
-        status: TransferStatus.PENDING,
-        ...
-    ```
+    4. Sau khi kiem tra scannedCount THANH CONG, CAP NHAT TAG khi COMPLETED (D-15):
+       ```typescript
+       // D-15: Cap nhat Tag.locationRel va Tag.status khi COMPLETED
+       await this.prisma.tag.updateMany({
+         where: { id: { in: transfer.items.map(item => item.tagId) } },
+         data: {
+           locationRel: { connect: { id: transfer.destinationId } },
+           status: 'IN_STOCK',
+         },
+       });
+       ```
+       Chu y: Field tren Tag model la `locationRel` (khong phai `locationId`) - da duoc fix o Phase 1
 
-    5. Them import LocationType neu chua co (kiem tra dong 8)
+    5. Them import LocationType neu chua co
   </action>
   <verify>
-    grep -n "WORKSHOP_TO_WAREHOUSE\|WORKSHOP.*WAREHOUSE\|scannedCount" backend/src/transfers/transfers.service.ts
+    grep -n "WORKSHOP_TO_WAREHOUSE\|scannedCount\|locationRel.*destination\|IN_STOCK" backend/src/transfers/transfers.service.ts
   </verify>
   <done>
-    Service xu ly dung WORKSHOP_TO_WAREHOUSE type, xac thuc source/destination, kiem tra so luong scanned truoc COMPLETED
+    Service xu ly dung WORKSHOP_TO_WAREHOUSE type, xac thuc source/destination, kiem tra so luong scanned, cap nhat Tag.locationRel va Tag.status = IN_STOCK khi COMPLETED
   </done>
 </task>
 
@@ -182,7 +185,7 @@ Them chuc nang Transfer Workshopâ†’Warehouse. Workshop tao Transfer (PENDING) â†
 1. Chay migration: `cd backend && npx prisma migrate dev --name add_workshop_to_warehouse_type`
 2. Build: `cd backend && npm run build`
 3. Verify type in enum: `grep WORKSHOP_TO_WAREHOUSE backend/prisma/schema.prisma`
-4. Verify service logic: `grep -n "WORKSHOP.*WAREHOUSE\|scannedCount" backend/src/transfers/transfers.service.ts`
+4. Verify service logic: `grep -n "WORKSHOP.*WAREHOUSE\|scannedCount\|locationRel.*destination\|IN_STOCK" backend/src/transfers/transfers.service.ts`
 </verification>
 
 <success_criteria>
@@ -190,6 +193,7 @@ Them chuc nang Transfer Workshopâ†’Warehouse. Workshop tao Transfer (PENDING) â†
 - [x] Migration da tao
 - [x] Service validate dung type cho tung loai transfer
 - [x] Service kiem tra scanned count truoc COMPLETED (D-14)
+- [x] Service cap nhat Tag.locationRel va Tag.status = IN_STOCK khi COMPLETED (D-15)
 - [x] DTO co field type
 - [x] Build thanh cong
 </success_criteria>
