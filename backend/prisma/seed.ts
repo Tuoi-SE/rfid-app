@@ -103,6 +103,54 @@ async function main() {
         address: 'Khu công nghiệp B',
       },
     }),
+
+    // CUSTOMER - Khách Sạn Hà Nội 1 (HOTEL)
+    prisma.location.upsert({
+      where: { code: 'KS-HN-01' },
+      update: {},
+      create: {
+        code: 'KS-HN-01',
+        name: 'Khach San Ha Noi 1',
+        type: 'HOTEL',
+        address: '123 Nguyen Chi Thanh, Hanoi',
+      },
+    }),
+
+    // CUSTOMER - Resort Ha Noi 1 (RESORT)
+    prisma.location.upsert({
+      where: { code: 'RS-HN-01' },
+      update: {},
+      create: {
+        code: 'RS-HN-01',
+        name: 'Resort Ha Noi 1',
+        type: 'RESORT',
+        address: '456 West Lake, Hanoi',
+      },
+    }),
+
+    // CUSTOMER - Spa Ha Noi 1 (SPA)
+    prisma.location.upsert({
+      where: { code: 'SPA-HN-01' },
+      update: {},
+      create: {
+        code: 'SPA-HN-01',
+        name: 'Spa Ha Noi 1',
+        type: 'SPA',
+        address: '789 Truc Bach, Hanoi',
+      },
+    }),
+
+    // CUSTOMER - Khách Sạn Ho Chi Minh 1 (HOTEL)
+    prisma.location.upsert({
+      where: { code: 'KS-HCM-01' },
+      update: {},
+      create: {
+        code: 'KS-HCM-01',
+        name: 'Khach San Ho Chi Minh 1',
+        type: 'HOTEL',
+        address: '1 Dong Khoi, HCMC',
+      },
+    }),
   ]);
 
   console.log(`✅ Seeded ${locations.length} locations`);
