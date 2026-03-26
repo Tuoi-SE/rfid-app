@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-26T06:37:17.000Z"
+status: completed
+last_updated: "2026-03-26T07:25:53Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # State
@@ -17,7 +17,7 @@ progress:
 
 **Initialized:** 2026-03-26
 **Milestone:** v1.0
-**Status:** Executing Phase 02
+**Status:** Phase 03 Complete
 
 ## Key Decisions
 
@@ -30,6 +30,10 @@ progress:
 | 2026-03-26 | D-03: Location update restricted to name/address | Type is fixed after creation to avoid logic errors |
 | 2026-03-26 | D-04: Cannot delete location with tags | Soft delete blocked if location has tags to prevent orphan data |
 | 2026-03-26 | D-06: Location API with type filter | Shared Location API with type=WORKSHOP filter for workshop CRUD |
+| 2026-03-26 | D-12: Added WORKSHOP_TO_WAREHOUSE to TransferType enum | Phase 3 warehouse transfer - Workshop to Warehouse transfer type |
+| 2026-03-26 | D-13: WORKSHOP_TO_WAREHOUSE requires source.type=WORKSHOP, destination.type=WAREHOUSE | Type-specific validation in transfers.service.ts |
+| 2026-03-26 | D-14: confirm() requires all tags scanned before COMPLETED | scannedCount check prevents incomplete transfers |
+| 2026-03-26 | D-15: COMPLETED updates Tag.locationRel + status=IN_STOCK | Tags properly linked to warehouse location |
 
 ## Performance Metrics
 
@@ -38,6 +42,7 @@ progress:
 | 01 | 01 | 3 min | 3 | 2 | 2026-03-26 |
 | 02 | 02 | 4 min | 4 | 8 | 2026-03-26 |
 | 02 | 02-02 | 4 min | 3 | 6 | 2026-03-26 |
+| 03 | 03 | 7 min | 3 | 4 | 2026-03-26 |
 
 ## Notes
 

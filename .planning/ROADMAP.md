@@ -32,7 +32,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 03-PLAN.md — Them WORKSHOP_TO_WAREHOUSE type, validate source/destination, kiem tra scanned count truoc COMPLETED
+- [x] 03-PLAN.md — Them WORKSHOP_TO_WAREHOUSE type, validate source/destination, kiem tra scanned count truoc COMPLETED
 
 ## Phase 4: Customer Management
 
