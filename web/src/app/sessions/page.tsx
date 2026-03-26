@@ -17,10 +17,12 @@ interface SessionData {
 export default function SessionsPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessionData, isLoading } = useQuery({
     queryKey: ['sessions'],
     queryFn: () => api.getSessions(),
   });
+  
+  const sessions = Array.isArray(sessionData) ? sessionData : (sessionData?.data || []);
 
   const columns = useMemo<ColumnDef<SessionData>[]>(() => [
     { accessorKey: 'name', header: 'Tên Phiên', cell: (info) => <span className="font-semibold text-slate-800">{String(info.getValue())}</span> },

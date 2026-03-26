@@ -1,0 +1,229 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateSessionDto } from './dto/create-session.dto';
+import { QuerySessionsDto } from './dto/query-sessions.dto';
+import { EventsGateway } from '../events/events.gateway';
+import { TagStatus } from '@prisma/client';
+
+@Injectable()
+export class SessionsService {
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsGateway
+  ) {}
+
+  async findAll(query: QuerySessionsDto) {
+    const { page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.session.findMany({
+        orderBy: { startedAt: 'desc' },
+        skip,
+        take: limit,
+        include: { _count: { select: { scans: true } } },
+      }),
+      this.prisma.session.count(),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async create(dto: CreateSessionDto, userId?: string) {
+    const scans = dto.scans || [];
+    const uniqueEpcs = Array.from(new Set(scans.map((s) => s.epc)));
+
+    const session = await this.prisma.$transaction(async (tx) => {
+      // Find the order if orderId is provided
+      let order = null;
+      if (dto.orderId) {
+        order = await tx.order.findUnique({
+          where: { id: dto.orderId },
+          include: { items: true }
+        });
+        if (!order) throw new BadRequestException('Order not found');
+        if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
+          throw new BadRequestException(`Cannot process session for order in ${order.status} state`);
+        }
+      }
+
+      // 1. Ensure all tags exist before creating scans
+      if (uniqueEpcs.length > 0) {
+        await tx.tag.createMany({
+          data: uniqueEpcs.map(epc => ({ epc })),
+          skipDuplicates: true,
+        });
+      }
+
+      // Lấy thông tin tags sau khi create (để biết tag nào của Product nào)
+      const scannedTagsInfo = await tx.tag.findMany({
+        where: { epc: { in: uniqueEpcs } },
+        include: { product: true }
+      });
+
+      // 2. Process Order Fulfillment if orderId presents
+      let tagsToUpdateStatus: TagStatus = 'IN_STOCK';
+      
+      if (order) {
+        if (order.status === 'PENDING') {
+          await tx.order.update({ where: { id: order.id }, data: { status: 'IN_PROGRESS' } });
+          order.status = 'IN_PROGRESS';
+        }
+        
+        // Group scanned tags by productId
+        const productCounts: Record<string, number> = {};
+        for (const t of scannedTagsInfo) {
+          if (t.productId) {
+            productCounts[t.productId] = (productCounts[t.productId] || 0) + 1;
+          }
+        }
+
+        let allCompleted = true;
+
+        for (const item of order.items) {
+          const scannedCount = productCounts[item.productId] || 0;
+          if (scannedCount > 0) {
+            const newScannedQty = item.scannedQuantity + scannedCount;
+            await tx.orderItem.update({
+              where: { id: item.id },
+              data: { scannedQuantity: newScannedQty }
+            });
+            if (newScannedQty < item.quantity) allCompleted = false;
+          } else {
+            if (item.scannedQuantity < item.quantity) allCompleted = false;
+          }
+        }
+
+        if (allCompleted) {
+          await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } });
+        }
+
+        // Determine tag status destination
+        if (order.type === 'OUTBOUND') {
+          tagsToUpdateStatus = 'OUT_OF_STOCK'; // Xuất kho
+        } else if (order.type === 'INBOUND') {
+          tagsToUpdateStatus = 'IN_STOCK'; // Nhập kho
+        }
+      }
+
+      // 3. Create the Session + Scans
+      const newSession = await tx.session.create({
+        data: {
+          name: dto.name,
+          totalTags: uniqueEpcs.length,
+          endedAt: new Date(),
+          ...(dto.orderId ? { order: { connect: { id: dto.orderId } } } : {}),
+          ...(userId ? { user: { connect: { id: userId } } } : {}),
+          scans: {
+            create: scans.map((s) => ({
+              tag: { connect: { epc: s.epc } },
+              rssi: s.rssi,
+              scannedAt: new Date(s.time),
+            })),
+          },
+        },
+        include: { scans: true },
+      });
+
+      // 4. Update all scanned tags (location, lastSeenAt, new status if needed)
+      const now = new Date();
+      await tx.tag.updateMany({
+        where: { epc: { in: uniqueEpcs } },
+        data: {
+          location: dto.name,
+          lastSeenAt: now,
+          status: tagsToUpdateStatus 
+        }
+      });
+
+      // 5. Create SCANNED / ORDERED TagEvents
+      if (scannedTagsInfo.length > 0) {
+        await tx.tagEvent.createMany({
+          data: scannedTagsInfo.map(tag => ({
+            tagId: tag.id,
+            type: order ? (order.type === 'INBOUND' ? 'INBOUND' : 'OUTBOUND') : 'SCANNED',
+            location: dto.name,
+            description: order ? `Xử lý đơn hàng: ${order.code}` : `Được quét trong phiên: ${dto.name}`,
+            userId
+          }))
+        });
+      }
+
+      // 6. Detect MISSING tags (only if this is a general scan, NOT an order fulfillment)
+      if (!order) {
+        const missingTags = await tx.tag.findMany({
+          where: { 
+            location: dto.name, 
+            epc: { notIn: uniqueEpcs }, 
+            status: { not: 'MISSING' } 
+          }
+        });
+
+        if (missingTags.length > 0) {
+          const missingTagIds = missingTags.map(t => t.id);
+          await tx.tag.updateMany({
+            where: { id: { in: missingTagIds } },
+            data: { status: 'MISSING' }
+          });
+          
+          await tx.tagEvent.createMany({
+            data: missingTagIds.map(tagId => ({
+              tagId,
+              type: 'MISSING',
+              location: dto.name,
+              description: `Không tìm thấy trong đợt kiểm kê: ${dto.name}`,
+              userId
+            }))
+          });
+        }
+      }
+
+      return newSession;
+    });
+
+    // Notify clients about order update
+    if (dto.orderId) {
+       const updatedOrder = await this.prisma.order.findUnique({
+         where: { id: dto.orderId },
+         include: { items: { include: { product: true } } }
+       });
+       if (updatedOrder) {
+         this.events.server.emit('orderUpdate', updatedOrder);
+       }
+    }
+
+    return session;
+  }
+
+  async findOne(id: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id },
+      include: {
+        scans: {
+          include: {
+            tag: {
+              include: {
+                product: {
+                  select: { name: true, sku: true, category: { select: { name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!session) throw new NotFoundException(`Không tìm thấy phiên quét với ID "${id}"`);
+
+    // Merge: mỗi tag 1 dòng, lấy lần quét cuối cùng
+    const mergedScans = new Map<string, (typeof session.scans)[0]>();
+    for (const scan of session.scans) {
+      const existing = mergedScans.get(scan.tagEpc);
+      if (!existing || existing.scannedAt < scan.scannedAt) {
+        mergedScans.set(scan.tagEpc, scan);
+      }
+    }
+
+    return { ...session, scans: Array.from(mergedScans.values()) };
+  }
+}

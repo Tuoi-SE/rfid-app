@@ -22,27 +22,63 @@ export default function LiveCapturePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Connect to websocket server
+    // Connect to websocket server with auth
     const socketUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3000';
-    const socket = io(socketUrl);
+    const token = localStorage.getItem('token');
+    const socket = io(socketUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
 
-    socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
+    socket.on('connect', () => {
+      console.log('[WS] Connected to scan server');
+      setIsConnected(true);
+    });
+    socket.on('disconnect', () => {
+      console.log('[WS] Disconnected');
+      setIsConnected(false);
+    });
+    socket.on('connect_error', (err) => {
+      console.log('[WS] Connection error:', err.message);
+    });
 
     socket.on('liveScan', (incomingScans: { epc: string, rssi: number }[]) => {
+      console.log('[WS] Received liveScan:', incomingScans.length, 'tags');
       setScannedTags(prev => {
         const next = [...prev];
         let hasNew = false;
         
         incomingScans.forEach(scan => {
-          // Chỉ thêm nếu EPC chưa có trong danh sách Live Capture hiện tại
-          if (!next.find(t => t.epc === scan.epc)) {
+          const existing = next.find(t => t.epc === scan.epc);
+          if (!existing) {
             next.push({ epc: scan.epc, rssi: scan.rssi });
             hasNew = true;
+          } else {
+            // Update RSSI for existing tag
+            existing.rssi = scan.rssi;
           }
         });
 
-        return hasNew ? next : prev;
+        return hasNew ? next : [...prev]; // Force re-render on RSSI update
+      });
+    });
+
+    // Also listen for scanDetected (from WebSocket scanStream)
+    socket.on('scanDetected', (enrichedScans: any[]) => {
+      console.log('[WS] Received scanDetected:', enrichedScans.length);
+      setScannedTags(prev => {
+        const next = [...prev];
+        enrichedScans.forEach(scan => {
+          if (!next.find(t => t.epc === scan.epc)) {
+            next.push({ 
+              epc: scan.epc, 
+              rssi: scan.rssi,
+              name: scan.product?.name,
+              category: scan.product?.category?.name,
+            });
+          }
+        });
+        return next;
       });
     });
 
@@ -73,7 +109,7 @@ export default function LiveCapturePage() {
         }));
 
       if (updates.length === 0) throw new Error("Vui lòng nhập Tên cho ít nhất 1 thẻ!");
-      return api.bulkUpdateTags(updates);
+      return api.liveCaptureTags(updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });

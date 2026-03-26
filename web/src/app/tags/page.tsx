@@ -3,17 +3,34 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useReactTable, getCoreRowModel, flexRender, getPaginationRowModel, getFilteredRowModel, ColumnDef } from '@tanstack/react-table';
-import { Search, Loader2, Edit, Trash2 } from 'lucide-react';
+import { Search, Loader2, Edit, Trash2, Clock } from 'lucide-react';
 import { BulkEditModal } from '@/components/BulkEditModal';
 import { AddTagModal } from '@/components/AddTagModal';
 import { EditTagModal } from '@/components/EditTagModal';
+import TagTimelineModal from '@/components/TagTimelineModal';
 
 interface TagData {
   epc: string;
-  name: string;
-  category: string;
-  location: string;
+  name?: string;
+  category?: string;
+  status: string;
+  location?: string;
+  lastSeenAt?: string;
+  product?: {
+    name: string;
+    sku: string;
+    category?: { name: string };
+  };
 }
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'IN_STOCK': return <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">Tồn kho</span>;
+    case 'MISSING': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-semibold">Thất lạc</span>;
+    case 'SOLD': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Đã xuất</span>;
+    default: return <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold">{status || 'IN_STOCK'}</span>;
+  }
+};
 
 export default function TagsPage() {
   const queryClient = useQueryClient();
@@ -22,11 +39,14 @@ export default function TagsPage() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [isAddTagOpen, setIsAddTagOpen] = useState(false);
   const [editTagData, setEditTagData] = useState<TagData | null>(null);
+  const [timelineEpc, setTimelineEpc] = useState<string | null>(null);
 
-  const { data: tags = [], isLoading } = useQuery({
+  const { data: tagsResponse, isLoading } = useQuery({
     queryKey: ['tags'],
-    queryFn: () => api.getTags(),
+    queryFn: () => api.getTags('limit=1000'),
   });
+
+  const tags = tagsResponse?.data ?? tagsResponse ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (epc: string) => api.deleteTag(epc),
@@ -54,14 +74,24 @@ export default function TagsPage() {
       )
     },
     { accessorKey: 'epc', header: 'Loại thẻ (EPC)', cell: (info) => <span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">{String(info.getValue())}</span> },
-    { accessorKey: 'name', header: 'Tên hiển thị', cell: (info) => <span className="font-medium text-slate-800">{String(info.getValue())}</span> },
-    { accessorKey: 'category', header: 'Danh mục' },
-    { accessorKey: 'location', header: 'Vị trí', cell: (info) => String(info.getValue() || '-') },
+    { accessorKey: 'productName', header: 'Tên thẻ (SP)', cell: (info) => <span className="font-medium text-slate-800">{String(info.row.original.product?.name || info.row.original.name || 'Chưa gán')}</span> },
+    { accessorKey: 'status', header: 'Trạng thái', cell: (info) => getStatusBadge(info.row.original.status) },
+    { accessorKey: 'location', header: 'Vị trí HT', cell: (info) => String(info.getValue() || '-') },
+    { accessorKey: 'lastSeenAt', header: 'Lần quét cuối', cell: (info) => {
+        const val = info.getValue() as string;
+        return val ? <span className="text-xs text-slate-500">{new Date(val).toLocaleString('vi-VN')}</span> : '-';
+    }},
     { 
       id: 'actions', 
       header: '', 
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-1">
+          <button 
+            className="p-1.5 text-slate-400 hover:text-blue-600 rounded transition-colors" title="Lịch sử (Timeline)"
+            onClick={() => setTimelineEpc(row.original.epc)}
+          >
+            <Clock className="w-4 h-4" />
+          </button>
           <button 
             className="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition-colors" title="Sửa"
             onClick={() => setEditTagData(row.original)}
@@ -206,10 +236,17 @@ export default function TagsPage() {
       {editTagData && (
         <EditTagModal 
           epc={editTagData.epc}
-          initialName={editTagData.name}
-          initialCategory={editTagData.category}
-          initialLocation={editTagData.location}
+          initialName={editTagData.product?.name || editTagData.name || ''}
+          initialCategory={editTagData.product?.category?.name || editTagData.category || ''}
+          initialLocation={editTagData.location || ''}
           onClose={() => setEditTagData(null)}
+        />
+      )}
+
+      {timelineEpc && (
+        <TagTimelineModal
+          epc={timelineEpc}
+          onClose={() => setTimelineEpc(null)}
         />
       )}
     </div>

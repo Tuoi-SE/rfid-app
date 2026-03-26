@@ -13,7 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 import Providers from "@/providers/QueryProvider";
-import { Sidebar } from "@/components/Sidebar";
+import { AuthProvider } from "@/providers/AuthProvider";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "RFID Inventory Manager",
@@ -26,17 +27,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 ml-64 p-8">
-              {children}
-            </main>
-          </div>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </Providers>
       </body>
     </html>

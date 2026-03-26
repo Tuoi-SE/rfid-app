@@ -27,7 +27,7 @@ export default function KetNoiScreen({ navigation }: any) {
     setDangTimKiem(true);
 
     const seen = new Set<string>();
-    
+
     await BLEService.quetThietBiClassic(
       device => {
         if (!seen.has(device.id)) {
@@ -42,17 +42,15 @@ export default function KetNoiScreen({ navigation }: any) {
     );
 
     setDangTimKiem(false);
-    
+
     if (seen.size === 0) {
       Alert.alert(
         'Không tìm thấy thiết bị',
-        'Reader cần được PAIR trước:\n\n' +
-        '1. Vào Cài đặt → Bluetooth trên điện thoại\n' +
-        '2. Bật nguồn reader ST-H103\n' +
-        '3. Tìm và ghép nối (Pair) thiết bị\n' +
-        '4. Quay lại app và thử lại',
+        'Đảm bảo RFID reader đang bật và ở gần điện thoại.\n\n' +
+        '1. Bật nguồn reader\n' +
+        '2. Đợi đèn LED nhấp nháy\n' +
+        '3. Quay lại app và thử lại',
         [
-          { text: 'Mở Bluetooth Settings', onPress: () => Linking.openSettings() },
           { text: 'OK' }
         ]
       );
@@ -92,8 +90,8 @@ export default function KetNoiScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tieuDe}>🔫 Kết Nối RFID SPP (Native)</Text>
-      <Text style={styles.moTa}>Hỗ trợ quét liên tục 100+ tag/s</Text>
+      <Text style={styles.tieuDe}>Kết Nối RFID (BLE)</Text>
+      <Text style={styles.moTa}>Quét BLE để tìm RFID reader</Text>
 
       <TouchableOpacity
         style={[styles.nut, dangTimKiem && styles.nutMo]}
@@ -102,7 +100,7 @@ export default function KetNoiScreen({ navigation }: any) {
       >
         {dangTimKiem
           ? <><ActivityIndicator color="#fff" /><Text style={styles.textNut}> Đang tìm...</Text></>
-          : <Text style={styles.textNut}>📡 Tìm Thiết Bị Đã Pair</Text>
+          : <Text style={styles.textNut}>📡 Tìm Thiết Bị BLE</Text>
         }
       </TouchableOpacity>
 
@@ -115,9 +113,9 @@ export default function KetNoiScreen({ navigation }: any) {
 
       {danhSachThietBi.length === 0 && !dangTimKiem && (
         <Text style={styles.huongDan}>
-          Nhấn "Tìm Thiết Bị" để liệt kê.{'\n\n'}
-          ⚠️ Reader cần được PAIR trước trong{'\n'}
-          Settings → Bluetooth trên điện thoại.
+          Nhấn "Tìm Thiết Bị" để quét BLE.{'\n\n'}
+          ⚠️ Đảm bảo RFID reader đã bật nguồn{'\n'}
+          và ở gần điện thoại.
         </Text>
       )}
 
@@ -128,16 +126,16 @@ export default function KetNoiScreen({ navigation }: any) {
       )}
 
       <FlatList
-        data={danhSachThietBi}
-        keyExtractor={d => d.id}
+        data={danhSachThietBi.filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i)}
+        keyExtractor={(d, index) => `${d.id}_${index}`}
         renderItem={({ item }) => {
-          const isRFID = (item.name || '').toLowerCase().match(/uhf|rfid|h103|reader|hand|3/);
+          const isRFID = (item.name || '').toLowerCase().match(/uhf|rfid|h103|reader|hand|^3$/);
           return (
             <TouchableOpacity
               style={[styles.thietBiItem, isRFID && styles.thietBiRFID]}
               onPress={() => ketNoiVao(item)}
             >
-              <View style={{flex:1}}>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.tenThietBi}>
                   {isRFID ? '⭐ ' : ''}{item.name || 'Không tên'}
                 </Text>
@@ -155,27 +153,37 @@ export default function KetNoiScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#0a0a1a', padding: 16 },
-  tieuDe:       { fontSize: 22, fontWeight: 'bold', color: '#4dd0e1',
-                  marginBottom: 4, textAlign: 'center' },
-  moTa:         { color: '#888', fontSize: 12, textAlign: 'center', marginBottom: 20 },
-  nut:          { backgroundColor: '#1976D2', padding: 14, borderRadius: 10,
-                  alignItems: 'center', marginBottom: 10, flexDirection: 'row',
-                  justifyContent: 'center' },
-  nutMo:        { backgroundColor: '#555' },
-  textNut:      { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  nutSettings:  { backgroundColor: '#2a2a4e', padding: 12, borderRadius: 10,
-                  alignItems: 'center', marginBottom: 20 },
+  container: { flex: 1, backgroundColor: '#0a0a1a', padding: 16 },
+  tieuDe: {
+    fontSize: 22, fontWeight: 'bold', color: '#4dd0e1',
+    marginBottom: 4, textAlign: 'center'
+  },
+  moTa: { color: '#888', fontSize: 12, textAlign: 'center', marginBottom: 20 },
+  nut: {
+    backgroundColor: '#1976D2', padding: 14, borderRadius: 10,
+    alignItems: 'center', marginBottom: 10, flexDirection: 'row',
+    justifyContent: 'center'
+  },
+  nutMo: { backgroundColor: '#555' },
+  textNut: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  nutSettings: {
+    backgroundColor: '#2a2a4e', padding: 12, borderRadius: 10,
+    alignItems: 'center', marginBottom: 20
+  },
   textNutSettings: { color: '#aaa', fontSize: 14 },
-  huongDan:     { color: '#666', textAlign: 'center', marginTop: 40,
-                  lineHeight: 24 },
-  soThietBi:    { color: '#aaa', fontSize: 13, marginBottom: 8 },
-  thietBiItem:  { backgroundColor: '#1a1a2e', padding: 14, borderRadius: 10,
-                  marginBottom: 10, flexDirection: 'row',
-                  justifyContent: 'space-between', alignItems: 'center',
-                  borderWidth: 1, borderColor: '#2a2a4e' },
-  thietBiRFID:  { borderColor: '#4dd0e1', borderWidth: 2, backgroundColor: '#0d2137' },
-  tenThietBi:   { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  macText:      { color: '#888', fontSize: 12 },
-  nutKetNoi:    { color: '#4dd0e1', fontWeight: 'bold' },
+  huongDan: {
+    color: '#666', textAlign: 'center', marginTop: 40,
+    lineHeight: 24
+  },
+  soThietBi: { color: '#aaa', fontSize: 13, marginBottom: 8 },
+  thietBiItem: {
+    backgroundColor: '#1a1a2e', padding: 14, borderRadius: 10,
+    marginBottom: 10, flexDirection: 'row',
+    justifyContent: 'space-between', alignItems: 'center',
+    borderWidth: 1, borderColor: '#2a2a4e'
+  },
+  thietBiRFID: { borderColor: '#4dd0e1', borderWidth: 2, backgroundColor: '#0d2137' },
+  tenThietBi: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  macText: { color: '#888', fontSize: 12 },
+  nutKetNoi: { color: '#4dd0e1', fontWeight: 'bold' },
 });

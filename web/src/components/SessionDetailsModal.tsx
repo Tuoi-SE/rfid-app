@@ -55,14 +55,14 @@ export function SessionDetailsModal({ sessionId, onClose }: SessionDetailsProps)
                 <div>
                   <div className="text-xs text-slate-500 uppercase font-semibold mb-1">Tổng Thẻ</div>
                   <div className="font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded inline-flex items-center gap-1">
-                    <Tag className="w-4 h-4" /> {session.tags?.length || 0}
+                    <Tag className="w-4 h-4" /> {session.scans?.length || 0}
                   </div>
                 </div>
               </div>
 
               {/* Scanned Tags Table */}
               <div>
-                <h3 className="text-lg font-bold text-slate-800 mb-3 block">Danh sách thẻ đã quét ({session.tags?.length || 0})</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-3 block">Danh sách thẻ đã quét ({session.scans?.length || 0})</h3>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-left text-sm text-slate-600">
@@ -75,15 +75,18 @@ export function SessionDetailsModal({ sessionId, onClose }: SessionDetailsProps)
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {session.tags && session.tags.length > 0 ? (
-                          session.tags.map((scan: any, i: number) => (
+                        {session.scans && session.scans.length > 0 ? (
+                          session.scans.map((scan: any, i: number) => {
+                            const t = scan.tag || {};
+                            return (
                             <tr key={i} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-3 font-mono text-xs"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded">{scan.epc}</span></td>
-                              <td className="px-6 py-3 font-medium text-slate-800">{scan.name || '-'}</td>
-                              <td className="px-6 py-3">{scan.category || '-'}</td>
-                              <td className="px-6 py-3">{scan.location || '-'}</td>
+                              <td className="px-6 py-3 font-mono text-xs"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded">{scan.tagEpc}</span></td>
+                              <td className="px-6 py-3 font-medium text-slate-800">{t.product?.name || t.name || '-'}</td>
+                              <td className="px-6 py-3">{t.product?.category?.name || t.category || '-'}</td>
+                              <td className="px-6 py-3">{t.location || '-'}</td>
                             </tr>
-                          ))
+                            )
+                          })
                         ) : (
                           <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">Chưa quét được thẻ nào.</td></tr>
                         )}
