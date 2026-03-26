@@ -47,6 +47,11 @@ Plans:
 
 ## Phase 5: Outbound Flow
 
-**Goal:** Xuất kho → khách hàng, track đã xuất
+**Goal:** Xuất kho → khách hàng, workflow 1-step (tạo = COMPLETED ngay), không cần customer confirm
 
-**Requirement IDs:** TBD
+**Requirement IDs:** TAGS-05
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 05-PLAN.md — Sửa WAREHOUSE_TO_CUSTOMER: tạo = COMPLETED ngay (D-20), stock limit validation (D-22), tags OUT_OF_STOCK
