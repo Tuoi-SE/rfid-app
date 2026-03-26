@@ -17,6 +17,8 @@ import { InventoryModule } from './inventory/inventory.module';
 import { HealthController } from './health/health.controller';
 import { ActivityLogInterceptor } from './activity-log/activity-log.interceptor';
 import { OrdersModule } from './orders/orders.module';
+import { LocationsModule } from './locations/locations.module';
+import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { OrdersModule } from './orders/orders.module';
     DashboardModule,
     InventoryModule,
     OrdersModule,
+    LocationsModule,
+    TransfersModule,
   ],
   controllers: [HealthController],
   providers: [
