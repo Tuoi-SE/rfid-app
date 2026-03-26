@@ -4,7 +4,7 @@
 
 **Goal:** Tạo Location model — nền tảng cho mọi tracking
 
-**Requirement IDs:** WORKSHOP-01, INVENTORY-01
+**Requirement IDs:** INVENTORY-01 (Location foundation)
 
 **Plans:** 1 plan
 
@@ -15,7 +15,13 @@ Plans:
 
 **Goal:** CRUD xưởng + Transfer Admin→Workshop
 
-**Requirement IDs:** TBD
+**Requirement IDs:** WORKSHOP-01, TAGS-02
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-PLAN.md — Transfer model và API (2-step workflow: Admin tạo PENDING → Workshop confirm COMPLETED)
+- [ ] 02-02-PLAN.md — Location CRUD API với filter type=WORKSHOP (Workshop management)
 
 ## Phase 3: Warehouse Transfer
 
