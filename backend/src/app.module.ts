@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { validate } from './common/config/env.validation';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from '@tirke/node-cache-manager-ioredis';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -19,11 +22,32 @@ import { ActivityLogInterceptor } from './activity-log/activity-log.interceptor'
 import { OrdersModule } from './orders/orders.module';
 import { LocationsModule } from './locations/locations.module';
 import { TransfersModule } from './transfers/transfers.module';
+import { LoggerConfigModule } from '@common/config/logger.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ConfigModule.forRoot({ isGlobal: true, validate }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore({
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          ttl: 60 * 1000, // 60 seconds default TTL
+        }),
+      }),
+      inject: [ConfigService],
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ([
+        {
+          ttl: config.get<number>('THROTTLE_TTL', 60000),
+          limit: config.get<number>('THROTTLE_LIMIT', 100),
+        },
+      ]),
+    }),
     PrismaModule,
     CaslModule,
     ActivityLogModule,
@@ -39,6 +63,7 @@ import { TransfersModule } from './transfers/transfers.module';
     OrdersModule,
     LocationsModule,
     TransfersModule,
+    LoggerConfigModule,
   ],
   controllers: [HealthController],
   providers: [
