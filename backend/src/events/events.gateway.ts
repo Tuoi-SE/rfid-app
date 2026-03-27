@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
@@ -12,6 +13,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { BatchScanService, MAX_BUFFER_SIZE } from '../scanning/batch-scan.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TAGS_UPDATED_EVENT } from '@common/interfaces/scan.interface';
 
 interface ScanPayload {
   epc: string;
@@ -21,7 +24,7 @@ interface ScanPayload {
 @WebSocketGateway({
   cors: true, // CORS sẽ được inject động qua afterInit
 })
-export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
   server: Server;
 
@@ -30,7 +33,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private prisma: PrismaService,
     private configService: ConfigService,
     private batchScanService: BatchScanService,
+    private eventEmitter: EventEmitter2,
   ) {}
+
+  onModuleInit() {
+    // Subscribe to tags:updated event from InventoryService via EventEmitter2 (D-01, D-03)
+    this.eventEmitter.on(TAGS_UPDATED_EVENT, () => {
+      this.emitTagsUpdated();
+    });
+  }
 
   async handleConnection(client: Socket) {
     try {
