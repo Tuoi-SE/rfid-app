@@ -116,7 +116,10 @@ Plans:
 3. /health endpoint returns Redis connection status (healthy/degraded)
 4. Cache operations (get, set, del) work with ioredis store
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
 **UI hint:** yes
 
@@ -137,7 +140,10 @@ Plans:
 4. Cache key pattern `tag:epc:{epc}` is used consistently for tag lookups
 5. Repeated scans of same EPC hit cache instead of database
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
 ---
 
@@ -156,7 +162,10 @@ Plans:
 4. Dashboard loads stock summary from cache without direct DB aggregation
 5. Real-time requirement maintained: inventory updates reflect immediately after transaction commit
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
 ---
 
@@ -176,7 +185,10 @@ Plans:
 5. InventoryService.processBulkScan() handles bulk upsert efficiently
 6. Duplicate EPCs in same batch are handled idempotently (no duplicate TagEvents)
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
 ---
 
@@ -195,7 +207,10 @@ Plans:
 4. `nest deps` shows no circular dependency warnings
 5. All scanning-related logic routes through ScanningModule
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
 ---
 
