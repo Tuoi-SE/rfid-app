@@ -81,6 +81,9 @@ export class InventoryService {
     // Emit real-time update
     this.eventsGateway.emitTagsUpdated();
 
+    // Invalidate inventory summary cache after successful operation
+    await this.cacheManager.del('inventory:summary');
+
     return {
       action: dto.action,
       processed: toUpdate.length,
