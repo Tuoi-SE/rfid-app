@@ -9,7 +9,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { BatchScanService, MAX_BUFFER_SIZE } from '../scanning/batch-scan.service';
 
 interface ScanPayload {
   epc: string;
@@ -17,7 +19,7 @@ interface ScanPayload {
 }
 
 @WebSocketGateway({
-  cors: { origin: process.env.CORS_ORIGINS?.split(',') || '*' },
+  cors: true, // CORS sẽ được inject động qua afterInit
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -26,6 +28,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private configService: ConfigService,
+    private batchScanService: BatchScanService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -127,6 +131,41 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { success: true, count: enrichedScans.length };
   }
 
+  @SubscribeMessage('batchScan')
+  async handleBatchScan(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() epcs: string[],
+  ) {
+    if (!epcs?.length) {
+      return { success: false, error: 'No EPCs provided' };
+    }
+
+    // D-05: Reject batches exceeding MAX_BUFFER_SIZE
+    if (epcs.length > MAX_BUFFER_SIZE) {
+      return { success: false, error: `Batch size exceeds MAX_BUFFER_SIZE (${MAX_BUFFER_SIZE})` };
+    }
+
+    // D-02: D-04: Process each EPC through buffer
+    let processedCount = 0;
+    for (const epc of epcs) {
+      const result = await this.batchScanService.addEpc(epc);
+      if (result.flushed) {
+        processedCount += result.bufferSize;
+      }
+    }
+
+    // D-01: Flush remaining buffer and get final count
+    const flushResult = await this.batchScanService.flush();
+    processedCount += flushResult.processed;
+
+    // D-01: Return processed count (sync processing)
+    return {
+      success: true,
+      processed: processedCount,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   emitTagsUpdated() {
     this.server.emit('tagsUpdated');
   }
@@ -135,7 +174,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to('scan:live').emit('liveScan', scans);
   }
 
-  emitSessionCreated(session: any) {
+  emitSessionCreated(session: unknown) {
     this.server.emit('sessionCreated', session);
   }
 }
