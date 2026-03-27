@@ -9,8 +9,8 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Connection Pooling
 
-- [ ] **POOL-01**: PrismaService configured with tuned connection pool size (connectionLimit: 20)
-- [ ] **POOL-02**: Connection limit configurable via DATABASE_URL or environment variable
+- [x] **POOL-01**: PrismaService configured with tuned connection pool size (connectionLimit: 20)
+- [x] **POOL-02**: Connection limit configurable via DATABASE_URL or environment variable
 
 ### Redis Infrastructure
 
@@ -102,8 +102,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POOL-01 | Phase 06 | Pending |
-| POOL-02 | Phase 06 | Pending |
+| POOL-01 | Phase 06 | Complete |
+| POOL-02 | Phase 06 | Complete |
 | REDIS-01 | Phase 07 | Pending |
 | REDIS-02 | Phase 07 | Pending |
 | REDIS-03 | Phase 07 | Pending |

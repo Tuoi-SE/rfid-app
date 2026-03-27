@@ -98,7 +98,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md — Update PrismaService with pg Pool config (max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000), add parsePoolSize() helper to extract connection_limit from DATABASE_URL
+- [x] 06-01-PLAN.md — Update PrismaService with pg Pool config (max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000), add parsePoolSize() helper to extract connection_limit from DATABASE_URL
 
 ---
 
@@ -208,7 +208,7 @@ Plans:
 | 3. Warehouse Transfer | 1/1 | Done | 2026-03-26 |
 | 4. Customer Management | 1/1 | Done | 2026-03-26 |
 | 5. Outbound Flow | 1/1 | Done | 2026-03-26 |
-| 6. Connection Pooling Foundation | 0/1 | Not started | - |
+| 6. Connection Pooling Foundation | 1/1 | Complete   | 2026-03-27 |
 | 7. Redis Infrastructure | 0/1 | Not started | - |
 | 8. Cache Integration - Tags | 0/1 | Not started | - |
 | 9. Cache Integration - Inventory Summary | 0/1 | Not started | - |
