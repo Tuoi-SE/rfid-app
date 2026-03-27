@@ -36,7 +36,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     private eventEmitter: EventEmitter2,
   ) {}
 
-  onModuleInit() {
+  afterInit() {
     // Subscribe to tags:updated event from InventoryService via EventEmitter2 (D-01, D-03)
     this.eventEmitter.on(TAGS_UPDATED_EVENT, () => {
       this.emitTagsUpdated();

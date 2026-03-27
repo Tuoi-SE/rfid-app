@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { validate } from './common/config/env.validation';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from '@tirke/node-cache-manager-ioredis';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,6 +27,7 @@ import { LoggerConfigModule } from '@common/config/logger.config';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, validate }),
     CacheModule.registerAsync({
       isGlobal: true,
