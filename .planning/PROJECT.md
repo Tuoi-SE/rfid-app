@@ -32,10 +32,11 @@ Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi 
 - ✓ **CACHE-01, CACHE-02, CACHE-03**: Cache integration for Tags (cache-aside, 5-min TTL) — Phase 08
 - ✓ **CACHE-04, CACHE-05, CACHE-06**: Cache integration for Inventory Summary (30-sec TTL + jitter) — Phase 09
 - ✓ **BATCH-01, BATCH-02, BATCH-03, BATCH-04, BATCH-05, BATCH-06**: Batch scan buffer (in-memory, 500 threshold, 5-sec flush, upsert) — Phase 10
+- ✓ **BOUND-01, BOUND-02, BOUND-03**: Service boundaries (ScanningModule, EventEmitter2, @app/common) — Phase 11
 
 ### Active
 
-- [ ] **SCALE-04**: Service boundaries — tách logic modules rõ ràng
+None — v1.1 milestone complete!
 
 ### Out of Scope
 
