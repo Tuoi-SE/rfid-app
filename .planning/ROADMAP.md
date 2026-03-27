@@ -95,7 +95,10 @@ Plans:
 3. Application starts and maintains database connections under concurrent scan load
 4. Connection pool does not exhaust under 20+ simultaneous operations
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Update PrismaService with pg Pool config (max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000), add parsePoolSize() helper to extract connection_limit from DATABASE_URL
 
 ---
 
