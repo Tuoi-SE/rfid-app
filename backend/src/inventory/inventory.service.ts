@@ -1,4 +1,5 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
+import { CacheService } from '@nestjs/cache-manager';
 import { PrismaService } from '@prisma/prisma.service';
 import { InventoryAction, InventoryOperationDto } from './dto/inventory-operation.dto';
 import { EventsGateway } from '../events/events.gateway';
@@ -13,6 +14,7 @@ export class InventoryService {
   constructor(
     private prisma: PrismaService,
     private eventsGateway: EventsGateway,
+    private cacheManager: CacheService,
   ) {}
 
   async processOperation(dto: InventoryOperationDto, userId: string) {
