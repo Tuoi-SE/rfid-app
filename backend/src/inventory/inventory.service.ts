@@ -209,4 +209,68 @@ export class InventoryService {
     const formattedData = data.map((i) => plainToInstance(ActivityLogEntity, i));
     return paginate(formattedData, total, page, limit);
   }
+
+  /**
+   * BATCH-05: Bulk upsert for batch scan operations
+   * BATCH-06: Idempotency via Prisma upsert - duplicates handled gracefully
+   */
+  async processBulkScan(epcs: string[]): Promise<{ created: number; updated: number }> {
+    if (!epcs?.length) {
+      return { created: 0, updated: 0 };
+    }
+
+    // Deduplicate EPCs (BATCH-06: idempotency)
+    const uniqueEpcs = [...new Set(epcs)];
+
+    // Fetch existing tags
+    const existingTags = await this.prisma.tag.findMany({
+      where: { epc: { in: uniqueEpcs } },
+      select: { epc: true },
+    });
+    const existingEpcs = new Set(existingTags.map((t) => t.epc));
+
+    // Separate into to-create and to-update
+    const toCreate = uniqueEpcs.filter((epc) => !existingEpcs.has(epc));
+    const toUpdate = uniqueEpcs.filter((epc) => existingEpcs.has(epc));
+
+    let created = 0;
+    let updated = 0;
+
+    // D-08: Upsert handles duplicates gracefully (BATCH-06 idempotency)
+    // Process in chunks to avoid overwhelming the DB
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < toCreate.length; i += CHUNK_SIZE) {
+      const chunk = toCreate.slice(i, i + CHUNK_SIZE);
+      await this.prisma.tag.createMany({
+        data: chunk.map((epc) => ({ epc, status: 'IN_STOCK' })),
+        skipDuplicates: true,
+      });
+      created += chunk.length;
+    }
+
+    // Tags found in buffer but not in DB are considered IN_STOCK (auto-created above)
+    // No status update needed for existing tags during batch scan (BATCH-06: scan = visibility, not status change)
+
+    // BATCH-06: Activity logging for bulk scan operation
+    if (uniqueEpcs.length > 0) {
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'BATCH_SCAN',
+          entity: 'Tag',
+          entityId: uniqueEpcs.slice(0, 10).join(',') + (uniqueEpcs.length > 10 ? '...' : ''),
+          details: {
+            action: 'BATCH_SCAN',
+            tagCount: uniqueEpcs.length,
+            note: `Batch scan processed ${uniqueEpcs.length} tags`,
+            tags: uniqueEpcs.slice(0, 5).map((epc) => ({ epc })), // First 5 for logging
+          },
+        },
+      });
+    }
+
+    // Invalidate inventory summary cache (CACHE-05 pattern)
+    await this.cacheManager.del('inventory:summary');
+
+    return { created, updated };
+  }
 }
