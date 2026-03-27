@@ -160,10 +160,10 @@ Plans:
 4. Dashboard loads stock summary from cache without direct DB aggregation
 5. Real-time requirement maintained: inventory updates reflect immediately after transaction commit
 
-**Plans:** 0/1 plans (pending Phase 08)
+**Plans:** 1/1 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — TBD (depends on Phase 08)
+- [x] 09-01-PLAN.md — Add cache-aside pattern to InventoryService: getStockSummary() cached with 30-sec TTL + jitter, processOperation() invalidates cache
 
 ---
 
@@ -224,6 +224,6 @@ Plans:
 | 6. Connection Pooling Foundation | 1/1 | Done | 2026-03-27 |
 | 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
 | 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
-| 9. Cache Integration - Inventory Summary | 0/1 | Pending | - |
+| 9. Cache Integration - Inventory Summary | 1/1 | Pending | - |
 | 10. Batch Scan Buffer | 0/1 | Pending | - |
 | 11. Service Boundary Cleanup | 0/1 | Pending | - |
