@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
-import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [EventsModule],
+  imports: [],  // REMOVED: EventsModule - no longer needed (D-10)
   providers: [InventoryService],
   controllers: [InventoryController],
 })
