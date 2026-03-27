@@ -1,19 +1,20 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { CacheService } from '@nestjs/cache-manager';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@prisma/prisma.service';
 import { InventoryAction, InventoryOperationDto } from './dto/inventory-operation.dto';
-import { EventsGateway } from '../events/events.gateway';
 import { TagStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { paginate } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { ActivityLogEntity } from '../activity-log/entities/activity-log.entity';
+import { TAGS_UPDATED_EVENT } from '@common/interfaces/scan.interface';
 
 @Injectable()
 export class InventoryService {
   constructor(
     private prisma: PrismaService,
-    private eventsGateway: EventsGateway,
+    private eventEmitter: EventEmitter2,
     private cacheManager: CacheService,
   ) {}
 
@@ -78,8 +79,8 @@ export class InventoryService {
       },
     });
 
-    // Emit real-time update
-    this.eventsGateway.emitTagsUpdated();
+    // Emit real-time update via EventEmitter2 (D-01, D-03)
+    this.eventEmitter.emit(TAGS_UPDATED_EVENT);
 
     // Invalidate inventory summary cache after successful operation
     await this.cacheManager.del('inventory:summary');
