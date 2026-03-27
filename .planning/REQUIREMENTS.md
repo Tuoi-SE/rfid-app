@@ -41,9 +41,9 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Service Boundaries
 
-- [ ] **BOUND-01**: ScanningService extracted from InventoryService/EventsGateway
-- [ ] **BOUND-02**: @app/common module for shared DTOs and interfaces
-- [ ] **BOUND-03**: ScanningModule with clean dependency injection boundaries
+- [x] **BOUND-01**: ScanningService extracted from InventoryService/EventsGateway
+- [x] **BOUND-02**: @app/common module for shared DTOs and interfaces
+- [x] **BOUND-03**: ScanningModule with clean dependency injection boundaries
 
 ## v1.0 Validated Requirements
 
@@ -119,9 +119,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BATCH-04 | Phase 10 | Complete |
 | BATCH-05 | Phase 10 | Complete |
 | BATCH-06 | Phase 10 | Complete |
-| BOUND-01 | Phase 11 | Pending |
-| BOUND-02 | Phase 11 | Pending |
-| BOUND-03 | Phase 11 | Pending |
+| BOUND-01 | Phase 11 | Complete |
+| BOUND-02 | Phase 11 | Complete |
+| BOUND-03 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 19 total

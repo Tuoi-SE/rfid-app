@@ -75,7 +75,7 @@ Plans:
 - [x] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL (completed 2026-03-27)
 - [x] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL (completed 2026-03-27)
 - [x] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold (completed 2026-03-27)
-- [ ] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries
+- [x] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries (completed 2026-03-27)
 
 ---
 
@@ -205,7 +205,7 @@ Plans:
 4. `nest deps` shows no circular dependency warnings
 5. All scanning-related logic routes through ScanningModule
 
-**Plans:** 1/1 plans
+**Plans:** 1/1 plans complete
 
 Plans:
 - [x] 11-01-PLAN.md — Extract ScanningModule, create @app/common/interfaces/scan.interface.ts, refactor InventoryService to use EventEmitter2, break circular dependency
@@ -226,4 +226,4 @@ Plans:
 | 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
 | 9. Cache Integration - Inventory Summary | 1/1 | Complete    | 2026-03-27 |
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
-| 11. Service Boundary Cleanup | 1/1 | Pending | - |
+| 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
