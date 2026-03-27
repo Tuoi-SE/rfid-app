@@ -1,4 +1,5 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
+import { CacheService } from '@nestjs/cache-manager';
 import { PrismaService } from '@prisma/prisma.service';
 import { CreateTagDto } from '@tags/dto/create-tag.dto';
 import { UpdateTagDto } from '@tags/dto/update-tag.dto';
@@ -12,7 +13,10 @@ import { TagEntity } from './entities/tag.entity';
 
 @Injectable()
 export class TagsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheManager: CacheService,
+  ) {}
 
   /**
    * Lấy danh sách tag (phân trang + lọc theo epc, product, status, unassigned)
@@ -61,6 +65,15 @@ export class TagsService {
    * @throws TAG_NOT_FOUND
    */
   async findByEpc(epc: string) {
+    const cacheKey = `tag:epc:${epc}`;
+
+    // Try cache first (cache-aside pattern)
+    const cached = await this.cacheManager.get<TagEntity>(cacheKey);
+    if (cached) {
+      return plainToInstance(TagEntity, cached);
+    }
+
+    // Cache miss - query database
     const tag = await this.prisma.tag.findFirst({
       where: { epc, deletedAt: null },
       include: {
@@ -71,10 +84,17 @@ export class TagsService {
         updatedBy: { select: { id: true, username: true } },
       },
     });
+
     if (!tag) {
       throw new BusinessException(`Không tìm thấy tag với EPC "${epc}"`, 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
     }
-    return plainToInstance(TagEntity, tag);
+
+    const result = plainToInstance(TagEntity, tag);
+
+    // Populate cache with 5-minute TTL
+    await this.cacheManager.set(cacheKey, result, 300000); // 5 minutes in ms
+
+    return result;
   }
 
   /**
@@ -173,6 +193,9 @@ export class TagsService {
           },
         });
       }
+
+      // Invalidate cache after successful update
+      await this.cacheManager.del(`tag:epc:${epc}`);
 
       return plainToInstance(TagEntity, updatedTag);
     });
