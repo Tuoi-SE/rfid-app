@@ -1,33 +1,133 @@
-# Requirements
+# Requirements: RFID Inventory System
 
-## TAGS-01: Admin quét tag hàng loạt và gán sản phẩm
-- Admin có thể quét nhiều tag cùng lúc
-- Gán sản phẩm cho các tag đã quét
+**Defined:** 2026-03-27
+**Core Value:** Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi cung ứng — từ xưởng may đến tay khách hàng.
 
-## TAGS-02: Track số lượng tag theo từng xưởng may
-- Quản lý nhiều xưởng khác nhau
-- Biết xưởng nào đang giữ bao nhiêu tag
+## v1.1 Requirements (Performance & Scale Preparation)
 
-## TAGS-03: Track số lượng tag theo kho tổng
-- 2 kho tổng
-- Admin/Manager quyết định lưu trữ ở kho nào
+Requirements for v1.1 milestone. Each maps to roadmap phases.
 
-## TAGS-04: Manager quét verify khi nhập kho
-- Số quét được = số nhập kho
-- Verify bằng máy quét RFID
+### Connection Pooling
 
-## TAGS-05: Xuất tag cho khách hàng
-- Track đã xuất bao nhiêu cho khách sạn/resort
-- Không cần delivery confirmation (mở rộng sau)
+- [ ] **POOL-01**: PrismaService configured with tuned connection pool size (connectionLimit: 20)
+- [ ] **POOL-02**: Connection limit configurable via DATABASE_URL or environment variable
 
-## WORKSHOP-01: Quản lý danh sách xưởng may
-- CRUD xưởng may
-- Theo dõi tồn kho theo xưởng
+### Redis Infrastructure
 
-## CUSTOMER-01: Quản lý danh sách khách hàng
-- CRUD khách hàng (type: khách sạn/resort)
-- Track tồn kho tại khách hàng (chỉ cần xuất đi bao nhiêu)
+- [ ] **REDIS-01**: CacheModule created with @nestjs/cache-manager + ioredis store
+- [ ] **REDIS-02**: REDIS_HOST and REDIS_PORT environment variables configured
+- [ ] **REDIS-03**: Redis health check endpoint added
 
-## INVENTORY-01: Tổng hợp tồn kho theo location
-- Theo dõi xưởng nào giữ bao nhiêu
-- Theo dõi kho nào giữ bao nhiêu
+### Cache Integration - Tags
+
+- [ ] **CACHE-01**: TagsService.findByEpc() uses cache-aside pattern with 5-min TTL
+- [ ] **CACHE-02**: TagsService.update() invalidates cache immediately on write
+- [ ] **CACHE-03**: Cache key pattern `tag:epc:{epc}` for tag lookups
+
+### Cache Integration - Inventory Summary
+
+- [ ] **CACHE-04**: InventoryService.getStockSummary() cached with 30-sec TTL
+- [ ] **CACHE-05**: Cache invalidation on processOperation() inside DB transaction
+- [ ] **CACHE-06**: Stampede prevention with jitter on TTL
+
+### Batch Scan Buffer
+
+- [ ] **BATCH-01**: BatchScanService with in-memory Map buffer
+- [ ] **BATCH-02**: Buffer flush at 500 EPC threshold OR 5-second interval
+- [ ] **BATCH-03**: Memory limit enforcement (MAX_BUFFER_SIZE=500, MAX_BUFFER_AGE=5000ms)
+- [ ] **BATCH-04**: /scan/batch endpoint accepting array of EPCs
+- [ ] **BATCH-05**: InventoryService.processBulkScan() for bulk DB operations
+- [ ] **BATCH-06**: Idempotency guard for batch operations (upsert with idempotency key)
+
+### Service Boundaries
+
+- [ ] **BOUND-01**: ScanningService extracted from InventoryService/EventsGateway
+- [ ] **BOUND-02**: @app/common module for shared DTOs and interfaces
+- [ ] **BOUND-03**: ScanningModule with clean dependency injection boundaries
+
+## v1.0 Validated Requirements
+
+These requirements shipped in v1.0 and are complete.
+
+### Infrastructure
+
+- ✓ Location infrastructure (ADMIN, WAREHOUSE, WORKSHOP, HOTEL/RESORT/SPA)
+
+### Authentication
+
+- ✓ JWT authentication for Admin and Warehouse Manager
+
+### Transfer Workflow
+
+- ✓ Transfer Admin→Workshop (2-step: PENDING → COMPLETED)
+- ✓ Transfer Workshop→Warehouse (WORKSHOP_TO_WAREHOUSE)
+- ✓ Transfer Warehouse→Customer (WAREHOUSE_TO_CUSTOMER, 1-step)
+
+### Workshop Management
+
+- ✓ Location CRUD API with type filter
+- ✓ Soft delete with tag check
+
+### Customer Management
+
+- ✓ HOTEL, RESORT, SPA location types
+- ✓ Customer location seeding
+
+## v2 Requirements (Future)
+
+### Performance
+
+- **DIST-01**: Distributed rate limiting via Redis (when multi-instance)
+- **DIST-02**: Redis pub/sub for EventsGateway scaling
+- **PG-01**: PgBouncer integration for multi-instance deployments
+
+### Monitoring
+
+- **MON-01**: Cache hit/miss metrics
+- **MON-02**: Buffer memory pressure monitoring
+- **MON-03**: Connection pool utilization dashboard
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Database-per-service | Real-time requirement demands shared DB; defer to >1000 users |
+| Eventual consistency | Inventory must be accurate immediately |
+| Message queue (BullMQ) | In-memory buffer sufficient for <100 users |
+| Read replicas | Single instance sufficient for current scale |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| POOL-01 | Phase 1 | Pending |
+| POOL-02 | Phase 1 | Pending |
+| REDIS-01 | Phase 2 | Pending |
+| REDIS-02 | Phase 2 | Pending |
+| REDIS-03 | Phase 2 | Pending |
+| CACHE-01 | Phase 3 | Pending |
+| CACHE-02 | Phase 3 | Pending |
+| CACHE-03 | Phase 3 | Pending |
+| CACHE-04 | Phase 4 | Pending |
+| CACHE-05 | Phase 4 | Pending |
+| CACHE-06 | Phase 4 | Pending |
+| BATCH-01 | Phase 5 | Pending |
+| BATCH-02 | Phase 5 | Pending |
+| BATCH-03 | Phase 5 | Pending |
+| BATCH-04 | Phase 5 | Pending |
+| BATCH-05 | Phase 5 | Pending |
+| BATCH-06 | Phase 5 | Pending |
+| BOUND-01 | Phase 6 | Pending |
+| BOUND-02 | Phase 6 | Pending |
+| BOUND-03 | Phase 6 | Pending |
+
+**Coverage:**
+- v1.1 requirements: 19 total
+- Mapped to phases: 19
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-03-27*
+*Last updated: 2026-03-27 after milestone v1.1 requirements definition*
