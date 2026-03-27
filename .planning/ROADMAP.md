@@ -74,7 +74,7 @@ Plans:
 - [x] **Phase 07: Redis Infrastructure** - Redis cache layer setup with @nestjs/cache-manager (completed 2026-03-27)
 - [x] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL (completed 2026-03-27)
 - [x] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL (completed 2026-03-27)
-- [ ] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold
+- [x] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold (completed 2026-03-27)
 - [ ] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries
 
 ---
@@ -183,10 +183,10 @@ Plans:
 5. InventoryService.processBulkScan() handles bulk upsert efficiently
 6. Duplicate EPCs in same batch are handled idempotently (no duplicate TagEvents)
 
-**Plans:** 1/1 plans
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 10-01-PLAN.md — BatchScanService with Map buffer (500 threshold, 5-sec flush), /scan/batch endpoint, processBulkScan() for bulk upsert
+- [x] 10-01-PLAN.md — BatchScanService with Map buffer (500 threshold, 5-sec flush), /scan/batch endpoint, processBulkScan() for bulk upsert
 
 ---
 
@@ -225,5 +225,5 @@ Plans:
 | 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
 | 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
 | 9. Cache Integration - Inventory Summary | 1/1 | Pending | - |
-| 10. Batch Scan Buffer | 1/1 | Pending | - |
+| 10. Batch Scan Buffer | 1/1 | Complete   | 2026-03-27 |
 | 11. Service Boundary Cleanup | 0/1 | Pending | - |

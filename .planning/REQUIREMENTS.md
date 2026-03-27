@@ -32,12 +32,12 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Batch Scan Buffer
 
-- [ ] **BATCH-01**: BatchScanService with in-memory Map buffer
-- [ ] **BATCH-02**: Buffer flush at 500 EPC threshold OR 5-second interval
-- [ ] **BATCH-03**: Memory limit enforcement (MAX_BUFFER_SIZE=500, MAX_BUFFER_AGE=5000ms)
-- [ ] **BATCH-04**: /scan/batch endpoint accepting array of EPCs
-- [ ] **BATCH-05**: InventoryService.processBulkScan() for bulk DB operations
-- [ ] **BATCH-06**: Idempotency guard for batch operations (upsert with idempotency key)
+- [x] **BATCH-01**: BatchScanService with in-memory Map buffer
+- [x] **BATCH-02**: Buffer flush at 500 EPC threshold OR 5-second interval
+- [x] **BATCH-03**: Memory limit enforcement (MAX_BUFFER_SIZE=500, MAX_BUFFER_AGE=5000ms)
+- [x] **BATCH-04**: /scan/batch endpoint accepting array of EPCs
+- [x] **BATCH-05**: InventoryService.processBulkScan() for bulk DB operations
+- [x] **BATCH-06**: Idempotency guard for batch operations (upsert with idempotency key)
 
 ### Service Boundaries
 
@@ -113,12 +113,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CACHE-04 | Phase 09 | Complete |
 | CACHE-05 | Phase 09 | Complete |
 | CACHE-06 | Phase 09 | Complete |
-| BATCH-01 | Phase 10 | Pending |
-| BATCH-02 | Phase 10 | Pending |
-| BATCH-03 | Phase 10 | Pending |
-| BATCH-04 | Phase 10 | Pending |
-| BATCH-05 | Phase 10 | Pending |
-| BATCH-06 | Phase 10 | Pending |
+| BATCH-01 | Phase 10 | Complete |
+| BATCH-02 | Phase 10 | Complete |
+| BATCH-03 | Phase 10 | Complete |
+| BATCH-04 | Phase 10 | Complete |
+| BATCH-05 | Phase 10 | Complete |
+| BATCH-06 | Phase 10 | Complete |
 | BOUND-01 | Phase 11 | Pending |
 | BOUND-02 | Phase 11 | Pending |
 | BOUND-03 | Phase 11 | Pending |
