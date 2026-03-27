@@ -96,6 +96,25 @@ export class InventoryService {
   }
 
   async getStockSummary() {
+    const cacheKey = 'inventory:summary';
+
+    // Try cache first (cache-aside pattern)
+    const cached = await this.cacheManager.get(cacheKey);
+    if (cached) {
+      return cached as ReturnType<typeof this.buildStockSummary>;
+    }
+
+    // Cache miss - build summary from database
+    const result = await this.buildStockSummary();
+
+    // Populate cache with 30-sec TTL + jitter (5-10% to prevent stampede)
+    const jitter = Math.floor(30000 * (Math.random() * 0.1)); // 0-10% of 30sec
+    await this.cacheManager.set(cacheKey, result, 30000 + jitter);
+
+    return result;
+  }
+
+  private async buildStockSummary() {
     // 1. Overall status counts
     const statusCounts = await this.prisma.tag.groupBy({
       by: ['status'],
