@@ -26,9 +26,9 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Cache Integration - Inventory Summary
 
-- [ ] **CACHE-04**: InventoryService.getStockSummary() cached with 30-sec TTL
-- [ ] **CACHE-05**: Cache invalidation on processOperation() inside DB transaction
-- [ ] **CACHE-06**: Stampede prevention with jitter on TTL
+- [x] **CACHE-04**: InventoryService.getStockSummary() cached with 30-sec TTL
+- [x] **CACHE-05**: Cache invalidation on processOperation() inside DB transaction
+- [x] **CACHE-06**: Stampede prevention with jitter on TTL
 
 ### Batch Scan Buffer
 
@@ -110,9 +110,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CACHE-01 | Phase 08 | Complete |
 | CACHE-02 | Phase 08 | Complete |
 | CACHE-03 | Phase 08 | Complete |
-| CACHE-04 | Phase 09 | Pending |
-| CACHE-05 | Phase 09 | Pending |
-| CACHE-06 | Phase 09 | Pending |
+| CACHE-04 | Phase 09 | Complete |
+| CACHE-05 | Phase 09 | Complete |
+| CACHE-06 | Phase 09 | Complete |
 | BATCH-01 | Phase 10 | Pending |
 | BATCH-02 | Phase 10 | Pending |
 | BATCH-03 | Phase 10 | Pending |

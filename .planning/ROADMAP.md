@@ -73,7 +73,7 @@ Plans:
 - [x] **Phase 06: Connection Pooling Foundation** - Tune Prisma connection pool for concurrent workloads (completed 2026-03-27)
 - [x] **Phase 07: Redis Infrastructure** - Redis cache layer setup with @nestjs/cache-manager (completed 2026-03-27)
 - [x] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL (completed 2026-03-27)
-- [ ] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL
+- [x] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL (completed 2026-03-27)
 - [ ] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold
 - [ ] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries
 
@@ -160,7 +160,7 @@ Plans:
 4. Dashboard loads stock summary from cache without direct DB aggregation
 5. Real-time requirement maintained: inventory updates reflect immediately after transaction commit
 
-**Plans:** 1/1 plans
+**Plans:** 1/1 plans complete
 
 Plans:
 - [x] 09-01-PLAN.md — Add cache-aside pattern to InventoryService: getStockSummary() cached with 30-sec TTL + jitter, processOperation() invalidates cache
