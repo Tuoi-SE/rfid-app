@@ -183,10 +183,10 @@ Plans:
 5. InventoryService.processBulkScan() handles bulk upsert efficiently
 6. Duplicate EPCs in same batch are handled idempotently (no duplicate TagEvents)
 
-**Plans:** 0/1 plans (pending Phase 09)
+**Plans:** 1/1 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — TBD (depends on Phase 09)
+- [ ] 10-01-PLAN.md — BatchScanService with Map buffer (500 threshold, 5-sec flush), /scan/batch endpoint, processBulkScan() for bulk upsert
 
 ---
 
@@ -225,5 +225,5 @@ Plans:
 | 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
 | 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
 | 9. Cache Integration - Inventory Summary | 1/1 | Pending | - |
-| 10. Batch Scan Buffer | 0/1 | Pending | - |
+| 10. Batch Scan Buffer | 1/1 | Pending | - |
 | 11. Service Boundary Cleanup | 0/1 | Pending | - |
