@@ -7,7 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(config: ConfigService) {
     const databaseUrl = config.get('DATABASE_URL');
-    const poolSize = this.parsePoolSize(databaseUrl);
+    const poolSize = PrismaService.parsePoolSize(databaseUrl);
 
     const adapter = new PrismaPg({
       connectionString: databaseUrl,
@@ -18,7 +18,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     super({ adapter });
   }
 
-  private parsePoolSize(databaseUrl: string): number {
+  private static parsePoolSize(databaseUrl: string): number {
     try {
       const url = new URL(databaseUrl);
       const connectionLimit = url.searchParams.get('connection_limit');
