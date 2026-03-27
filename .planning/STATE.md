@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-last_updated: "2026-03-26T09:06:37.162Z"
+milestone: v1.1
+milestone_name: Performance & Scale Preparation
+status: in_progress
+last_updated: "2026-03-27T00:00:00.000Z"
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # State
@@ -16,40 +16,28 @@ progress:
 ## Project: RFID Inventory System
 
 **Initialized:** 2026-03-26
-**Milestone:** v1.0
-**Status:** Milestone complete
+**Milestone:** v1.1 Performance & Scale Preparation
+**Status:** Defining requirements
 
-## Key Decisions
+## Current Position
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-03-26 | Fine granularity phases | Per-feature approval required |
-| 2026-03-26 | Interactive mode | User approves each phase |
-| 2026-03-26 | Renamed Tag relation field to `locationRel` | Avoid Prisma conflict with existing `location String?` field |
-| 2026-03-26 | Removed `@@index([location])` | Prisma only allows indexes on scalar fields, not relations |
-| 2026-03-26 | D-03: Location update restricted to name/address | Type is fixed after creation to avoid logic errors |
-| 2026-03-26 | D-04: Cannot delete location with tags | Soft delete blocked if location has tags to prevent orphan data |
-| 2026-03-26 | D-06: Location API with type filter | Shared Location API with type=WORKSHOP filter for workshop CRUD |
-| 2026-03-26 | D-12: Added WORKSHOP_TO_WAREHOUSE to TransferType enum | Phase 3 warehouse transfer - Workshop to Warehouse transfer type |
-| 2026-03-26 | D-13: WORKSHOP_TO_WAREHOUSE requires source.type=WORKSHOP, destination.type=WAREHOUSE | Type-specific validation in transfers.service.ts |
-| 2026-03-26 | D-14: confirm() requires all tags scanned before COMPLETED | scannedCount check prevents incomplete transfers |
-| 2026-03-26 | D-15: COMPLETED updates Tag.locationRel + status=IN_STOCK | Tags properly linked to warehouse location |
-| 2026-03-26 | D-17: Added HOTEL, RESORT, SPA to LocationType enum | Customer locations (khach san/resort/spa) |
-| 2026-03-26 | D-18: Added WAREHOUSE_TO_CUSTOMER to TransferType enum | Phase 5 outbound flow preparation |
-| 2026-03-26 | D-19: Tags transferred to customer get status=OUT_OF_STOCK | Tags at customer marked as "da xuat" |
-| 2026-03-26 | D-20: WAREHOUSE_TO_CUSTOMER 1-step workflow | Transfer created as COMPLETED immediately, no confirm() needed |
-| 2026-03-26 | D-22: Stock limit validation for WAREHOUSE_TO_CUSTOMER | Tags must be at source warehouse before export |
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-27 — Milestone v1.1 started
 
-## Performance Metrics
+## Accumulated Context
 
-| Phase | Plan | Duration | Tasks | Files | Completed |
-|-------|------|----------|-------|-------|-----------|
-| 01 | 01 | 3 min | 3 | 2 | 2026-03-26 |
-| 02 | 02 | 4 min | 4 | 8 | 2026-03-26 |
-| 02 | 02-02 | 4 min | 3 | 6 | 2026-03-26 |
-| 03 | 03 | 7 min | 3 | 4 | 2026-03-26 |
-| 04 | 04 | 3 min | 3 | 3 | 2026-03-26 |
-| 05 | 05 | 2 min | 1 | 1 | 2026-03-26 |
+### v1.0 Completed Features
+- Location model (ADMIN, WAREHOUSE, WORKSHOP, HOTEL/RESORT/SPA)
+- Transfer workflow: Admin→Workshop→Warehouse→Customer
+- JWT authentication with role-based access
+- Workshop CRUD and warehouse transfer with scan verification
+
+### v1.1 Focus
+- Scale preparation: Redis cache, connection pooling, batch scan
+- Real-time requirement maintained
+- Microservice decision deferred until >1000 users
 
 ## Notes
 
@@ -57,8 +45,5 @@ progress:
 |------|----------|-----------|
 | 2026-03-26 | Fine granularity phases | Per-feature approval required |
 | 2026-03-26 | Interactive mode | User approves each phase |
-
-## Notes
-
-- Research completed: Workshop, Customer, Inventory tracking
-- User wants plan in Vietnamese
+| 2026-03-27 | Redis cache before microservice | Real-time requirement demands shared DB first |
+| 2026-03-27 | Microservice only when >1000 users | Avoid over-engineering |

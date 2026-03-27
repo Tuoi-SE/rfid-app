@@ -8,6 +8,16 @@ Hệ thống quản lý tồn kho RFID tag cho chuỗi cung ứng sản phẩm m
 
 Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi cung ứng — từ xưởng may đến tay khách hàng.
 
+## Current Milestone: v1.1 Performance & Scale Preparation
+
+**Goal:** Chuẩn bị kiến trúc để scale — Redis cache, connection pooling, batch scan, service boundaries
+
+**Target features:**
+- Redis cache layer cho inventory queries
+- Connection pooling tối ưu cho concurrent scans
+- Batch scan buffer — gửi nhiều tag cùng lúc
+- Service boundaries — tách logic thành modules rõ ràng
+
 ## Requirements
 
 ### Validated
@@ -15,45 +25,64 @@ Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi 
 - ✓ Tags có thể gán sản phẩm (đã có dữ liệu sản phẩm)
 - ✓ Admin/Manager có thể quản lý tag qua mobile app
 - ✓ JWT authentication cho Admin và Warehouse Manager
+- ✓ Location infrastructure (ADMIN, WAREHOUSE, WORKSHOP, HOTEL/RESORT/SPA)
+- ✓ Transfer workflow (Admin→Workshop→Warehouse→Customer)
 
 ### Active
 
-- [ ] **TAGS-01**: Admin quét tag hàng loạt và gán sản phẩm
-- [ ] **TAGS-02**: Track số lượng tag theo từng xưởng may
-- [ ] **TAGS-03**: Track số lượng tag theo kho tổng (2 kho)
-- [ ] **TAGS-04**: Manager quét verify khi nhập kho — số quét được = số nhập
-- [ ] **TAGS-05**: Xuất tag cho khách hàng (khách sạn, resort) — chỉ cần track đã xuất
-- [ ] **WORKSHOP-01**: Tạo/quản lý danh sách xưởng may
-- [ ] **CUSTOMER-01**: Tạo/quản lý danh sách khách hàng (type: khách sạn/resort)
-- [ ] **INVENTORY-01**: Tổng hợp tồn kho theo location (xưởng, kho, khách hàng)
+- [ ] **SCALE-01**: Redis cache layer cho inventory queries (giảm query nặng)
+- [ ] **SCALE-02**: Connection pooling tối ưu cho concurrent scans
+- [ ] **SCALE-03**: Batch scan buffer — gửi nhiều tag cùng lúc
+- [ ] **SCALE-04**: Service boundaries — tách logic modules rõ ràng
 
 ### Out of Scope
 
-- Xác nhận giao hàng từ khách (mở rộng sau) — chỉ track "đã xuất"
+- Database-per-service (giai đoạn 3 — khi scale >1000 users)
+- Eventual consistency model
+- Message queue cho cross-service sync
+- Xác nhận giao hàng từ khách (mở rộng sau)
 - Báo cáo doanh thu, chi phí
-- Quản lý nhân viên xưởng (chỉ track số lượng tag)
+- Quản lý nhân viên xưởng
 
 ## Context
 
 - **Tech stack:** NestJS backend (Prisma + PostgreSQL), Next.js web, React Native mobile
 - **Trạng thái:** Development — đã có database với dữ liệu mẫu
-- **Models hiện có:** User, Product, Category, Tag, TagEvent, Order, Session, Scan, ActivityLog
-- **Models cần thêm:** Workshop, Customer, InventoryTransaction
+- **Scale hiện tại:** <100 users, scan nhiều tag/người, multi-warehouse
+- **Real-time requirement:** Bắt buộc — inventory phải update ngay khi scan
 
 ## Constraints
 
 - **Tech**: Không đổi tech stack — tiếp tục NestJS + Prisma + PostgreSQL
 - **Data**: Dữ liệu hiện có cần giữ — migration phải tương thích
 - **Scanner**: Mobile app dùng máy quét RFID qua BLE — flow phải verify bằng quét thực tế
+- **Real-time**: Không chấp nhận delayed consistency cho inventory
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| 2 kho tổng + nhiều kho xưởng | Admin tự quyết định phân bổ | — Pending |
-| Không có delivery confirmation | Mở rộng sau, hiện tại chỉ track xuất | — Pending |
-| Verify bằng máy quét khi nhập kho | Đảm bảo dữ liệu chính xác, tránh human error | — Pending |
+| Redis cache trước microservice | Giải quyết 80% bottleneck trước khi phức tạp hóa | — Pending |
+| Shared DB vẫn là primary | Real-time requirement bắt buộc shared DB | — Pending |
+| Microservice chỉ khi >1000 users | Tránh over-engineering quá sớm | — Pending |
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
 
 ---
 
-*Last updated: 2026-03-26 after questioning*
+*Last updated: 2026-03-27 after milestone v1.1 started*
