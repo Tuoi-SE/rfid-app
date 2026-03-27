@@ -213,8 +213,12 @@ export class InventoryService {
   /**
    * BATCH-05: Bulk upsert for batch scan operations
    * BATCH-06: Idempotency via Prisma upsert - duplicates handled gracefully
+   *
+   * Real upsert behavior:
+   * - New EPC → creates tag with status IN_STOCK
+   * - Existing EPC → updates lastSeenAt timestamp (records scan visibility event)
    */
-  async processBulkScan(epcs: string[]): Promise<{ created: number; updated: number }> {
+  async processBulkScan(epcs: string[], userId: string = 'system'): Promise<{ created: number; updated: number }> {
     if (!epcs?.length) {
       return { created: 0, updated: 0 };
     }
@@ -236,22 +240,35 @@ export class InventoryService {
     let created = 0;
     let updated = 0;
 
-    // D-08: Upsert handles duplicates gracefully (BATCH-06 idempotency)
     // Process in chunks to avoid overwhelming the DB
     const CHUNK_SIZE = 100;
+    const now = new Date();
+
+    // Create new tags (upsert - only creates because we already checked they don't exist)
     for (let i = 0; i < toCreate.length; i += CHUNK_SIZE) {
       const chunk = toCreate.slice(i, i + CHUNK_SIZE);
       await this.prisma.tag.createMany({
-        data: chunk.map((epc) => ({ epc, status: 'IN_STOCK' })),
-        skipDuplicates: true,
+        data: chunk.map((epc) => ({ epc, status: 'IN_STOCK', lastSeenAt: now })),
       });
       created += chunk.length;
     }
 
-    // Tags found in buffer but not in DB are considered IN_STOCK (auto-created above)
-    // No status update needed for existing tags during batch scan (BATCH-06: scan = visibility, not status change)
+    // Update existing tags via upsert (records scan visibility event)
+    for (let i = 0; i < toUpdate.length; i += CHUNK_SIZE) {
+      const chunk = toUpdate.slice(i, i + CHUNK_SIZE);
+      // Prisma: upsert is per-record, run in parallel for speed
+      const results = await Promise.all(
+        chunk.map((epc) =>
+          this.prisma.tag.update({
+            where: { epc },
+            data: { lastSeenAt: now },
+          }),
+        ),
+      );
+      updated += results.length;
+    }
 
-    // BATCH-06: Activity logging for bulk scan operation
+    // Activity logging for bulk scan operation
     if (uniqueEpcs.length > 0) {
       await this.prisma.activityLog.create({
         data: {
@@ -261,9 +278,12 @@ export class InventoryService {
           details: {
             action: 'BATCH_SCAN',
             tagCount: uniqueEpcs.length,
-            note: `Batch scan processed ${uniqueEpcs.length} tags`,
-            tags: uniqueEpcs.slice(0, 5).map((epc) => ({ epc })), // First 5 for logging
+            created,
+            updated,
+            note: `Batch scan processed ${uniqueEpcs.length} tags (${created} created, ${updated} updated)`,
+            tags: uniqueEpcs.slice(0, 5).map((epc) => ({ epc })),
           },
+          userId,
         },
       });
     }

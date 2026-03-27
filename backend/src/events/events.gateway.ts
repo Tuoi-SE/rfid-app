@@ -140,6 +140,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { success: false, error: 'No EPCs provided' };
     }
 
+    // Extract userId from JWT payload
+    const userId = (client as any).user?.id || (client as any).user?.sub || 'system';
+
     // D-05: Reject batches exceeding MAX_BUFFER_SIZE
     if (epcs.length > MAX_BUFFER_SIZE) {
       return { success: false, error: `Batch size exceeds MAX_BUFFER_SIZE (${MAX_BUFFER_SIZE})` };
@@ -148,14 +151,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // D-02: D-04: Process each EPC through buffer
     let processedCount = 0;
     for (const epc of epcs) {
-      const result = await this.batchScanService.addEpc(epc);
+      const result = await this.batchScanService.addEpc(epc, -60, userId);
       if (result.flushed) {
         processedCount += result.bufferSize;
       }
     }
 
     // D-01: Flush remaining buffer and get final count
-    const flushResult = await this.batchScanService.flush();
+    const flushResult = await this.batchScanService.flush(userId);
     processedCount += flushResult.processed;
 
     // D-01: Return processed count (sync processing)
