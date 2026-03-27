@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '.prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { softDeleteExtension } from './soft-delete.extension';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -16,6 +17,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       connectionTimeoutMillis: 5_000,        // 5 seconds to acquire connection
     });
     super({ adapter });
+
+    // Apply soft-delete extension — auto filter records có deletedAt != null
+    const extended = this.$extends(softDeleteExtension);
+    Object.assign(this, extended);
   }
 
   private static parsePoolSize(databaseUrl: string): number {

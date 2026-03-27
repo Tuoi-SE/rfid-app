@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   ADMIN
   WAREHOUSE_MANAGER
+  STAFF
 }
 
 enum TagStatus {
@@ -59,9 +60,17 @@ model Location {
   name      String
   type      LocationType
   address   String?
-  deletedAt DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  createdById String?
+  createdBy   User?     @relation("LocationCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?     @relation("LocationUpdatedBy", fields: [updatedById], references: [id])
+  deletedById String?
+  deletedBy   User?     @relation("LocationDeletedBy", fields: [deletedById], references: [id])
+
   tags      Tag[]
   transfersFrom Transfer[] @relation("TransferSource")
   transfersTo   Transfer[] @relation("TransferDestination")
@@ -115,11 +124,49 @@ model User {
   role          Role           @default(WAREHOUSE_MANAGER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  createdById   String?
+  createdBy     User?          @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers  User[]         @relation("UserCreatedBy")
+
+  updatedById   String?
+  updatedBy     User?          @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  updatedUsers  User[]         @relation("UserUpdatedBy")
+
+  deletedById   String?
+  deletedBy     User?          @relation("UserDeletedBy", fields: [deletedById], references: [id])
+  deletedUsers  User[]         @relation("UserDeletedBy")
+
   activityLogs  ActivityLog[]
   refreshTokens RefreshToken[]
   sessions      Session[]
-  orders        Order[]
   transfers     Transfer[]
+
+  // Reverse relations for Category audit
+  createdCategories Category[] @relation("CategoryCreatedBy")
+  updatedCategories Category[] @relation("CategoryUpdatedBy")
+  deletedCategories Category[] @relation("CategoryDeletedBy")
+
+  // Reverse relations for Product audit
+  createdProducts   Product[]  @relation("ProductCreatedBy")
+  updatedProducts   Product[]  @relation("ProductUpdatedBy")
+  deletedProducts   Product[]  @relation("ProductDeletedBy")
+
+  // Reverse relations for Tag audit
+  createdTags       Tag[]      @relation("TagCreatedBy")
+  updatedTags       Tag[]      @relation("TagUpdatedBy")
+  deletedTags       Tag[]      @relation("TagDeletedBy")
+
+  // Reverse relations for Location audit
+  createdLocations  Location[] @relation("LocationCreatedBy")
+  updatedLocations  Location[] @relation("LocationUpdatedBy")
+  deletedLocations  Location[] @relation("LocationDeletedBy")
+
+  // Reverse relations for Order audit
+  createdOrders     Order[]    @relation("OrderCreatedBy")
+  updatedOrders     Order[]    @relation("OrderUpdatedBy")
+  deletedOrders     Order[]    @relation("OrderDeletedBy")
 }
 
 model RefreshToken {
@@ -141,22 +188,43 @@ model Category {
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  createdById String?
+  createdBy   User?     @relation("CategoryCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?     @relation("CategoryUpdatedBy", fields: [updatedById], references: [id])
+  deletedById String?
+  deletedBy   User?     @relation("CategoryDeletedBy", fields: [deletedById], references: [id])
+
   products    Product[]
+
+  @@index([deletedAt])
 }
 
 model Product {
   id          String   @id @default(uuid())
   name        String
-  sku         String   @unique
+  sku         String?  @unique
   description String?
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  createdById String?
+  createdBy   User?    @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?    @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  deletedById String?
+  deletedBy   User?    @relation("ProductDeletedBy", fields: [deletedById], references: [id])
+
   tags        Tag[]
   orderItems  OrderItem[]
 
   @@index([categoryId])
+  @@index([deletedAt])
 }
 
 model Tag {
@@ -171,6 +239,15 @@ model Tag {
   lastSeenAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  createdById String?
+  createdBy   User?     @relation("TagCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?     @relation("TagUpdatedBy", fields: [updatedById], references: [id])
+  deletedById String?
+  deletedBy   User?     @relation("TagDeletedBy", fields: [deletedById], references: [id])
+
   scans     Scan[]
   events    TagEvent[]
   transferItems TransferItem[]
@@ -178,6 +255,7 @@ model Tag {
   @@index([productId])
   @@index([status])
   @@index([locationId])
+  @@index([deletedAt])
 }
 
 model TagEvent {
@@ -196,20 +274,27 @@ model TagEvent {
 }
 
 model Order {
-  id        String      @id @default(uuid())
-  code      String      @unique
-  type      OrderType
-  status    OrderStatus @default(PENDING)
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  items     OrderItem[]
-  sessions  Session[]
+  id          String      @id @default(uuid())
+  code        String      @unique
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+  
+  createdById String?
+  createdBy   User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  deletedById String?
+  deletedBy   User?       @relation("OrderDeletedBy", fields: [deletedById], references: [id])
+  
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[]
+  sessions    Session[]
 
   @@index([type])
   @@index([status])
-  @@index([userId])
+  @@index([createdById])
 }
 
 model OrderItem {

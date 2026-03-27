@@ -1,20 +1,27 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateTagDto } from './dto/create-tag.dto';
-import { UpdateTagDto } from './dto/update-tag.dto';
-import { AssignTagsDto } from './dto/bulk-update.dto';
-import { QueryTagsDto } from './dto/query-tags.dto';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '@prisma/prisma.service';
+import { CreateTagDto } from '@tags/dto/create-tag.dto';
+import { UpdateTagDto } from '@tags/dto/update-tag.dto';
+import { AssignTagsDto } from '@tags/dto/bulk-update.dto';
+import { QueryTagsDto } from '@tags/dto/query-tags.dto';
 import { Prisma } from '.prisma/client';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { TagEntity } from './entities/tag.entity';
 
 @Injectable()
 export class TagsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Lấy danh sách tag (phân trang + lọc theo epc, product, status, unassigned)
+   */
   async findAll(query: QueryTagsDto) {
     const { page = 1, limit = 50, search, productId, status, unassigned } = query;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.TagWhereInput = {};
+    const where: Prisma.TagWhereInput = { deletedAt: null };
     if (search) {
       where.epc = { contains: search, mode: 'insensitive' };
     }
@@ -28,7 +35,7 @@ export class TagsService {
       where.productId = null;
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.tag.findMany({
         where,
         orderBy: { updatedAt: 'desc' },
@@ -38,85 +45,123 @@ export class TagsService {
           product: {
             select: { id: true, name: true, sku: true, category: { select: { id: true, name: true } } },
           },
+          createdBy: { select: { id: true, username: true } },
+          updatedBy: { select: { id: true, username: true } },
         },
       }),
       this.prisma.tag.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedItems = items.map((i) => plainToInstance(TagEntity, i));
+    return paginate(formattedItems, total, page, limit);
   }
 
+  /**
+   * Lấy chi tiết 1 tag theo EPC
+   * @throws TAG_NOT_FOUND
+   */
   async findByEpc(epc: string) {
-    const tag = await this.prisma.tag.findUnique({
-      where: { epc },
+    const tag = await this.prisma.tag.findFirst({
+      where: { epc, deletedAt: null },
       include: {
         product: {
           select: { id: true, name: true, sku: true, category: { select: { id: true, name: true } } },
         },
+        createdBy: { select: { id: true, username: true } },
+        updatedBy: { select: { id: true, username: true } },
       },
     });
-    if (!tag) throw new NotFoundException(`Không tìm thấy tag với EPC "${epc}"`);
-    return tag;
+    if (!tag) {
+      throw new BusinessException(`Không tìm thấy tag với EPC "${epc}"`, 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+    return plainToInstance(TagEntity, tag);
   }
 
+  /**
+   * Lấy lịch sử sự kiện của 1 tag
+   * @throws TAG_NOT_FOUND
+   */
   async getHistory(epc: string) {
     const tag = await this.prisma.tag.findUnique({ where: { epc } });
-    if (!tag) throw new NotFoundException(`Không tìm thấy tag với EPC "${epc}"`);
+    if (!tag) {
+      throw new BusinessException(`Không tìm thấy tag với EPC "${epc}"`, 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
 
     return this.prisma.tagEvent.findMany({
       where: { tagId: tag.id },
       orderBy: { createdAt: 'desc' },
-      include: {
-        // Có thể join với User nếu cần hiện tên NV
-        // Nhưng tạm thời user model ko có relation 2 chiều tới tagEvent (hoặc không lấy tên dc, ta cứ trả ID)
-      }
     });
   }
 
+  /**
+   * Khởi tạo trắng một thẻ mới
+   * @throws TAG_EXISTS
+   */
   async create(dto: CreateTagDto, userId?: string) {
     const existing = await this.prisma.tag.findUnique({ where: { epc: dto.epc } });
-    if (existing) throw new ConflictException(`Tag với EPC "${dto.epc}" đã tồn tại`);
-    
+    if (existing) {
+      throw new BusinessException(`Tag với EPC "${dto.epc}" đã tồn tại`, 'TAG_EXISTS', HttpStatus.CONFLICT);
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      const tag = await tx.tag.create({ data: { epc: dto.epc } });
+      const tag = await tx.tag.create({
+        data: {
+          epc: dto.epc,
+          createdById: userId || undefined,
+          updatedById: userId || undefined,
+        },
+        include: {
+          createdBy: { select: { id: true, username: true } },
+        },
+      });
       await tx.tagEvent.create({
         data: {
           tagId: tag.id,
           type: 'CREATED',
           description: 'Khởi tạo thẻ trắng',
-          userId
-        }
+          userId,
+        },
       });
-      return tag;
+      return plainToInstance(TagEntity, tag);
     });
   }
 
+  /**
+   * Cập nhật thông tin thẻ
+   * @throws TAG_NOT_FOUND
+   * @throws PRODUCT_NOT_FOUND
+   */
   async update(epc: string, dto: UpdateTagDto, userId?: string) {
     const tag = await this.prisma.tag.findUnique({ where: { epc } });
-    if (!tag) throw new NotFoundException(`Không tìm thấy tag với EPC "${epc}"`);
+    if (!tag) {
+      throw new BusinessException(`Không tìm thấy tag với EPC "${epc}"`, 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
 
     if (dto.productId) {
       const product = await this.prisma.product.findUnique({ where: { id: dto.productId } });
-      if (!product) throw new NotFoundException(`Không tìm thấy sản phẩm với ID "${dto.productId}"`);
+      if (!product) {
+        throw new BusinessException(`Không tìm thấy sản phẩm với ID "${dto.productId}"`, 'PRODUCT_NOT_FOUND', HttpStatus.NOT_FOUND);
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
       const updatedTag = await tx.tag.update({
         where: { epc },
-        data: dto,
+        data: {
+          ...dto,
+          updatedById: userId || undefined,
+        },
         include: {
           product: {
             select: { id: true, name: true, sku: true },
           },
+          updatedBy: { select: { id: true, username: true } },
         },
       });
 
-      // Tạo sự kiện nếu có đổi thông tin quan trọng
-      let desc = [];
+      const desc: string[] = [];
       if (dto.productId && dto.productId !== tag.productId) desc.push(`Đổi Sản phẩm`);
       if (dto.status && dto.status !== tag.status) desc.push(`Cập nhật trạng thái thành ${dto.status}`);
-      // Nếu có field location sau này thêm vào UpdateTagDto:
-      // if (dto.location && dto.location !== tag.location) desc.push(`Di chuyển tới ${dto.location}`);
 
       if (desc.length > 0) {
         await tx.tagEvent.create({
@@ -124,45 +169,69 @@ export class TagsService {
             tagId: tag.id,
             type: 'UPDATED',
             description: desc.join(', '),
-            userId
-          }
+            userId,
+          },
         });
       }
 
-      return updatedTag;
+      return plainToInstance(TagEntity, updatedTag);
     });
   }
 
+  /**
+   * Gán hàng loạt thẻ (đã khởi tạo) cho một sản phẩm cụ thể
+   * @throws PRODUCT_NOT_FOUND
+   */
   async assignTags(dto: AssignTagsDto, userId?: string) {
     const product = await this.prisma.product.findUnique({ where: { id: dto.productId } });
-    if (!product) throw new NotFoundException(`Không tìm thấy sản phẩm với ID "${dto.productId}"`);
+    if (!product) {
+      throw new BusinessException(`Không tìm thấy sản phẩm với ID "${dto.productId}"`, 'PRODUCT_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
 
-    // AssignTags chỉ cung cấp tagIds (dạng ID, không phải EPC)
-    const result = await this.prisma.$transaction(async (tx) => {
+    const count = await this.prisma.$transaction(async (tx) => {
       const updateResult = await tx.tag.updateMany({
-        where: { id: { in: dto.tagIds } },
-        data: { productId: dto.productId, status: 'IN_STOCK' }, // Reset trạng thái thành IN_STOCK khi gán sp mới
+        where: { id: { in: dto.tagIds }, deletedAt: null },
+        data: {
+          productId: dto.productId,
+          status: 'IN_STOCK',
+          updatedById: userId || undefined,
+        },
       });
 
       await tx.tagEvent.createMany({
-        data: dto.tagIds.map(tagId => ({
+        data: dto.tagIds.map((tagId) => ({
           tagId,
           type: 'ASSIGNED',
           description: `Được gán cho Sản phẩm: ${product.name}`,
-          userId
-        }))
+          userId,
+        })),
       });
 
-      return updateResult;
+      return updateResult.count;
     });
 
-    return { success: true, count: result.count };
+    return { count };
   }
 
-  async remove(epc: string) {
-    const tag = await this.prisma.tag.findUnique({ where: { epc } });
-    if (!tag) throw new NotFoundException(`Không tìm thấy tag với EPC "${epc}"`);
-    await this.prisma.tag.delete({ where: { epc } });
-    return { success: true };
+  /**
+   * Xóa mềm thẻ
+   * @throws TAG_NOT_FOUND
+   */
+  async remove(epc: string, userId?: string) {
+    const tag = await this.prisma.tag.findFirst({ where: { epc, deletedAt: null } });
+    if (!tag) {
+      throw new BusinessException(`Không tìm thấy tag với EPC "${epc}"`, 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    const now = new Date();
+    await this.prisma.tag.update({
+      where: { epc },
+      data: {
+        deletedAt: now,
+        deletedById: userId || undefined,
+      },
+    });
+
+    return { epc, deletedAt: now };
   }
 }

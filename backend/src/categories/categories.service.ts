@@ -1,24 +1,50 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { QueryCategoriesDto } from './dto/query-categories.dto';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '@prisma/prisma.service';
+import { CreateCategoryDto } from '@categories/dto/create-category.dto';
+import { UpdateCategoryDto } from '@categories/dto/update-category.dto';
+import { QueryCategoriesDto } from '@categories/dto/query-categories.dto';
 import { Prisma } from '.prisma/client';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { CategoryEntity } from './entities/category.entity';
 
+/** Select fields cho audit user */
+const AUDIT_USER_SELECT = { id: true, username: true };
+
+/** Select fields chuẩn cho Category response */
+const CATEGORY_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  createdBy: { select: AUDIT_USER_SELECT },
+  updatedBy: { select: AUDIT_USER_SELECT },
+  deletedBy: { select: AUDIT_USER_SELECT },
+  _count: { select: { products: true } },
+};
+
+/**
+ * CategoriesService — Quản lý danh mục sản phẩm.
+ *
+ * Chức năng: CRUD + soft delete + audit tracking (created_by, updated_by, deleted_by).
+ * Bảo vệ: không cho xóa danh mục đang có sản phẩm.
+ */
 @Injectable()
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Lấy danh sách danh mục có phân trang + tìm kiếm.
+   * Mặc định chỉ lấy danh mục chưa bị xóa mềm.
+   */
   async findAll(query: QueryCategoriesDto) {
     const { page = 1, limit = 20, search } = query;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.CategoryWhereInput = {};
+    const where: Prisma.CategoryWhereInput = { deletedAt: null };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -26,60 +52,146 @@ export class CategoriesService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.category.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        include: { _count: { select: { products: true } } },
+        select: CATEGORY_SELECT,
       }),
       this.prisma.category.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedItems = items.map((i) => plainToInstance(CategoryEntity, i));
+    return paginate(formattedItems, total, page, limit);
   }
 
+  /**
+   * Lấy chi tiết 1 danh mục (chỉ active).
+   * @throws CATEGORY_NOT_FOUND (404)
+   */
   async findOne(id: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { id },
-      include: { _count: { select: { products: true } } },
+    const category = await this.prisma.category.findFirst({
+      where: { id, deletedAt: null },
+      select: CATEGORY_SELECT,
     });
-    if (!category) throw new NotFoundException(`Không tìm thấy danh mục với ID "${id}"`);
-    return category;
+    if (!category) {
+      throw new BusinessException('Không tìm thấy danh mục', 'CATEGORY_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+    return plainToInstance(CategoryEntity, category);
   }
 
-  async create(dto: CreateCategoryDto) {
+  /**
+   * Tạo danh mục mới. Ghi nhận created_by.
+   * @throws CATEGORY_NAME_EXISTS (409)
+   */
+  async create(dto: CreateCategoryDto, operatorId?: string) {
     const existing = await this.prisma.category.findUnique({ where: { name: dto.name } });
-    if (existing) throw new ConflictException(`Danh mục "${dto.name}" đã tồn tại`);
-    return this.prisma.category.create({ data: dto });
+    if (existing) {
+      throw new BusinessException('Tên danh mục đã tồn tại', 'CATEGORY_NAME_EXISTS', HttpStatus.CONFLICT);
+    }
+
+    const category = await this.prisma.category.create({
+      data: {
+        ...dto,
+        createdById: operatorId || undefined,
+        updatedById: operatorId || undefined,
+      },
+      select: CATEGORY_SELECT,
+    });
+    return plainToInstance(CategoryEntity, category);
   }
 
-  async update(id: string, dto: UpdateCategoryDto) {
+  /**
+   * Cập nhật danh mục. Ghi nhận updated_by.
+   * @throws CATEGORY_NOT_FOUND (404)
+   * @throws CATEGORY_NAME_EXISTS (409)
+   */
+  async update(id: string, dto: UpdateCategoryDto, operatorId?: string) {
     await this.findOne(id);
 
     if (dto.name) {
       const existing = await this.prisma.category.findFirst({
         where: { name: dto.name, NOT: { id } },
       });
-      if (existing) throw new ConflictException(`Danh mục "${dto.name}" đã tồn tại`);
+      if (existing) {
+        throw new BusinessException('Tên danh mục đã tồn tại', 'CATEGORY_NAME_EXISTS', HttpStatus.CONFLICT);
+      }
     }
 
-    return this.prisma.category.update({ where: { id }, data: dto });
+    const category = await this.prisma.category.update({
+      where: { id },
+      data: {
+        ...dto,
+        updatedById: operatorId || undefined,
+      },
+      select: CATEGORY_SELECT,
+    });
+    return plainToInstance(CategoryEntity, category);
   }
 
-  async remove(id: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { id },
-      include: { _count: { select: { products: true } } },
-    });
-    if (!category) throw new NotFoundException(`Không tìm thấy danh mục với ID "${id}"`);
-    if (category._count.products > 0) {
-      throw new BadRequestException(
-        `Không thể xóa danh mục đang có ${category._count.products} sản phẩm`,
+  /**
+   * Xóa mềm danh mục. Không cho xóa nếu đang có sản phẩm active.
+   * @throws CATEGORY_NOT_FOUND (404)
+   * @throws CATEGORY_HAS_PRODUCTS (400)
+   */
+  async remove(id: string, operatorId?: string) {
+    const category: any = await this.findOne(id);
+    if (category.productCount > 0) {
+      throw new BusinessException(
+        `Không thể xóa danh mục đang có ${category.productCount} sản phẩm`,
+        'CATEGORY_HAS_PRODUCTS',
       );
     }
-    await this.prisma.category.delete({ where: { id } });
-    return { success: true };
+
+    const now = new Date();
+    await this.prisma.category.update({
+      where: { id },
+      data: {
+        deletedAt: now,
+        deletedById: operatorId || undefined,
+      },
+    });
+
+    const deletedByUser = operatorId
+      ? await this.prisma.user.findUnique({ where: { id: operatorId }, select: AUDIT_USER_SELECT })
+      : null;
+
+    return {
+      id,
+      deleted_at: now.toISOString(),
+      deleted_by: deletedByUser,
+    };
+  }
+
+  /**
+   * Khôi phục danh mục đã xóa mềm.
+   * @throws CATEGORY_NOT_FOUND (404)
+   * @throws CATEGORY_NOT_DELETED (400)
+   */
+  async restore(id: string, operatorId?: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!category) {
+      throw new BusinessException('Không tìm thấy danh mục', 'CATEGORY_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+    if (!category.deletedAt) {
+      throw new BusinessException('Danh mục chưa bị xóa', 'CATEGORY_NOT_DELETED');
+    }
+
+    const restored = await this.prisma.category.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+        deletedById: null,
+        ...(operatorId && { updatedById: operatorId }),
+      },
+      select: CATEGORY_SELECT,
+    });
+    return plainToInstance(CategoryEntity, restored);
   }
 }

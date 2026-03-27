@@ -1,12 +1,15 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { Logger } from 'nestjs-pino';
+import { AppModule } from '@/app.module';
+import { GlobalExceptionFilter } from '@common/filters/http-exception.filter';
+import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
+import { setupSwagger } from '@common/config/swagger.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService);
   const corsOrigins = config.get('CORS_ORIGINS', 'http://localhost:3001');
@@ -26,32 +29,21 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Swagger API Documentation
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('RFID Inventory API')
-    .setDescription('API documentation for RFID Inventory Management System')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
-    .addTag('Auth', 'Authentication & Token management')
-    .addTag('Users', 'User management (Admin only)')
-    .addTag('Categories', 'Product category management')
-    .addTag('Products', 'Product management')
-    .addTag('Tags', 'RFID tag management')
-    .addTag('Inventory', 'Check-in / Check-out operations')
-    .addTag('Dashboard', 'Dashboard statistics')
-    .addTag('Activity Logs', 'System activity logs')
-    .addTag('Sessions', 'Scan session management')
-    .build();
+  // Auto-wrap response and apply ClassSerializer
+  const reflector = app.get(Reflector);
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(reflector, { excludeExtraneousValues: false }),
+    new ResponseInterceptor(reflector),
+  );
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  setupSwagger(app);
 
   app.enableShutdownHooks();
 
   const port = config.get('PORT', 3000);
   await app.listen(port);
-  console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 Swagger docs at http://localhost:${port}/api/docs`);
+  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Swagger docs at http://localhost:${port}/api/docs`);
 }
 
 bootstrap();

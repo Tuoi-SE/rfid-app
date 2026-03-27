@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { TagStatus } from '.prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { GenericReportEntity } from './entities/dashboard.entity';
 
 @Injectable()
 export class DashboardService {
@@ -34,7 +36,7 @@ export class DashboardService {
       this.activityLogService.getRecentActivity(10),
     ]);
 
-    return {
+    return plainToInstance(GenericReportEntity, {
       totalProducts,
       totalTags,
       totalCategories,
@@ -43,7 +45,7 @@ export class DashboardService {
       recentScans: recentScansCount,
       productsByCategory,
       recentActivity,
-    };
+    });
   }
 
   private async getTagsByStatus() {

@@ -19,6 +19,19 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "strictBindCallApply": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/*": ["src/*"],
+      "@common/*": ["src/common/*"],
+      "@auth/*": ["src/auth/*"],
+      "@users/*": ["src/users/*"],
+      "@prisma/*": ["src/prisma/*"],
+      "@categories/*": ["src/categories/*"],
+      "@products/*": ["src/products/*"],
+      "@tags/*": ["src/tags/*"],
+      "@locations/*": ["src/locations/*"],
+      "@inventory/*": ["src/inventory/*"],
+      "@orders/*": ["src/orders/*"]
+    }
   }
 }

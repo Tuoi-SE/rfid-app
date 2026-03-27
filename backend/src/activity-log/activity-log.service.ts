@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryActivityLogDto } from './dto/query-activity-log.dto';
 import { Prisma } from '.prisma/client';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { ActivityLogEntity } from './entities/activity-log.entity';
 
 export interface LogEntry {
   userId: string;
@@ -63,16 +66,19 @@ export class ActivityLogService {
       this.prisma.activityLog.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedData = data.map((i) => plainToInstance(ActivityLogEntity, i));
+    return paginate(formattedData, total, page, limit);
   }
 
   async getRecentActivity(count = 10) {
-    return this.prisma.activityLog.findMany({
+    const data = await this.prisma.activityLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: count,
       include: {
         user: { select: { id: true, username: true, role: true } },
       },
     });
+    
+    return data.map((i) => plainToInstance(ActivityLogEntity, i));
   }
 }

@@ -1,8 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '@prisma/prisma.service';
 import { InventoryAction, InventoryOperationDto } from './dto/inventory-operation.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { TagStatus } from '.prisma/client';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { ActivityLogEntity } from '../activity-log/entities/activity-log.entity';
 
 @Injectable()
 export class InventoryService {
@@ -29,7 +33,7 @@ export class InventoryService {
     });
 
     if (tags.length === 0) {
-      throw new NotFoundException('Không tìm thấy tag nào với các mã đã cung cấp');
+      throw new BusinessException('Không tìm thấy tag nào với các mã đã cung cấp', 'TAG_NOT_FOUND', HttpStatus.NOT_FOUND);
     }
 
     // Validate: don't check-in tags already IN_STOCK, etc.
@@ -37,8 +41,10 @@ export class InventoryService {
     const toUpdate = tags.filter((t) => t.status !== targetStatus);
 
     if (toUpdate.length === 0) {
-      throw new BadRequestException(
+      throw new BusinessException(
         `Tất cả ${tags.length} tag đã ở trạng thái ${targetStatus}`,
+        'INVALID_STATUS',
+        HttpStatus.BAD_REQUEST
       );
     }
 
@@ -176,6 +182,7 @@ export class InventoryService {
       this.prisma.activityLog.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    const formattedData = data.map((i) => plainToInstance(ActivityLogEntity, i));
+    return paginate(formattedData, total, page, limit);
   }
 }

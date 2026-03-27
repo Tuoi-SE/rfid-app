@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '@prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { QueryLocationsDto } from './dto/query-locations.dto';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { LocationEntity } from './entities/location.entity';
 
 @Injectable()
 export class LocationsService {
@@ -33,69 +37,91 @@ export class LocationsService {
       this.prisma.location.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
-        include: { _count: { select: { tags: true } } },
+        include: { 
+          _count: { select: { tags: true } },
+          createdBy: { select: { id: true, username: true } },
+          updatedBy: { select: { id: true, username: true } },
+        },
       }),
       this.prisma.location.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedData = data.map((i) => plainToInstance(LocationEntity, i));
+    return paginate(formattedData, total, page, limit);
   }
 
   async findOne(id: string) {
-    const location = await this.prisma.location.findUnique({
-      where: { id },
-      include: { _count: { select: { tags: true } } },
+    const location = await this.prisma.location.findFirst({
+      where: { id, deletedAt: null },
+      include: { 
+        _count: { select: { tags: true } },
+        createdBy: { select: { id: true, username: true } },
+        updatedBy: { select: { id: true, username: true } },
+      },
     });
-    if (!location) throw new NotFoundException(`Không tìm thấy vị trí với ID "${id}"`);
-    return location;
+    if (!location) throw new BusinessException(`Không tìm thấy vị trí với ID "${id}"`, 'LOCATION_NOT_FOUND', HttpStatus.NOT_FOUND);
+    return plainToInstance(LocationEntity, location);
   }
 
-  async create(dto: CreateLocationDto) {
+  async create(dto: CreateLocationDto, userId?: string) {
     // Check code uniqueness
-    const existing = await this.prisma.location.findUnique({ where: { code: dto.code } });
-    if (existing) throw new BadRequestException(`Mã vị trí "${dto.code}" đã tồn tại`);
+    const existing = await this.prisma.location.findFirst({ where: { code: dto.code, deletedAt: null } });
+    if (existing) throw new BusinessException(`Mã vị trí "${dto.code}" đã tồn tại`, 'LOCATION_EXISTS', HttpStatus.BAD_REQUEST);
 
     return this.prisma.location.create({
-      data: dto,
+      data: {
+        ...dto,
+        createdById: userId || undefined,
+        updatedById: userId || undefined,
+      },
       include: { _count: { select: { tags: true } } },
     });
+    return plainToInstance(LocationEntity, location);
   }
 
-  async update(id: string, dto: UpdateLocationDto) {
-    const location = await this.prisma.location.findUnique({ where: { id } });
-    if (!location) throw new NotFoundException(`Không tìm thấy vị trí với ID "${id}"`);
+  async update(id: string, dto: UpdateLocationDto, userId?: string) {
+    const location = await this.prisma.location.findFirst({ where: { id, deletedAt: null } });
+    if (!location) throw new BusinessException(`Không tìm thấy vị trí với ID "${id}"`, 'LOCATION_NOT_FOUND', HttpStatus.NOT_FOUND);
 
     // D-03: Only name and address are editable, type and code are fixed
-    // UpdateLocationDto only allows name and address fields
-    return this.prisma.location.update({
+    const updated = await this.prisma.location.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        updatedById: userId || undefined,
+      },
       include: { _count: { select: { tags: true } } },
     });
+    return plainToInstance(LocationEntity, updated);
   }
 
-  async remove(id: string) {
-    const location = await this.prisma.location.findUnique({
-      where: { id },
+  async remove(id: string, userId?: string) {
+    const location = await this.prisma.location.findFirst({
+      where: { id, deletedAt: null },
       include: { _count: { select: { tags: true } } },
     });
-    if (!location) throw new NotFoundException(`Không tìm thấy vị trí với ID "${id}"`);
+    if (!location) throw new BusinessException(`Không tìm thấy vị trí với ID "${id}"`, 'LOCATION_NOT_FOUND', HttpStatus.NOT_FOUND);
 
     // D-04: Cannot delete location that has tags
     if (location._count.tags > 0) {
-      throw new BadRequestException(
+      throw new BusinessException(
         `Không thể xóa vị trí đang có ${location._count.tags} tags`,
+        'HAS_ACTIVE_TAGS',
+        HttpStatus.BAD_REQUEST
       );
     }
 
-    // Soft delete instead of hard delete
+    const now = new Date();
     await this.prisma.location.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { 
+        deletedAt: now,
+        deletedById: userId || undefined,
+      },
     });
 
-    return { success: true };
+    return { id, deletedAt: now };
   }
 }

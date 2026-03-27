@@ -2,19 +2,21 @@ import {
   AbilityBuilder,
   createMongoAbility,
   MongoAbility,
-  InferSubjects,
 } from '@casl/ability';
 import { Injectable } from '@nestjs/common';
 import { Role } from '.prisma/client';
 
-type Actions = 'manage' | 'create' | 'read' | 'update' | 'delete';
-type Subjects =
+export type Actions = 'manage' | 'create' | 'read' | 'update' | 'delete';
+export type Subjects =
   | 'User'
   | 'Category'
   | 'Product'
   | 'Tag'
+  | 'Order'
   | 'Session'
   | 'Scan'
+  | 'Location'
+  | 'Inventory'
   | 'ActivityLog'
   | 'Dashboard'
   | 'all';
@@ -26,31 +28,45 @@ export class CaslAbilityFactory {
   createForUser(user: { id: string; role: Role }): AppAbility {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
-    if (user.role === Role.ADMIN) {
-      can('manage', 'all');
-    } else {
-      // WAREHOUSE_MANAGER permissions
-      can('read', 'Category');
-      can('read', 'Product');
+    switch (user.role) {
+      case Role.ADMIN:
+        can('manage', 'all');
+        break;
 
-      can('read', 'Tag');
-      can('create', 'Tag');
-      can('update', 'Tag');
+      case Role.WAREHOUSE_MANAGER:
+        // Read-only cho hầu hết tài nguyên
+        can('read', 'Category');
+        can('read', 'Product');
+        can('read', 'Tag');
+        can('read', 'Order');
+        can('read', 'Location');
+        can('read', 'Inventory');
+        can('read', 'ActivityLog');
 
-      can('manage', 'Scan');
-      can('manage', 'Session');
+        // Session: được tạo phiên quét
+        can('read', 'Session');
+        can('create', 'Session');
 
-      can('read', 'ActivityLog');
+        // Scan: full quyền quét
+        can('manage', 'Scan');
+        break;
 
-      cannot('manage', 'User');
-      cannot('manage', 'Dashboard');
-      cannot('create', 'Category');
-      cannot('update', 'Category');
-      cannot('delete', 'Category');
-      cannot('create', 'Product');
-      cannot('update', 'Product');
-      cannot('delete', 'Product');
-      cannot('delete', 'Tag');
+      case Role.STAFF:
+        // Chỉ đọc
+        can('read', 'Category');
+        can('read', 'Product');
+        can('read', 'Tag');
+        can('read', 'Order');
+        can('read', 'Location');
+        can('read', 'Inventory');
+        can('read', 'ActivityLog');
+
+        // Session & Scan: được tạo / quét
+        can('read', 'Session');
+        can('create', 'Session');
+        can('read', 'Scan');
+        can('create', 'Scan');
+        break;
     }
 
     return build();

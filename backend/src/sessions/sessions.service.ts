@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
 import { EventsGateway } from '../events/events.gateway';
-import { TagStatus } from '@prisma/client';
+import { Prisma, TagStatus } from '.prisma/client';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { SessionEntity } from './entities/session.entity';
 
 @Injectable()
 export class SessionsService {
@@ -26,7 +30,11 @@ export class SessionsService {
       this.prisma.session.count(),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedData = data.map(item => plainToInstance(SessionEntity, { 
+      ...item, 
+      totalScans: item._count?.scans || 0 
+    }));
+    return paginate(formattedData, total, page, limit);
   }
 
   async create(dto: CreateSessionDto, userId?: string) {
@@ -41,9 +49,9 @@ export class SessionsService {
           where: { id: dto.orderId },
           include: { items: true }
         });
-        if (!order) throw new BadRequestException('Order not found');
+        if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
         if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
-          throw new BadRequestException(`Cannot process session for order in ${order.status} state`);
+          throw new BusinessException(`Không thể xử lý phiên quét cho đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
         }
       }
 
@@ -179,6 +187,8 @@ export class SessionsService {
       }
 
       return newSession;
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     // Notify clients about order update
@@ -192,7 +202,7 @@ export class SessionsService {
        }
     }
 
-    return session;
+    return plainToInstance(SessionEntity, session);
   }
 
   async findOne(id: string) {
@@ -213,7 +223,7 @@ export class SessionsService {
       },
     });
 
-    if (!session) throw new NotFoundException(`Không tìm thấy phiên quét với ID "${id}"`);
+    if (!session) throw new BusinessException(`Không tìm thấy phiên quét với ID "${id}"`, 'SESSION_NOT_FOUND', HttpStatus.NOT_FOUND);
 
     // Merge: mỗi tag 1 dòng, lấy lần quét cuối cùng
     const mergedScans = new Map<string, (typeof session.scans)[0]>();
@@ -224,6 +234,6 @@ export class SessionsService {
       }
     }
 
-    return { ...session, scans: Array.from(mergedScans.values()) };
+    return plainToInstance(SessionEntity, { ...session, scans: Array.from(mergedScans.values()) });
   }
 }

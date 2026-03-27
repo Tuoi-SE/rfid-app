@@ -1,28 +1,64 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { QueryUsersDto } from './dto/query-users.dto';
+import { PrismaService } from '@prisma/prisma.service';
+import { CreateUserDto } from '@users/dto/create-user.dto';
+import { UpdateUserDto } from '@users/dto/update-user.dto';
+import { QueryUsersDto } from '@users/dto/query-users.dto';
 import { Role, Prisma } from '.prisma/client';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { paginate } from '@common/helpers/pagination.helper';
+import { plainToInstance } from 'class-transformer';
+import { UserEntity } from './entities/user.entity';
 
+/** Số vòng bcrypt để hash password */
 const SALT_ROUNDS = 10;
-const USER_SELECT = { id: true, username: true, role: true, createdAt: true, updatedAt: true };
 
+/** Select fields cho audit user (chỉ lấy id + username) */
+const AUDIT_USER_SELECT = { id: true, username: true };
+
+/** Select fields chuẩn cho User response (loại trừ password, kèm audit relations) */
+const USER_SELECT = {
+  id: true,
+  username: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  createdBy: { select: AUDIT_USER_SELECT },
+  updatedBy: { select: AUDIT_USER_SELECT },
+  deletedBy: { select: AUDIT_USER_SELECT },
+};
+
+/**
+ * UsersService — Xử lý logic quản lý người dùng.
+ *
+ * Chức năng:
+ * - CRUD với audit tracking (created_by, updated_by, deleted_by)
+ * - Soft delete + Restore
+ * - Password hashing: bcrypt 10 rounds
+ * - Response format: snake_case, dùng paginate() helper
+ */
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Lấy danh sách người dùng có phân trang và lọc.
+   * Sử dụng paginate() helper cho format chuẩn.
+   */
   async findAll(query: QueryUsersDto) {
-    const { page = 1, limit = 20, search, role } = query;
+    const { page = 1, limit = 20, search, role, include_deleted, only_deleted } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.UserWhereInput = {};
+
+    // Lọc soft delete: only_deleted > include_deleted > mặc định (chỉ active)
+    if (only_deleted) {
+      where.deletedAt = { not: null };
+    } else if (!include_deleted) {
+      where.deletedAt = null;
+    }
+
     if (search) {
       where.username = { contains: search, mode: 'insensitive' };
     }
@@ -30,7 +66,7 @@ export class UsersService {
       where.role = role;
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -41,66 +77,153 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const formattedItems = items.map((u) => plainToInstance(UserEntity, u));
+    return paginate(formattedItems, total, page, limit);
   }
 
-  async create(dto: CreateUserDto) {
+  /**
+   * Tạo người dùng mới.
+   * @throws USER_USERNAME_EXISTS (409)
+   */
+  async create(dto: CreateUserDto, operatorId?: string) {
     const existing = await this.prisma.user.findUnique({ where: { username: dto.username } });
-    if (existing) throw new ConflictException(`Username "${dto.username}" đã tồn tại`);
+    if (existing) {
+      throw new BusinessException('Tên đăng nhập đã tồn tại', 'USER_USERNAME_EXISTS', HttpStatus.CONFLICT);
+    }
 
     const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         username: dto.username,
         password: hashedPassword,
         role: (dto.role as Role) || Role.WAREHOUSE_MANAGER,
+        createdById: operatorId || undefined,
+        updatedById: operatorId || undefined,
       },
       select: USER_SELECT,
     });
+
+    return plainToInstance(UserEntity, user);
   }
 
+  /**
+   * Tìm user theo username (dùng nội bộ cho auth, trả cả password hash).
+   * KHÔNG dùng cho API response.
+   */
   async findByUsername(username: string) {
     return this.prisma.user.findUnique({ where: { username } });
   }
 
+  /**
+   * Lấy thông tin 1 user theo ID (chỉ user active).
+   * @throws USER_NOT_FOUND (404)
+   */
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    const user = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
       select: USER_SELECT,
     });
-    if (!user) throw new NotFoundException(`Không tìm thấy user với ID "${id}"`);
-    return user;
+    if (!user) {
+      throw new BusinessException('Không tìm thấy người dùng', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+    return plainToInstance(UserEntity, user);
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  /**
+   * Cập nhật thông tin user. Ghi nhận updated_by.
+   * @throws USER_NOT_FOUND (404)
+   * @throws USER_USERNAME_EXISTS (409)
+   */
+  async update(id: string, dto: UpdateUserDto, operatorId?: string) {
     await this.findById(id);
 
     if (dto.username) {
       const existing = await this.prisma.user.findFirst({
         where: { username: dto.username, NOT: { id } },
       });
-      if (existing) throw new ConflictException(`Username "${dto.username}" đã tồn tại`);
+      if (existing) {
+        throw new BusinessException('Tên đăng nhập đã tồn tại', 'USER_USERNAME_EXISTS', HttpStatus.CONFLICT);
+      }
     }
 
-    const data: Prisma.UserUpdateInput = {};
+    const data: any = {};
+    if (operatorId) data.updatedById = operatorId;
     if (dto.username) data.username = dto.username;
     if (dto.role) data.role = dto.role;
     if (dto.password) data.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id },
       data,
       select: USER_SELECT,
     });
+
+    return plainToInstance(UserEntity, user);
   }
 
-  async remove(id: string) {
+  /**
+   * Xóa mềm user. Bảo vệ admin cuối cùng.
+   * @throws USER_NOT_FOUND (404)
+   * @throws USER_LAST_ADMIN_DELETE_FORBIDDEN (400)
+   */
+  async remove(id: string, operatorId?: string) {
     const user = await this.findById(id);
     if (user.role === Role.ADMIN) {
-      const adminCount = await this.prisma.user.count({ where: { role: Role.ADMIN } });
-      if (adminCount <= 1) throw new BadRequestException('Không thể xóa admin cuối cùng');
+      const adminCount = await this.prisma.user.count({ where: { role: Role.ADMIN, deletedAt: null } });
+      if (adminCount <= 1) {
+        throw new BusinessException('Không thể xóa admin cuối cùng', 'USER_LAST_ADMIN_DELETE_FORBIDDEN');
+      }
     }
-    await this.prisma.user.delete({ where: { id } });
-    return { success: true };
+
+    const now = new Date();
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: now,
+        deletedById: operatorId || undefined,
+      },
+    });
+
+    const deletedByUser = operatorId
+      ? await this.prisma.user.findUnique({ where: { id: operatorId }, select: AUDIT_USER_SELECT })
+      : null;
+
+    return {
+      id,
+      deleted_at: now.toISOString(),
+      deleted_by: deletedByUser,
+    };
+  }
+
+  /**
+   * Khôi phục user đã xóa mềm.
+   * @throws USER_NOT_FOUND (404)
+   * @throws USER_NOT_DELETED (400)
+   */
+  async restore(id: string, operatorId?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!user) {
+      throw new BusinessException('Không tìm thấy người dùng', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    if (!user.deletedAt) {
+      throw new BusinessException('Người dùng chưa bị xóa', 'USER_NOT_DELETED');
+    }
+
+    const restored = await this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+        deletedById: null,
+        ...(operatorId && { updatedById: operatorId }),
+      },
+      select: USER_SELECT,
+    });
+
+    return plainToInstance(UserEntity, restored);
   }
 }

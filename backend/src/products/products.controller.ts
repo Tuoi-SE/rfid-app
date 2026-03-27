@@ -8,46 +8,74 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
-import { ProductsService } from './products.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { QueryProductsDto } from './dto/query-products.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '.prisma/client';
+import { ProductsService } from '@products/products.service';
+import { CreateProductDto } from '@products/dto/create-product.dto';
+import { UpdateProductDto } from '@products/dto/update-product.dto';
+import { QueryProductsDto } from '@products/dto/query-products.dto';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../casl/policies.guard';
+import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
+import { ResponseMessage } from '@common/decorators/response-message.decorator';
 
+/**
+ * ProductsController — API quản lý sản phẩm.
+ *
+ * Base path: /api/products
+ * GET: tất cả user đã đăng nhập (read Product)
+ * POST/PATCH/DELETE/RESTORE: chỉ ADMIN (manage Product)
+ */
 @Controller('api/products')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
+  /** GET /api/products — Danh sách có phân trang + lọc category */
   @Get()
+  @CheckPolicies((ability) => ability.can('read', 'Product'))
+  @ResponseMessage('Lấy danh sách sản phẩm thành công')
   findAll(@Query() query: QueryProductsDto) {
     return this.productsService.findAll(query);
   }
 
+  /** GET /api/products/:id — Chi tiết sản phẩm */
   @Get(':id')
+  @CheckPolicies((ability) => ability.can('read', 'Product'))
+  @ResponseMessage('Lấy thông tin sản phẩm thành công')
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
 
+  /** POST /api/products — Tạo sản phẩm mới (ADMIN) */
   @Post()
-  @Roles(Role.ADMIN)
-  create(@Body() dto: CreateProductDto) {
-    return this.productsService.create(dto);
+  @CheckPolicies((ability) => ability.can('create', 'Product'))
+  @ResponseMessage('Tạo sản phẩm thành công')
+  create(@Body() dto: CreateProductDto, @Request() req: any) {
+    return this.productsService.create(dto, req.user.id);
   }
 
+  /** PATCH /api/products/:id — Cập nhật sản phẩm (ADMIN) */
   @Patch(':id')
-  @Roles(Role.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.productsService.update(id, dto);
+  @CheckPolicies((ability) => ability.can('update', 'Product'))
+  @ResponseMessage('Cập nhật sản phẩm thành công')
+  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Request() req: any) {
+    return this.productsService.update(id, dto, req.user.id);
   }
 
+  /** DELETE /api/products/:id — Xóa mềm sản phẩm (ADMIN) */
   @Delete(':id')
-  @Roles(Role.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(id);
+  @CheckPolicies((ability) => ability.can('delete', 'Product'))
+  @ResponseMessage('Xóa sản phẩm thành công')
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.productsService.remove(id, req.user.id);
+  }
+
+  /** POST /api/products/:id/restore — Khôi phục sản phẩm đã xóa (ADMIN) */
+  @Post(':id/restore')
+  @CheckPolicies((ability) => ability.can('update', 'Product'))
+  @ResponseMessage('Khôi phục sản phẩm thành công')
+  restore(@Param('id') id: string, @Request() req: any) {
+    return this.productsService.restore(id, req.user.id);
   }
 }
