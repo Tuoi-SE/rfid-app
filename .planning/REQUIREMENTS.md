@@ -20,9 +20,9 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Cache Integration - Tags
 
-- [ ] **CACHE-01**: TagsService.findByEpc() uses cache-aside pattern with 5-min TTL
-- [ ] **CACHE-02**: TagsService.update() invalidates cache immediately on write
-- [ ] **CACHE-03**: Cache key pattern `tag:epc:{epc}` for tag lookups
+- [x] **CACHE-01**: TagsService.findByEpc() uses cache-aside pattern with 5-min TTL
+- [x] **CACHE-02**: TagsService.update() invalidates cache immediately on write
+- [x] **CACHE-03**: Cache key pattern `tag:epc:{epc}` for tag lookups
 
 ### Cache Integration - Inventory Summary
 
@@ -107,9 +107,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REDIS-01 | Phase 07 | Complete |
 | REDIS-02 | Phase 07 | Complete |
 | REDIS-03 | Phase 07 | Complete |
-| CACHE-01 | Phase 08 | Pending |
-| CACHE-02 | Phase 08 | Pending |
-| CACHE-03 | Phase 08 | Pending |
+| CACHE-01 | Phase 08 | Complete |
+| CACHE-02 | Phase 08 | Complete |
+| CACHE-03 | Phase 08 | Complete |
 | CACHE-04 | Phase 09 | Pending |
 | CACHE-05 | Phase 09 | Pending |
 | CACHE-06 | Phase 09 | Pending |

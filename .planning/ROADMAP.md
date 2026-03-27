@@ -72,7 +72,7 @@ Plans:
 
 - [x] **Phase 06: Connection Pooling Foundation** - Tune Prisma connection pool for concurrent workloads (completed 2026-03-27)
 - [x] **Phase 07: Redis Infrastructure** - Redis cache layer setup with @nestjs/cache-manager (completed 2026-03-27)
-- [ ] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL
+- [x] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL (completed 2026-03-27)
 - [ ] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL
 - [ ] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold
 - [ ] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries
@@ -138,10 +138,10 @@ Plans:
 4. Cache key pattern `tag:epc:{epc}` is used consistently for tag lookups
 5. Repeated scans of same EPC hit cache instead of database
 
-**Plans:** 1/1 plans
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 08-01-PLAN.md — Add cache-aside pattern to TagsService: inject CacheService, findByEpc() checks cache first then DB with 5-min TTL, update() invalidates cache
+- [x] 08-01-PLAN.md — Add cache-aside pattern to TagsService: inject CacheService, findByEpc() checks cache first then DB with 5-min TTL, update() invalidates cache
 
 ---
 
@@ -223,7 +223,7 @@ Plans:
 | 5. Outbound Flow | 1/1 | Done | 2026-03-26 |
 | 6. Connection Pooling Foundation | 1/1 | Done | 2026-03-27 |
 | 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
-| 8. Cache Integration - Tags | 0/1 | In Progress | - |
+| 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
 | 9. Cache Integration - Inventory Summary | 0/1 | Pending | - |
 | 10. Batch Scan Buffer | 0/1 | Pending | - |
 | 11. Service Boundary Cleanup | 0/1 | Pending | - |
