@@ -1,5 +1,6 @@
 import { IsOptional, IsEnum, IsInt, Min, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { LocationType } from '.prisma/client';
 
 export class QueryLocationsDto {
   @IsOptional()
@@ -19,6 +20,6 @@ export class QueryLocationsDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(['ADMIN', 'WORKSHOP', 'WAREHOUSE', 'CUSTOMER'])
-  type?: string;
+  @IsEnum(LocationType)
+  type?: LocationType;
 }

@@ -42,8 +42,9 @@ async function bootstrap() {
 
   const port = config.get('PORT', 3000);
   await app.listen(port);
-  console.log(`Server running on http://localhost:${port}`);
-  console.log(`Swagger docs at http://localhost:${port}/api/docs`);
+  const logger = app.get(Logger);
+  logger.log(`Server running on http://localhost:${port}`);
+  logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
 }
 
 bootstrap();

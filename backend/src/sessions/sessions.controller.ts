@@ -7,6 +7,7 @@ import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { EventsGateway } from '../events/events.gateway';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 @Controller('api/sessions')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -28,7 +29,7 @@ export class SessionsController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Session'))
   @ResponseMessage('Tạo phiên quét thành công')
-  async create(@Request() req: any, @Body() dto: CreateSessionDto) {
+  async create(@Request() req: AuthenticatedRequest, @Body() dto: CreateSessionDto) {
     const session = await this.sessionsService.create(dto, req.user.id);
     this.eventsGateway.emitSessionCreated(session);
     return session;

@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
  * ProductsController — API quản lý sản phẩm.
@@ -51,7 +52,7 @@ export class ProductsController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Product'))
   @ResponseMessage('Tạo sản phẩm thành công')
-  create(@Body() dto: CreateProductDto, @Request() req: any) {
+  create(@Body() dto: CreateProductDto, @Request() req: AuthenticatedRequest) {
     return this.productsService.create(dto, req.user.id);
   }
 
@@ -59,7 +60,7 @@ export class ProductsController {
   @Patch(':id')
   @CheckPolicies((ability) => ability.can('update', 'Product'))
   @ResponseMessage('Cập nhật sản phẩm thành công')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Request() req: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Request() req: AuthenticatedRequest) {
     return this.productsService.update(id, dto, req.user.id);
   }
 
@@ -67,7 +68,7 @@ export class ProductsController {
   @Delete(':id')
   @CheckPolicies((ability) => ability.can('delete', 'Product'))
   @ResponseMessage('Xóa sản phẩm thành công')
-  remove(@Param('id') id: string, @Request() req: any) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.productsService.remove(id, req.user.id);
   }
 
@@ -75,7 +76,7 @@ export class ProductsController {
   @Post(':id/restore')
   @CheckPolicies((ability) => ability.can('update', 'Product'))
   @ResponseMessage('Khôi phục sản phẩm thành công')
-  restore(@Param('id') id: string, @Request() req: any) {
+  restore(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.productsService.restore(id, req.user.id);
   }
 }

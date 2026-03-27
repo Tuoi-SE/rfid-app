@@ -6,7 +6,7 @@ import { EventsGateway } from '../events/events.gateway';
 import { randomBytes } from 'crypto';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { paginate } from '@common/helpers/pagination.helper';
-import { OrderStatus } from '.prisma/client';
+import { OrderStatus, Prisma } from '.prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { OrderEntity } from './entities/order.entity';
 
@@ -51,7 +51,7 @@ export class OrdersService {
 
   async findAll(query: QueryOrdersDto) {
     const { page = 1, limit = 20, search, type, status } = query;
-    const where: any = { deletedAt: null };
+    const where: Prisma.OrderWhereInput = { deletedAt: null };
 
     if (search) {
       where.code = { contains: search, mode: 'insensitive' };

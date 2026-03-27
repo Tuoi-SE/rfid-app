@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 @Controller('api/locations')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -44,7 +45,7 @@ export class LocationsController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Location'))
   @ResponseMessage('Thêm vị trí thành công')
-  create(@Body() dto: CreateLocationDto, @Req() req: any) {
+  create(@Body() dto: CreateLocationDto, @Req() req: AuthenticatedRequest) {
     return this.locationsService.create(dto, req.user?.id);
   }
 
@@ -52,7 +53,7 @@ export class LocationsController {
   @Patch(':id')
   @CheckPolicies((ability) => ability.can('update', 'Location'))
   @ResponseMessage('Cập nhật vị trí thành công')
-  update(@Param('id') id: string, @Body() dto: UpdateLocationDto, @Req() req: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateLocationDto, @Req() req: AuthenticatedRequest) {
     return this.locationsService.update(id, dto, req.user?.id);
   }
 
@@ -60,7 +61,7 @@ export class LocationsController {
   @Delete(':id')
   @CheckPolicies((ability) => ability.can('delete', 'Location'))
   @ResponseMessage('Xóa vị trí thành công')
-  remove(@Param('id') id: string, @Req() req: any) {
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.locationsService.remove(id, req.user?.id);
   }
 }

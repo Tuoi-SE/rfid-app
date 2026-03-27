@@ -14,7 +14,6 @@ const geistMono = Geist_Mono({
 
 import Providers from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "RFID Inventory Manager",
@@ -33,7 +32,7 @@ export default function RootLayout({
       >
         <Providers>
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            {children}
           </AuthProvider>
         </Providers>
       </body>

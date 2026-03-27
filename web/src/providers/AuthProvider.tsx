@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { AuthStorage } from '@/lib/http/auth-storage';
 
 interface AuthContextType {
   token: string | null;
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const stored = localStorage.getItem('token');
+    const stored = AuthStorage.getToken();
     if (stored) {
       setToken(stored);
       // Decode JWT to get user info
@@ -33,15 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const payload = JSON.parse(atob(stored.split('.')[1]));
         setUser({ id: payload.sub, username: payload.username, role: payload.role });
       } catch {
-        localStorage.removeItem('token');
+        AuthStorage.removeToken();
       }
     }
     setIsLoading(false);
   }, []);
 
   const login = (accessToken: string, refreshToken: string) => {
-    localStorage.setItem('token', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+    AuthStorage.setToken(accessToken, refreshToken);
     try {
       const payload = JSON.parse(atob(accessToken.split('.')[1]));
       setUser({ id: payload.sub, username: payload.username, role: payload.role });
@@ -51,8 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    AuthStorage.removeToken();
     setToken(null);
     setUser(null);
     router.push('/login');

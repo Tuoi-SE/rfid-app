@@ -5,7 +5,7 @@ import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
 import { QueryTransfersDto } from './dto/query-transfers.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { randomBytes } from 'crypto';
-import { LocationType, TransferStatus, TagStatus, Role } from '@prisma/client';
+import { LocationType, TransferStatus, TagStatus, Role, Prisma } from '@prisma/client';
 
 @Injectable()
 export class TransfersService {
@@ -207,7 +207,7 @@ export class TransfersService {
     const { page = 1, limit = 20, status, type, sourceId, destinationId } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.TransferWhereInput = {};
     if (status) where.status = status;
     if (type) where.type = type;
     if (sourceId) where.sourceId = sourceId;

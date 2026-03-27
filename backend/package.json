@@ -28,6 +28,7 @@
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
@@ -96,6 +97,20 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@common/(.*)$": "<rootDir>/common/$1",
+      "^@auth/(.*)$": "<rootDir>/auth/$1",
+      "^@users/(.*)$": "<rootDir>/users/$1",
+      "^@prisma/prisma\\.(.*)$": "<rootDir>/prisma/prisma.$1",
+      "^@prisma/soft-delete\\.(.*)$": "<rootDir>/prisma/soft-delete.$1",
+      "^@categories/(.*)$": "<rootDir>/categories/$1",
+      "^@products/(.*)$": "<rootDir>/products/$1",
+      "^@tags/(.*)$": "<rootDir>/tags/$1",
+      "^@locations/(.*)$": "<rootDir>/locations/$1",
+      "^@inventory/(.*)$": "<rootDir>/inventory/$1",
+      "^@orders/(.*)$": "<rootDir>/orders/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

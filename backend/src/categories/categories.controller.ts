@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
  * CategoriesController — API quản lý danh mục sản phẩm.
@@ -51,7 +52,7 @@ export class CategoriesController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Category'))
   @ResponseMessage('Tạo danh mục thành công')
-  create(@Body() dto: CreateCategoryDto, @Request() req: any) {
+  create(@Body() dto: CreateCategoryDto, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.create(dto, req.user.id);
   }
 
@@ -59,7 +60,7 @@ export class CategoriesController {
   @Patch(':id')
   @CheckPolicies((ability) => ability.can('update', 'Category'))
   @ResponseMessage('Cập nhật danh mục thành công')
-  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Request() req: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.update(id, dto, req.user.id);
   }
 
@@ -67,7 +68,7 @@ export class CategoriesController {
   @Delete(':id')
   @CheckPolicies((ability) => ability.can('delete', 'Category'))
   @ResponseMessage('Xóa danh mục thành công')
-  remove(@Param('id') id: string, @Request() req: any) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.remove(id, req.user.id);
   }
 
@@ -75,7 +76,7 @@ export class CategoriesController {
   @Post(':id/restore')
   @CheckPolicies((ability) => ability.can('update', 'Category'))
   @ResponseMessage('Khôi phục danh mục thành công')
-  restore(@Param('id') id: string, @Request() req: any) {
+  restore(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.categoriesService.restore(id, req.user.id);
   }
 }

@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 @Controller('api/orders')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -16,7 +17,7 @@ export class OrdersController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Order'))
   @ResponseMessage('Tạo đơn hàng thành công')
-  create(@Body() createOrderDto: CreateOrderDto, @Req() req: any) {
+  create(@Body() createOrderDto: CreateOrderDto, @Req() req: AuthenticatedRequest) {
     return this.ordersService.create(createOrderDto, req.user?.id);
   }
 
@@ -40,7 +41,7 @@ export class OrdersController {
   @Patch(':id/cancel')
   @CheckPolicies((ability) => ability.can('update', 'Order'))
   @ResponseMessage('Hủy đơn hàng thành công')
-  cancelOrder(@Param('id') id: string, @Req() req: any) {
+  cancelOrder(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.ordersService.cancelOrder(id, req.user?.id);
   }
 
@@ -48,7 +49,7 @@ export class OrdersController {
   @Delete(':id')
   @CheckPolicies((ability) => ability.can('delete', 'Order'))
   @ResponseMessage('Xóa đơn hàng thành công')
-  remove(@Param('id') id: string, @Req() req: any) {
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.ordersService.remove(id, req.user?.id);
   }
 }

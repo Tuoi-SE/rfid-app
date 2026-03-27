@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
  * UsersController — API quản lý người dùng (ADMIN only).
@@ -48,28 +49,28 @@ export class UsersController {
   /** POST /api/users — Tạo user mới */
   @Post()
   @ResponseMessage('Tạo người dùng thành công')
-  create(@Body() dto: CreateUserDto, @Request() req: any) {
+  create(@Body() dto: CreateUserDto, @Request() req: AuthenticatedRequest) {
     return this.usersService.create(dto, req.user.id);
   }
 
   /** PATCH /api/users/:id — Cập nhật user */
   @Patch(':id')
   @ResponseMessage('Cập nhật người dùng thành công')
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Request() req: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Request() req: AuthenticatedRequest) {
     return this.usersService.update(id, dto, req.user.id);
   }
 
   /** DELETE /api/users/:id — Xóa mềm user */
   @Delete(':id')
   @ResponseMessage('Xóa người dùng thành công')
-  remove(@Param('id') id: string, @Request() req: any) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.usersService.remove(id, req.user.id);
   }
 
   /** POST /api/users/:id/restore — Khôi phục user đã xóa mềm */
   @Post(':id/restore')
   @ResponseMessage('Khôi phục người dùng thành công')
-  restore(@Param('id') id: string, @Request() req: any) {
+  restore(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.usersService.restore(id, req.user.id);
   }
 }

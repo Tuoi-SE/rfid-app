@@ -7,6 +7,7 @@ import { BusinessException } from '@common/exceptions/business.exception';
 import { paginate } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { LocationEntity } from './entities/location.entity';
+import { Prisma } from '.prisma/client';
 
 @Injectable()
 export class LocationsService {
@@ -16,8 +17,8 @@ export class LocationsService {
     const { page = 1, limit = 20, search, type } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      deletedAt: null, // Only non-deleted
+    const where: Prisma.LocationWhereInput = {
+      deletedAt: null,
     };
 
     if (search) {

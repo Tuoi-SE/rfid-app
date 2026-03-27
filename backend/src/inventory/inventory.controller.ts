@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 @ApiTags('Inventory')
 @ApiBearerAuth('access-token')
@@ -21,7 +22,7 @@ export class InventoryController {
   @CheckPolicies((ability) => ability.can('create', 'Inventory'))
   @ApiOperation({ summary: 'Nhập kho / Xuất kho — thay đổi status tags hàng loạt' })
   @ResponseMessage('Thực hiện xuất/nhập kho thành công')
-  processOperation(@Body() dto: InventoryOperationDto, @Req() req: any) {
+  processOperation(@Body() dto: InventoryOperationDto, @Req() req: AuthenticatedRequest) {
     return this.inventoryService.processOperation(dto, req.user?.id);
   }
 

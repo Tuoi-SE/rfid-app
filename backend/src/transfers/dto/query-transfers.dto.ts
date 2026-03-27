@@ -1,5 +1,6 @@
 import { IsOptional, IsEnum, IsUUID, IsInt, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { TransferStatus, TransferType } from '.prisma/client';
 
 export class QueryTransfersDto {
   @IsOptional()
@@ -15,12 +16,12 @@ export class QueryTransfersDto {
   limit?: number = 20;
 
   @IsOptional()
-  @IsEnum(['PENDING', 'COMPLETED', 'CANCELLED'])
-  status?: string;
+  @IsEnum(TransferStatus)
+  status?: TransferStatus;
 
   @IsOptional()
-  @IsEnum(['ADMIN_TO_WORKSHOP'])
-  type?: string;
+  @IsEnum(TransferType)
+  type?: TransferType;
 
   @IsOptional()
   @IsUUID()

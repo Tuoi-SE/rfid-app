@@ -22,6 +22,7 @@ import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { Public } from '@auth/decorators/public.decorator';
 import { EventsGateway } from '../events/events.gateway';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
  * TagsController — Quản lý thẻ RFID / mã EPC.
@@ -64,7 +65,7 @@ export class TagsController {
   @Post()
   @CheckPolicies((ability) => ability.can('create', 'Tag'))
   @ResponseMessage('Khởi tạo thẻ trắng thành công')
-  async create(@Body() dto: CreateTagDto, @Req() req: any) {
+  async create(@Body() dto: CreateTagDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const tag = await this.tagsService.create(dto, userId);
     this.eventsGateway.emitTagsUpdated();
@@ -75,7 +76,7 @@ export class TagsController {
   @Patch('assign')
   @CheckPolicies((ability) => ability.can('update', 'Tag'))
   @ResponseMessage('Gán thẻ thành công')
-  async assignTags(@Body() dto: AssignTagsDto, @Req() req: any) {
+  async assignTags(@Body() dto: AssignTagsDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const result = await this.tagsService.assignTags(dto, userId);
     this.eventsGateway.emitTagsUpdated();
@@ -95,7 +96,7 @@ export class TagsController {
   @Patch(':epc')
   @CheckPolicies((ability) => ability.can('update', 'Tag'))
   @ResponseMessage('Cập nhật thẻ thành công')
-  async update(@Param('epc') epc: string, @Body() dto: UpdateTagDto, @Req() req: any) {
+  async update(@Param('epc') epc: string, @Body() dto: UpdateTagDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const tag = await this.tagsService.update(epc, dto, userId);
     this.eventsGateway.emitTagsUpdated();
@@ -106,7 +107,7 @@ export class TagsController {
   @Delete(':epc')
   @CheckPolicies((ability) => ability.can('delete', 'Tag'))
   @ResponseMessage('Xóa thẻ thành công')
-  async remove(@Param('epc') epc: string, @Req() req: any) {
+  async remove(@Param('epc') epc: string, @Req() req: AuthenticatedRequest) {
     const result = await this.tagsService.remove(epc, req.user?.id);
     this.eventsGateway.emitTagsUpdated();
     return result;

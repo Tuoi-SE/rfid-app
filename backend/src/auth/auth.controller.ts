@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { LoginDto } from '@auth/dto/login.dto';
 import { RefreshTokenDto } from '@auth/dto/refresh-token.dto';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
  * AuthController — API xác thực người dùng.
@@ -32,7 +33,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ResponseMessage('Đăng nhập thành công')
-  login(@Request() req: any, @Body() _dto: LoginDto) {
+  login(@Request() req: AuthenticatedRequest, @Body() _dto: LoginDto) {
     return this.authService.login(req.user);
   }
 
@@ -44,7 +45,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ResponseMessage('Lấy thông tin tài khoản thành công')
-  getMe(@Request() req: any) {
+  getMe(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
 

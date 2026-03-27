@@ -12,6 +12,7 @@ import { PoliciesGuard } from '../casl/policies.guard';
 import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
 import { Role } from '.prisma/client';
 import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 @Controller('api/activity-logs')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -21,7 +22,7 @@ export class ActivityLogController {
   @Get()
   @CheckPolicies((ability) => ability.can('read', 'ActivityLog'))
   @ResponseMessage('Lấy lịch sử hoạt động thành công')
-  findAll(@Query() query: QueryActivityLogDto, @Request() req: any) {
+  findAll(@Query() query: QueryActivityLogDto, @Request() req: AuthenticatedRequest) {
     const isAdmin = req.user.role === Role.ADMIN;
     return this.activityLogService.findAll(query, req.user.id, isAdmin);
   }
