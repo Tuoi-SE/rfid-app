@@ -27,11 +27,11 @@ Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi 
 - ✓ JWT authentication cho Admin và Warehouse Manager
 - ✓ Location infrastructure (ADMIN, WAREHOUSE, WORKSHOP, HOTEL/RESORT/SPA)
 - ✓ Transfer workflow (Admin→Workshop→Warehouse→Customer)
+- ✓ **SCALE-02**: Connection pooling tối ưu cho concurrent scans — Phase 06
 
 ### Active
 
 - [ ] **SCALE-01**: Redis cache layer cho inventory queries (giảm query nặng)
-- [ ] **SCALE-02**: Connection pooling tối ưu cho concurrent scans
 - [ ] **SCALE-03**: Batch scan buffer — gửi nhiều tag cùng lúc
 - [ ] **SCALE-04**: Service boundaries — tách logic modules rõ ràng
 
