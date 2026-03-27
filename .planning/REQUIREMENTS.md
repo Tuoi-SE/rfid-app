@@ -14,9 +14,9 @@ Requirements for v1.1 milestone. Each maps to roadmap phases.
 
 ### Redis Infrastructure
 
-- [ ] **REDIS-01**: CacheModule created with @nestjs/cache-manager + ioredis store
-- [ ] **REDIS-02**: REDIS_HOST and REDIS_PORT environment variables configured
-- [ ] **REDIS-03**: Redis health check endpoint added
+- [x] **REDIS-01**: CacheModule created with @nestjs/cache-manager + ioredis store
+- [x] **REDIS-02**: REDIS_HOST and REDIS_PORT environment variables configured
+- [x] **REDIS-03**: Redis health check endpoint added
 
 ### Cache Integration - Tags
 
@@ -104,9 +104,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | POOL-01 | Phase 06 | Complete |
 | POOL-02 | Phase 06 | Complete |
-| REDIS-01 | Phase 07 | Pending |
-| REDIS-02 | Phase 07 | Pending |
-| REDIS-03 | Phase 07 | Pending |
+| REDIS-01 | Phase 07 | Complete |
+| REDIS-02 | Phase 07 | Complete |
+| REDIS-03 | Phase 07 | Complete |
 | CACHE-01 | Phase 08 | Pending |
 | CACHE-02 | Phase 08 | Pending |
 | CACHE-03 | Phase 08 | Pending |
