@@ -121,8 +121,6 @@ Plans:
 Plans:
 - [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
 
-**UI hint:** yes
-
 ---
 
 ### Phase 08: Cache Integration - Tags
@@ -140,10 +138,10 @@ Plans:
 4. Cache key pattern `tag:epc:{epc}` is used consistently for tag lookups
 5. Repeated scans of same EPC hit cache instead of database
 
-**Plans:** 1/1 plans complete
+**Plans:** 1/1 plans
 
 Plans:
-- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
+- [ ] 08-01-PLAN.md — Add cache-aside pattern to TagsService: inject CacheService, findByEpc() checks cache first then DB with 5-min TTL, update() invalidates cache
 
 ---
 
@@ -162,10 +160,10 @@ Plans:
 4. Dashboard loads stock summary from cache without direct DB aggregation
 5. Real-time requirement maintained: inventory updates reflect immediately after transaction commit
 
-**Plans:** 1/1 plans complete
+**Plans:** 0/1 plans (pending Phase 08)
 
 Plans:
-- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
+- [ ] 09-01-PLAN.md — TBD (depends on Phase 08)
 
 ---
 
@@ -185,10 +183,10 @@ Plans:
 5. InventoryService.processBulkScan() handles bulk upsert efficiently
 6. Duplicate EPCs in same batch are handled idempotently (no duplicate TagEvents)
 
-**Plans:** 1/1 plans complete
+**Plans:** 0/1 plans (pending Phase 09)
 
 Plans:
-- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
+- [ ] 10-01-PLAN.md — TBD (depends on Phase 09)
 
 ---
 
@@ -207,10 +205,10 @@ Plans:
 4. `nest deps` shows no circular dependency warnings
 5. All scanning-related logic routes through ScanningModule
 
-**Plans:** 1/1 plans complete
+**Plans:** 0/1 plans (pending Phase 10)
 
 Plans:
-- [x] 07-01-PLAN.md — Redis cache layer setup: install @nestjs/cache-manager + ioredis, docker-compose Redis service, global CacheModule, /health with Redis status
+- [ ] 11-01-PLAN.md — TBD (depends on Phase 10)
 
 ---
 
@@ -223,9 +221,9 @@ Plans:
 | 3. Warehouse Transfer | 1/1 | Done | 2026-03-26 |
 | 4. Customer Management | 1/1 | Done | 2026-03-26 |
 | 5. Outbound Flow | 1/1 | Done | 2026-03-26 |
-| 6. Connection Pooling Foundation | 1/1 | Complete   | 2026-03-27 |
-| 7. Redis Infrastructure | 0/1 | Not started | - |
-| 8. Cache Integration - Tags | 0/1 | Not started | - |
-| 9. Cache Integration - Inventory Summary | 0/1 | Not started | - |
-| 10. Batch Scan Buffer | 0/1 | Not started | - |
-| 11. Service Boundary Cleanup | 0/1 | Not started | - |
+| 6. Connection Pooling Foundation | 1/1 | Done | 2026-03-27 |
+| 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
+| 8. Cache Integration - Tags | 0/1 | In Progress | - |
+| 9. Cache Integration - Inventory Summary | 0/1 | Pending | - |
+| 10. Batch Scan Buffer | 0/1 | Pending | - |
+| 11. Service Boundary Cleanup | 0/1 | Pending | - |
