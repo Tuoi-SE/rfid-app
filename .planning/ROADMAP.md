@@ -55,3 +55,159 @@ Plans:
 
 Plans:
 - [x] 05-PLAN.md — Sửa WAREHOUSE_TO_CUSTOMER: tạo = COMPLETED ngay (D-20), stock limit validation (D-22), tags OUT_OF_STOCK
+
+---
+
+## v1.1: Performance & Scale Preparation
+
+**Goal:** Chuẩn bị kiến trúc để scale — Redis cache, connection pooling, batch scan, service boundaries
+
+**Target features:**
+- Redis cache layer cho inventory queries
+- Connection pooling tối ưu cho concurrent scans
+- Batch scan buffer — gửi nhiều tag cùng lúc
+- Service boundaries — tách logic modules rõ ràng
+
+## Phases
+
+- [ ] **Phase 06: Connection Pooling Foundation** - Tune Prisma connection pool for concurrent workloads
+- [ ] **Phase 07: Redis Infrastructure** - Redis cache layer setup with @nestjs/cache-manager
+- [ ] **Phase 08: Cache Integration - Tags** - Cache-aside pattern for tag lookups with 5-min TTL
+- [ ] **Phase 09: Cache Integration - Inventory Summary** - Cached stock summary with 30-sec TTL
+- [ ] **Phase 10: Batch Scan Buffer** - Buffer multiple tags per scan with 500 threshold
+- [ ] **Phase 11: Service Boundary Cleanup** - Extract ScanningService with clean DI boundaries
+
+---
+
+## Phase Details
+
+### Phase 06: Connection Pooling Foundation
+
+**Goal:** Prisma connection pool is tuned for concurrent scan workloads
+
+**Depends on:** Nothing (foundation phase)
+
+**Requirements:** POOL-01, POOL-02
+
+**Success Criteria** (what must be TRUE):
+1. PrismaService uses connectionLimit: 20 (or configured value from env)
+2. Connection limit is configurable via DATABASE_URL or environment variable without code changes
+3. Application starts and maintains database connections under concurrent scan load
+4. Connection pool does not exhaust under 20+ simultaneous operations
+
+**Plans:** TBD
+
+---
+
+### Phase 07: Redis Infrastructure
+
+**Goal:** Redis cache layer is available and configured for application use
+
+**Depends on:** Phase 06 (PrismaService must be stable before adding cache)
+
+**Requirements:** REDIS-01, REDIS-02, REDIS-03
+
+**Success Criteria** (what must be TRUE):
+1. CacheModule globally registered with @nestjs/cache-manager and ioredis store
+2. Application connects to Redis using REDIS_HOST and REDIS_PORT environment variables
+3. /health endpoint returns Redis connection status (healthy/degraded)
+4. Cache operations (get, set, del) work with ioredis store
+
+**Plans:** TBD
+
+**UI hint:** yes
+
+---
+
+### Phase 08: Cache Integration - Tags
+
+**Goal:** Tag lookups use cache-aside pattern with 5-minute TTL
+
+**Depends on:** Phase 07 (Redis infrastructure must be ready)
+
+**Requirements:** CACHE-01, CACHE-02, CACHE-03
+
+**Success Criteria** (what must be TRUE):
+1. TagsService.findByEpc() returns cached result if EPC exists in cache
+2. Cache miss triggers database lookup and populates cache with 5-min TTL
+3. TagsService.update() immediately invalidates cache for the updated EPC
+4. Cache key pattern `tag:epc:{epc}` is used consistently for tag lookups
+5. Repeated scans of same EPC hit cache instead of database
+
+**Plans:** TBD
+
+---
+
+### Phase 09: Cache Integration - Inventory Summary
+
+**Goal:** Inventory summary queries are cached with 30-second TTL and stampede prevention
+
+**Depends on:** Phase 08 (Tag cache patterns must be stable)
+
+**Requirements:** CACHE-04, CACHE-05, CACHE-06
+
+**Success Criteria** (what must be TRUE):
+1. InventoryService.getStockSummary() returns cached result within 30-sec window
+2. Cache invalidation occurs inside database transaction on processOperation()
+3. TTL includes jitter to prevent stampede when cache expires
+4. Dashboard loads stock summary from cache without direct DB aggregation
+5. Real-time requirement maintained: inventory updates reflect immediately after transaction commit
+
+**Plans:** TBD
+
+---
+
+### Phase 10: Batch Scan Buffer
+
+**Goal:** Multiple EPCs can be submitted together and processed efficiently
+
+**Depends on:** Phase 09 (Cache invalidation must work correctly)
+
+**Requirements:** BATCH-01, BATCH-02, BATCH-03, BATCH-04, BATCH-05, BATCH-06
+
+**Success Criteria** (what must be TRUE):
+1. BatchScanService buffers EPCs in memory Map up to 500 threshold
+2. Buffer flushes automatically when 500 EPCs accumulated OR 5 seconds elapsed
+3. Memory limits enforced: MAX_BUFFER_SIZE=500, MAX_BUFFER_AGE=5000ms
+4. /scan/batch endpoint accepts array of EPCs and returns processed count
+5. InventoryService.processBulkScan() handles bulk upsert efficiently
+6. Duplicate EPCs in same batch are handled idempotently (no duplicate TagEvents)
+
+**Plans:** TBD
+
+---
+
+### Phase 11: Service Boundary Cleanup
+
+**Goal:** Scanning logic is extracted into dedicated module with clean boundaries
+
+**Depends on:** Phase 10 (Batch buffer must be stable)
+
+**Requirements:** BOUND-01, BOUND-02, BOUND-03
+
+**Success Criteria** (what must be TRUE):
+1. ScanningService is extracted from InventoryService and EventsGateway
+2. @app/common module contains shared DTOs and interfaces used across modules
+3. ScanningModule has clean dependency injection boundaries (no circular deps)
+4. `nest deps` shows no circular dependency warnings
+5. All scanning-related logic routes through ScanningModule
+
+**Plans:** TBD
+
+---
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Location Infrastructure | 1/1 | Done | 2026-03-26 |
+| 2. Workshop Management | 3/3 | Done | 2026-03-26 |
+| 3. Warehouse Transfer | 1/1 | Done | 2026-03-26 |
+| 4. Customer Management | 1/1 | Done | 2026-03-26 |
+| 5. Outbound Flow | 1/1 | Done | 2026-03-26 |
+| 6. Connection Pooling Foundation | 0/1 | Not started | - |
+| 7. Redis Infrastructure | 0/1 | Not started | - |
+| 8. Cache Integration - Tags | 0/1 | Not started | - |
+| 9. Cache Integration - Inventory Summary | 0/1 | Not started | - |
+| 10. Batch Scan Buffer | 0/1 | Not started | - |
+| 11. Service Boundary Cleanup | 0/1 | Not started | - |

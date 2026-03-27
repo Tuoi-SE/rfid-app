@@ -102,26 +102,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POOL-01 | Phase 1 | Pending |
-| POOL-02 | Phase 1 | Pending |
-| REDIS-01 | Phase 2 | Pending |
-| REDIS-02 | Phase 2 | Pending |
-| REDIS-03 | Phase 2 | Pending |
-| CACHE-01 | Phase 3 | Pending |
-| CACHE-02 | Phase 3 | Pending |
-| CACHE-03 | Phase 3 | Pending |
-| CACHE-04 | Phase 4 | Pending |
-| CACHE-05 | Phase 4 | Pending |
-| CACHE-06 | Phase 4 | Pending |
-| BATCH-01 | Phase 5 | Pending |
-| BATCH-02 | Phase 5 | Pending |
-| BATCH-03 | Phase 5 | Pending |
-| BATCH-04 | Phase 5 | Pending |
-| BATCH-05 | Phase 5 | Pending |
-| BATCH-06 | Phase 5 | Pending |
-| BOUND-01 | Phase 6 | Pending |
-| BOUND-02 | Phase 6 | Pending |
-| BOUND-03 | Phase 6 | Pending |
+| POOL-01 | Phase 06 | Pending |
+| POOL-02 | Phase 06 | Pending |
+| REDIS-01 | Phase 07 | Pending |
+| REDIS-02 | Phase 07 | Pending |
+| REDIS-03 | Phase 07 | Pending |
+| CACHE-01 | Phase 08 | Pending |
+| CACHE-02 | Phase 08 | Pending |
+| CACHE-03 | Phase 08 | Pending |
+| CACHE-04 | Phase 09 | Pending |
+| CACHE-05 | Phase 09 | Pending |
+| CACHE-06 | Phase 09 | Pending |
+| BATCH-01 | Phase 10 | Pending |
+| BATCH-02 | Phase 10 | Pending |
+| BATCH-03 | Phase 10 | Pending |
+| BATCH-04 | Phase 10 | Pending |
+| BATCH-05 | Phase 10 | Pending |
+| BATCH-06 | Phase 10 | Pending |
+| BOUND-01 | Phase 11 | Pending |
+| BOUND-02 | Phase 11 | Pending |
+| BOUND-03 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
@@ -130,4 +130,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after milestone v1.1 requirements definition*
+*Last updated: 2026-03-27 after v1.1 roadmap created*
