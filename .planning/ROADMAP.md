@@ -225,5 +225,5 @@ Plans:
 | 7. Redis Infrastructure | 1/1 | Done | 2026-03-27 |
 | 8. Cache Integration - Tags | 1/1 | Complete   | 2026-03-27 |
 | 9. Cache Integration - Inventory Summary | 1/1 | Pending | - |
-| 10. Batch Scan Buffer | 1/1 | Complete   | 2026-03-27 |
+| 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 0/1 | Pending | - |
