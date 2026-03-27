@@ -30,10 +30,10 @@ Quản lý chính xác số lượng RFID tag tại mỗi điểm trong chuỗi 
 - ✓ **SCALE-02**: Connection pooling tối ưu cho concurrent scans — Phase 06
 - ✓ **REDIS-01, REDIS-02, REDIS-03**: Redis infrastructure (docker-compose, CacheModule, /health) — Phase 07
 - ✓ **CACHE-01, CACHE-02, CACHE-03**: Cache integration for Tags (cache-aside, 5-min TTL) — Phase 08
+- ✓ **CACHE-04, CACHE-05, CACHE-06**: Cache integration for Inventory Summary (30-sec TTL + jitter) — Phase 09
 
 ### Active
 
-- [ ] **CACHE-04, CACHE-05, CACHE-06**: Cache integration for Inventory Summary (Phase 09)
 - [ ] **SCALE-03**: Batch scan buffer — gửi nhiều tag cùng lúc
 - [ ] **SCALE-04**: Service boundaries — tách logic modules rõ ràng
 
