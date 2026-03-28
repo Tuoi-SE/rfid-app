@@ -22,32 +22,23 @@ export class ScanEntity extends BaseEntity {
 }
 
 export class SessionEntity extends BaseEntity {
-  orderId: string;
-  startTime: Date;
-  endTime?: Date | null;
-  status: string;
-  totalScans: number;
-  successScans: number;
-  errorScans: number;
-  missingItems?: any;
+  name: string;
+  startedAt: Date;
+  endedAt?: Date | null;
+  totalTags: number;
+  userId?: string | null;
+  orderId?: string | null;
+
+  @Type(() => UserEntity)
+  user?: UserEntity | null;
 
   @Type(() => OrderEntity)
   order?: OrderEntity | null;
 
-  @Expose({ name: 'created_by' })
-  @Type(() => UserEntity)
-  createdBy?: UserEntity | null;
-
-  @Expose({ name: 'updated_by' })
-  @Type(() => UserEntity)
-  updatedBy?: UserEntity | null;
-
-  @Expose({ name: 'deleted_by' })
-  @Type(() => UserEntity)
-  deletedBy?: UserEntity | null;
-
   @Type(() => ScanEntity)
   scans?: ScanEntity[];
+
+  totalScans?: number; // Added from count in service
 
   constructor(partial: Partial<SessionEntity>) {
     super(partial);

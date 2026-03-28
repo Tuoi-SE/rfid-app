@@ -1,7 +1,7 @@
-import { InventoryPageClient } from '@/features/inventory/components/inventory-page-client';
+import { InventoryMain } from '@/features/inventory/components/main';
 
 const InventoryPage = () => {
-return <InventoryPageClient />;
+  return <InventoryMain />;
 };
 
 export default InventoryPage;

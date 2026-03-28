@@ -28,7 +28,7 @@ export const BulkActionsBar = ({
         {/* Count & Clear */}
         <div className="flex items-center gap-4 border-r border-slate-200 pr-6">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-[#04147B] flex items-center justify-center text-xs font-bold text-white shadow-sm">
+            <span className="min-w-[24px] h-6 px-1.5 rounded-full bg-[#04147B] flex items-center justify-center text-xs font-bold text-white shadow-sm">
               {selectedCount}
             </span>
             <span className="text-sm font-bold text-slate-600">đã chọn</span>

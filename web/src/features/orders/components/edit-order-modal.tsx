@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '@/lib/http/client';
-import { X, Plus, Trash2, Loader2, ClipboardList, Search, ChevronDown } from 'lucide-react';
-import { OrderItemForm } from '../types';
-import { createOrder } from '../api/create-order';
+import { X, Plus, Trash2, Loader2, ClipboardEdit, Search, ChevronDown } from 'lucide-react';
+import { OrderItemForm, Order } from '../types';
+import { updateOrder } from '../api/update-order';
+import { getOrder } from '../api/get-order';
 
 interface Product {
   id: string;
@@ -12,7 +13,7 @@ interface Product {
   category: { name: string };
 }
 
-// Custom Searchable Select Component
+// Custom Searchable Select (Reused logic)
 const ProductSearchSelect = ({
   value,
   onChange,
@@ -46,7 +47,7 @@ const ProductSearchSelect = ({
     <div ref={containerRef} className="relative w-full">
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full bg-white border ${isOpen ? 'border-[#04147B] ring-2 ring-[#04147B]/20' : 'border-slate-200'} text-slate-700 rounded-[12px] px-4 py-3 text-[14px] font-semibold cursor-pointer transition-all flex justify-between items-center`}
+        className={`w-full bg-white border ${isOpen ? 'border-amber-600 ring-2 ring-amber-600/20' : 'border-slate-200'} text-slate-700 rounded-[12px] px-4 py-3 text-[14px] font-semibold cursor-pointer transition-all flex justify-between items-center`}
       >
         <span className={selectedProduct ? 'text-slate-800 line-clamp-1' : 'text-slate-400 font-normal line-clamp-1'}>
           {selectedProduct ? `[${selectedProduct.sku || 'N/A'}] ${selectedProduct.name}` : '--- Vui lòng chọn sản phẩm ---'}
@@ -65,7 +66,7 @@ const ProductSearchSelect = ({
                 placeholder="Tìm tên hoặc SKU..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-[10px] text-[13px] focus:outline-none focus:border-[#04147B] focus:ring-1 focus:ring-[#04147B] transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-[10px] text-[13px] focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-all"
               />
             </div>
           </div>
@@ -79,7 +80,7 @@ const ProductSearchSelect = ({
                     setIsOpen(false);
                     setQuery('');
                   }}
-                  className={`px-3 py-2.5 rounded-[10px] cursor-pointer text-[13px] transition-colors ${value === p.id ? 'bg-[#04147B]/10 text-[#04147B] font-bold' : 'hover:bg-slate-50 text-slate-700 font-medium'}`}
+                  className={`px-3 py-2.5 rounded-[10px] cursor-pointer text-[13px] transition-colors ${value === p.id ? 'bg-amber-100 text-amber-700 font-bold' : 'hover:bg-slate-50 text-slate-700 font-medium'}`}
                 >
                   <span className="text-slate-400 font-mono mr-2">[{p.sku || 'N/A'}]</span>
                   {p.name}
@@ -97,19 +98,41 @@ const ProductSearchSelect = ({
   );
 };
 
-export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) => {
+export const EditOrderModal = ({ orderId, onClose, onSuccess }: { orderId: string, onClose: () => void, onSuccess: () => void }) => {
   const [type, setType] = useState<'INBOUND' | 'OUTBOUND'>('INBOUND');
-  const [items, setItems] = useState<OrderItemForm[]>([{ productId: '', quantity: 1 }]);
+  const [items, setItems] = useState<OrderItemForm[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch product list
   const { data: productsData } = useQuery<any>({
     queryKey: ['products', 'all'],
     queryFn: () => httpClient('/products?limit=1000'),
   });
 
+  // Fetch current order
+  const { data: orderDetails, isLoading: isOrderLoading } = useQuery<Order>({
+    queryKey: ['order', orderId],
+    queryFn: () => getOrder(orderId),
+  });
+
   const rawData = productsData?.data ?? productsData;
   const products: Product[] = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.items) ? rawData.items : [];
+
+  // Initialize form with order data
+  useEffect(() => {
+    if (orderDetails) {
+      setType(orderDetails.type);
+      if (orderDetails.items && orderDetails.items.length > 0) {
+        setItems(orderDetails.items.map((i: any) => ({
+          productId: i.productId || i.product?.id,
+          quantity: i.quantity,
+        })));
+      } else {
+        setItems([{ productId: '', quantity: 1 }]);
+      }
+    }
+  }, [orderDetails]);
 
   const handleAddItem = () => {
     setItems([...items, { productId: '', quantity: 1 }]);
@@ -144,14 +167,25 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
 
     try {
       setIsSubmitting(true);
-      await createOrder({ type, items });
+      await updateOrder(orderId, { type, items });
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra khi tạo phiếu.');
+      setError(err.message || 'Có lỗi xảy ra khi cập nhật phiếu.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isOrderLoading) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-6 rounded-[24px] shadow-xl flex items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+          <span className="font-semibold text-slate-700">Đang tải chi tiết lệnh...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4 sm:p-6" onClick={onClose}>
@@ -160,15 +194,15 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
         onClick={e => e.stopPropagation()}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between px-7 py-5 bg-gradient-to-b from-slate-50/80 to-white border-b border-slate-100">
+        <div className="flex items-center justify-between px-7 py-5 bg-gradient-to-b from-amber-50/50 to-white border-b border-slate-100">
           <div>
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5 tracking-tight">
-              <div className="w-8 h-8 rounded-xl bg-[#04147B]/10 flex items-center justify-center text-[#04147B]">
-                <ClipboardList className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <ClipboardEdit className="w-4 h-4" />
               </div>
-              Tạo Phiếu Nhập/Xuất Mới
+              Cập Nhật Phiếu Kho
             </h2>
-            <p className="text-[13px] text-slate-500 mt-1 ml-10">Tạo lệnh thao tác kho để quét RFID thực tế trên Mobile App</p>
+            <p className="text-[13px] text-slate-500 mt-1 ml-10">Mã phiếu: <span className="font-mono font-bold text-slate-700">{orderDetails?.code}</span></p>
           </div>
           <button
             onClick={onClose}
@@ -188,7 +222,6 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
           )}
 
           <div className="space-y-8">
-
             {/* RADIO BUTTONS */}
             <div>
               <label className="block text-[14px] font-bold text-slate-700 mb-3 uppercase tracking-wider">Hành Động Khai Báo</label>
@@ -203,7 +236,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                   />
                   <div className="p-5 rounded-[16px] border-2 border-slate-100 bg-white text-center peer-checked:border-[#04147B] peer-checked:bg-[#04147B]/[0.02] peer-checked:shadow-[0_0_0_4px_rgba(4,20,123,0.05)] transition-all">
                     <span className="block font-bold text-[15px] text-slate-600 group-hover:text-slate-800 peer-checked:text-[#04147B] mb-1">Nhập Kho (INBOUND)</span>
-                    <span className="text-[13px] text-slate-400 peer-checked:text-[#04147B]/70">Đưa hàng hóa mới vào lưu trữ hệ thống</span>
+                    <span className="text-[13px] text-slate-400 peer-checked:text-[#04147B]/70">Đưa hàng hóa mới vào lưu trữ</span>
                   </div>
                 </label>
                 <label className="flex-1 cursor-pointer group">
@@ -216,7 +249,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                   />
                   <div className="p-5 rounded-[16px] border-2 border-slate-100 bg-white text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-50/30 peer-checked:shadow-[0_0_0_4px_rgba(16,185,129,0.05)] transition-all">
                     <span className="block font-bold text-[15px] text-slate-600 group-hover:text-slate-800 peer-checked:text-emerald-600 mb-1">Xuất Kho (OUTBOUND)</span>
-                    <span className="text-[13px] text-slate-400 peer-checked:text-emerald-600/70">Bán hoặc luân chuyển hàng hóa ra ngoài</span>
+                    <span className="text-[13px] text-slate-400 peer-checked:text-emerald-600/70">Luân chuyển hàng hóa ra ngoài</span>
                   </div>
                 </label>
               </div>
@@ -229,7 +262,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                 <button
                   type="button"
                   onClick={handleAddItem}
-                  className="flex items-center gap-1.5 text-[14px] font-bold text-[#04147B] hover:text-[#030e57] hover:bg-[#04147B]/5 px-4 py-2 rounded-[10px] transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-[14px] font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-4 py-2 rounded-[10px] transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" /> Thêm dòng
                 </button>
@@ -254,7 +287,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                       />
                     </div>
 
-                    <div className="w-full sm:w-48 flex items-center bg-white border border-slate-200 rounded-[12px] focus-within:ring-2 focus-within:ring-[#04147B]/20 focus-within:border-[#04147B] transition-shadow overflow-hidden">
+                    <div className="w-full sm:w-48 flex items-center bg-white border border-slate-200 rounded-[12px] focus-within:ring-2 focus-within:ring-amber-600/20 focus-within:border-amber-600 transition-shadow overflow-hidden">
                       <span className="pl-4 text-slate-400 text-[13px] font-bold whitespace-nowrap uppercase tracking-wide">SL:</span>
                       <input
                         type="number"
@@ -296,15 +329,15 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center gap-2 bg-[#04147B] hover:bg-[#030e57] text-white px-8 py-2.5 rounded-[12px] transition-all font-bold text-[14px] disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_4px_14px_0_rgba(4,20,123,0.39)] hover:shadow-[0_6px_20px_rgba(4,20,123,0.23)] hover:-translate-y-0.5 cursor-pointer"
+            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-8 py-2.5 rounded-[12px] transition-all font-bold text-[14px] disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_4px_14px_0_rgba(217,119,6,0.2)] hover:shadow-[0_6px_20px_rgba(217,119,6,0.2)] hover:-translate-y-0.5 cursor-pointer"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                ĐANG TẠO...
+                ĐANG LƯU...
               </>
             ) : (
-              'LƯU PHIẾU'
+              'CẬP NHẬT'
             )}
           </button>
         </div>

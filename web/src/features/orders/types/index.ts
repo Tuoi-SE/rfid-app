@@ -10,11 +10,11 @@ export interface Order {
   id: string;
   code: string;
   type: 'INBOUND' | 'OUTBOUND';
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  userId: string;
-  user: { username: string };
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;
+  updatedAt: string;
   items: OrderItem[];
+  progress?: number;
 }
 
 export interface OrderItemForm {

@@ -7,6 +7,11 @@ export const AuthStorage = {
     return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
   },
   
+  getRefreshToken: () => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+  
   setToken: (token: string, refreshToken?: string, remember: boolean = true) => {
     if (typeof window !== 'undefined') {
       const storage = remember ? localStorage : sessionStorage;

@@ -41,7 +41,7 @@ export const CategoryFormDialog = ({
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[100] animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-100 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -49,7 +49,7 @@ export const CategoryFormDialog = ({
         onClick={e => e.stopPropagation()}
       >
         {/* Header with brand accent */}
-        <div className="relative bg-gradient-to-br from-[#04147B] to-[#1a3a9e] px-8 pt-8 pb-10">
+        <div className="relative bg-linear-to-br from-[#04147B] to-[#1a3a9e] px-8 pt-8 pb-10">
           <button
             onClick={onClose}
             className="absolute top-5 right-5 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"

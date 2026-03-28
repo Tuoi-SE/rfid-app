@@ -25,7 +25,11 @@ export class SessionsService {
         orderBy: { startedAt: 'desc' },
         skip,
         take: limit,
-        include: { _count: { select: { scans: true } } },
+        include: { 
+          _count: { select: { scans: true } },
+          user: { select: { id: true, username: true } },
+          order: { select: { id: true, code: true, type: true } }
+        },
       }),
       this.prisma.session.count(),
     ]);

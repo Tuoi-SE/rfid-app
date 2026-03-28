@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
@@ -35,6 +36,14 @@ export class OrdersController {
   @ResponseMessageDecorator.withMessage('Lấy chi tiết đơn hàng thành công')
   findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);
+  }
+
+  /** PATCH /api/orders/:id — Cập nhật đơn hàng (ADMIN) */
+  @Patch(':id')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Order'))
+  @ResponseMessageDecorator.withMessage('Cập nhật đơn hàng thành công')
+  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.update(id, updateOrderDto, req.user?.id);
   }
 
   /** PATCH /api/orders/:id/cancel — Hủy đơn hàng (ADMIN) */

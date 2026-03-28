@@ -9,6 +9,7 @@ export function useProductsTableLogic(products: Product[], mutations: ReturnType
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -47,6 +48,18 @@ export function useProductsTableLogic(products: Product[], mutations: ReturnType
   const { selectedIds, handleToggleSelect, handleSelectAll, clearSelection } = useTableSelection(paginatedItems);
 
   // Handlers
+  const handleConfirmBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    
+    // Xoá tuần tự từng ID
+    Promise.all(selectedIds.map(id => mutations.deleteMutation.mutateAsync(id)))
+      .then(() => {
+        clearSelection();
+        setShowBulkDeleteConfirm(false);
+      });
+  };
+
+  // Handlers
   const openCreate = () => {
     setEditItem(null);
     setShowForm(true);
@@ -62,6 +75,7 @@ export function useProductsTableLogic(products: Product[], mutations: ReturnType
       showForm,
       editItem,
       deleteId,
+      showBulkDeleteConfirm,
       sortedItems: paginatedItems,
       sortConfig,
       selectedIds,
@@ -84,6 +98,8 @@ export function useProductsTableLogic(products: Product[], mutations: ReturnType
       handleToggleSelect,
       handleSelectAll,
       clearSelection,
+      setShowBulkDeleteConfirm,
+      handleConfirmBulkDelete,
     }
   };
 }

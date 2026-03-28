@@ -17,7 +17,8 @@ const [selectedProductId, setSelectedProductId] = useState<string>('');
 const [isPending, setIsPending] = useState(false);
 
 const { data: productsData, isLoading: isLoadingProducts } = useProducts(`limit=20${search ? `&search=${search}` : ''}`);
-const products = (productsData as any)?.data || productsData || [];
+const rawData = (productsData as any)?.data ?? productsData;
+const products = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.items) ? rawData.items : [];
 
 const { assignMutation, updateMutation } = useTagMutations();
 

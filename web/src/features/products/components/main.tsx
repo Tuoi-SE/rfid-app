@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Loader2, Filter } from 'lucide-react';
+import { Plus, Loader2, Filter, Trash2 } from 'lucide-react';
 import { useProducts } from '../hooks/use-products';
 import { useProductMutations } from '../hooks/use-product-mutations';
 import { useProductsTableLogic } from '../hooks/use-products-table-logic';
@@ -9,32 +9,34 @@ import { TableActions } from '@/components/TableActions';
 import { PageHeader } from '@/components/PageHeader';
 import { ProductsStatCards } from './products-stat-cards';
 import { ProductFormDialog } from './product-form-dialog';
-import { DeleteProductDialog } from './delete-product-dialog';
 import { Product } from '../types';
-import { useQuery } from '@tanstack/react-query';
-import { getCategories } from '@/features/categories/api/get-categories';
-import { Category } from '@/features/categories/types';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
+import { useCategories } from '@/features/categories/hooks/use-categories';
 
 export const ProductsMain = () => {
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useProducts(search ? `search=${search}&limit=1000` : 'limit=1000');
 
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories-list'],
-    queryFn: () => getCategories('limit=100'),
-  });
+  const { data: categories = [] } = useCategories('');
 
   const responseData = (data as Record<string, unknown>)?.data ?? data;
   const products: Product[] = Array.isArray(responseData) ? responseData : ((responseData as Record<string, unknown>)?.items as Product[] || []);
 
-  const catResponseData = (categoriesData as Record<string, unknown>)?.data ?? categoriesData;
-  const categories: Category[] = Array.isArray(catResponseData)
-    ? catResponseData
-    : ((catResponseData as Record<string, unknown>)?.items as Category[] || []);
+
 
   const mutations = useProductMutations();
   const { state, actions } = useProductsTableLogic(products, mutations);
+
+  const bulkActions: BulkAction[] = [
+    {
+      label: 'Xoá đã chọn',
+      icon: Trash2,
+      variant: 'danger',
+      onClick: () => actions.setShowBulkDeleteConfirm(true)
+    }
+  ];
 
   return (
     <div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-8 p-8 relative font-sans">
@@ -104,15 +106,38 @@ export const ProductsMain = () => {
         categories={categories}
       />
 
-      <DeleteProductDialog
+      <ConfirmDialog
         isOpen={!!state.deleteId}
+        title="Xác nhận xoá"
+        description="Bạn có chắc chắn muốn xoá sản phẩm này? Hành động này không thể hoàn tác."
+        confirmText="Xoá Sản Phẩm"
+        cancelText="Huỷ bỏ"
+        variant="danger"
+        isLoading={state.isDeleting}
         onClose={() => actions.setDeleteId(null)}
         onConfirm={() => {
           if (state.deleteId) {
             mutations.deleteMutation.mutate(state.deleteId, { onSuccess: () => actions.setDeleteId(null) });
           }
         }}
-        isDeleting={state.isDeleting}
+      />
+
+      <ConfirmDialog
+        isOpen={state.showBulkDeleteConfirm}
+        title="Xác nhận xoá nhiều"
+        description={`Bạn có chắc chắn muốn xoá ${state.selectedIds.length} sản phẩm đã chọn? Hành động này không thể hoàn tác.`}
+        confirmText={`Xoá ${state.selectedIds.length} sản phẩm`}
+        cancelText="Huỷ bỏ"
+        variant="danger"
+        isLoading={state.isDeleting}
+        onClose={() => actions.setShowBulkDeleteConfirm(false)}
+        onConfirm={actions.handleConfirmBulkDelete}
+      />
+
+      <BulkActionsBar
+        selectedCount={state.selectedIds.length}
+        onClearSelection={actions.clearSelection}
+        actions={bulkActions}
       />
     </div>
   );

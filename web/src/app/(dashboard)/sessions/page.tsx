@@ -1,7 +1,5 @@
-import { SessionsPageClient } from '@/features/sessions/components/sessions-page-client';
+import { SessionsMain } from '@/features/sessions/components/main';
 
-const SessionsPage = () => {
-return <SessionsPageClient />;
-};
-
-export default SessionsPage;
+export default function SessionsPage() {
+  return <SessionsMain />;
+}

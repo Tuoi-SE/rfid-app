@@ -20,7 +20,7 @@ export const ProductsStatCards = ({ totalProducts }: ProductsStatCardsProps) => 
       badge: 'Tốt',
       badgeColor: 'text-emerald-600 bg-emerald-50',
       icon: CheckCircle2,
-      iconColor: 'text-emerald-600 bg-emerald-50'
+      iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
     {
       label: 'Lỗi/Mất tín hiệu',
@@ -28,7 +28,7 @@ export const ProductsStatCards = ({ totalProducts }: ProductsStatCardsProps) => 
       badge: 'Cần kiểm tra',
       badgeColor: 'text-red-600 bg-red-50',
       icon: AlertCircle,
-      iconColor: 'text-amber-600 bg-amber-50'
+      iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
     {
       label: 'Cập nhật cuối',
@@ -36,7 +36,7 @@ export const ProductsStatCards = ({ totalProducts }: ProductsStatCardsProps) => 
       badge: null,
       badgeColor: '',
       icon: RefreshCw,
-      iconColor: 'text-blue-600 bg-blue-50'
+      iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
   ];
 

@@ -1,7 +1,7 @@
-import { TagsPageClient } from '@/features/tags/components/tags-page-client';
+import { TagsMain } from '@/features/tags/components/main';
 
 const TagsPage = () => {
-return <TagsPageClient />;
+return <TagsMain />;
 };
 
 export default TagsPage;

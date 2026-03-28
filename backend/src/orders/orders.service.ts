@@ -114,6 +114,47 @@ export class OrdersService {
     });
   }
 
+  async update(id: string, updateOrderDto: any, userId: string) {
+    const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
+    if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
+
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BusinessException(`Không thể sửa đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Delete old items
+      if (updateOrderDto.items) {
+        await tx.orderItem.deleteMany({ where: { orderId: id } });
+      }
+
+      const newOrder = await tx.order.update({
+        where: { id },
+        data: {
+          ...(updateOrderDto.type ? { type: updateOrderDto.type } : {}),
+          updatedById: userId,
+          ...(updateOrderDto.items ? {
+            items: {
+              create: updateOrderDto.items.map((item: any) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
+            }
+          } : {})
+        },
+        include: {
+          items: { include: { product: true } },
+          createdBy: { select: { id: true, username: true } },
+        },
+      });
+      return newOrder;
+    });
+
+    const mapped = plainToInstance(OrderEntity, updated);
+    this.events.server.emit('orderUpdate', mapped);
+    return mapped;
+  }
+
   async cancelOrder(id: string, userId: string) {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
