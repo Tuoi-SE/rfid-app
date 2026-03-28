@@ -1,5 +1,6 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
-import { CacheService } from '@nestjs/cache-manager';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@prisma/prisma.service';
 import { InventoryAction, InventoryOperationDto } from './dto/inventory-operation.dto';
@@ -15,7 +16,7 @@ export class InventoryService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
-    private cacheManager: CacheService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async processOperation(dto: InventoryOperationDto, userId: string) {

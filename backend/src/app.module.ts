@@ -5,7 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from '@tirke/node-cache-manager-ioredis';
+import { ioRedisStore } from '@tirke/node-cache-manager-ioredis';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -32,7 +32,7 @@ import { LoggerConfigModule } from '@common/config/logger.config';
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: async (configService: ConfigService) => ({
-        store: await redisStore({
+        store: ioRedisStore({
           host: configService.get<string>('REDIS_HOST', 'localhost'),
           port: configService.get<number>('REDIS_PORT', 6379),
           ttl: 60 * 1000, // 60 seconds default TTL

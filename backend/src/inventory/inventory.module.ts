@@ -6,5 +6,6 @@ import { InventoryController } from './inventory.controller';
   imports: [],  // REMOVED: EventsModule - no longer needed (D-10)
   providers: [InventoryService],
   controllers: [InventoryController],
+  exports: [InventoryService],
 })
 export class InventoryModule {}

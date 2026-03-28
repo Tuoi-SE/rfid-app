@@ -15,6 +15,7 @@ export class BatchScanService implements OnModuleDestroy {
   private buffer: Map<string, EPCData> = new Map();
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private userId: string | null = null; // Captured from first addEpc or explicit flush call
+  private totalProcessedInBatch: number = 0; // Tracks total EPCs processed across all flushes in current batch
 
   constructor(private inventoryService: InventoryService) {}
 
@@ -22,6 +23,11 @@ export class BatchScanService implements OnModuleDestroy {
     // D-07: Map prevents duplicate EPCs in same batch
     if (this.buffer.has(epc)) {
       return { flushed: false, bufferSize: this.buffer.size };
+    }
+
+    // Reset batch counter on first EPC of new batch (when buffer is empty)
+    if (this.buffer.size === 0) {
+      this.totalProcessedInBatch = 0;
     }
 
     // Capture userId from first EPC in batch (use explicit if provided, otherwise client user)
@@ -77,11 +83,21 @@ export class BatchScanService implements OnModuleDestroy {
     // D-04: Delegate to InventoryService.processBulkScan()
     await this.inventoryService.processBulkScan(epcs, effectiveUserId);
 
-    // Clear buffer and userId after successful processing
+    // Track total processed across all flushes in this batch
+    this.totalProcessedInBatch += bufferSize;
+
+    // Clear buffer but keep userId for potential next flush in same batch
     this.buffer.clear();
-    this.userId = null;
 
     return { processed: bufferSize };
+  }
+
+  /**
+   * Returns total EPCs processed across all flushes in the current batch.
+   * Call this after batch scan is complete.
+   */
+  getTotalProcessedInBatch(): number {
+    return this.totalProcessedInBatch;
   }
 
   getBufferSize(): number {

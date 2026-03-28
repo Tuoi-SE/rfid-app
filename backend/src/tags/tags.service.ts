@@ -1,5 +1,6 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
-import { CacheService } from '@nestjs/cache-manager';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PrismaService } from '@prisma/prisma.service';
 import { CreateTagDto } from '@tags/dto/create-tag.dto';
 import { UpdateTagDto } from '@tags/dto/update-tag.dto';
@@ -15,7 +16,7 @@ import { TagEntity } from './entities/tag.entity';
 export class TagsService {
   constructor(
     private prisma: PrismaService,
-    private cacheManager: CacheService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
