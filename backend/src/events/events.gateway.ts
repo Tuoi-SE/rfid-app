@@ -155,16 +155,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     const userId = (client as any).user?.id || (client as any).user?.sub || 'system';
 
     // D-05: Process EPCs through buffer - auto-flush triggers at 500
-    // Note: Buffer handles batches >500 internally via multiple flushes
+    // Track total processed including auto-flushes
+    let totalProcessed = 0;
     for (const epc of epcs) {
-      await this.batchScanService.addEpc(epc, -60, userId);
+      const result = await this.batchScanService.addEpc(epc, -60, userId);
+      if (result.flushed) {
+        totalProcessed += result.bufferSizeBeforeFlush || MAX_BUFFER_SIZE;
+      }
     }
 
-    // D-01: Flush remaining buffer and get final count
-    await this.batchScanService.flush(userId);
-
-    // Get total processed (including auto-flushes at 500 threshold)
-    const totalProcessed = this.batchScanService.getTotalProcessedInBatch();
+    // Flush remaining buffer (handles < 500 case or leftover after auto-flushes)
+    const finalFlush = await this.batchScanService.flush(userId);
+    totalProcessed += finalFlush.processed;
 
     // D-01: Return processed count (sync processing)
     return {

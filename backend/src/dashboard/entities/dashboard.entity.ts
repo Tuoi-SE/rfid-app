@@ -2,28 +2,28 @@ import { Expose, Type } from 'class-transformer';
 
 export class GenericReportEntity {
   @Expose({ name: 'total_products' })
-  totalProducts: number;
+  totalProducts!: number;
 
   @Expose({ name: 'total_tags' })
-  totalTags: number;
+  totalTags!: number;
 
   @Expose({ name: 'total_categories' })
-  totalCategories: number;
+  totalCategories!: number;
 
   @Expose({ name: 'total_users' })
-  totalUsers: number;
+  totalUsers!: number;
 
   @Expose({ name: 'tags_by_status' })
-  tagsByStatus: any;
+  tagsByStatus!: any;
 
   @Expose({ name: 'recent_scans' })
-  recentScans: number;
+  recentScans!: number;
 
   @Expose({ name: 'products_by_category' })
-  productsByCategory: any[];
+  productsByCategory!: any[];
 
   @Expose({ name: 'recent_activity' })
-  recentActivity: any[];
+  recentActivity!: any[];
 
   constructor(partial: Partial<GenericReportEntity>) {
     Object.assign(this, partial);

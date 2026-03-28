@@ -10,7 +10,7 @@ export class DashboardService {
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
-  ) {}
+  ) { }
 
   async getSummary() {
     const now = new Date();
@@ -36,7 +36,7 @@ export class DashboardService {
       this.activityLogService.getRecentActivity(10),
     ]);
 
-    return plainToInstance(GenericReportEntity, {
+    return new GenericReportEntity({
       totalProducts,
       totalTags,
       totalCategories,

@@ -6,7 +6,7 @@ import { AuthStorage } from '@/lib/http/auth-storage';
 interface AuthContextType {
   token: string | null;
   user: { id: string; username: string; role: string } | null;
-  login: (accessToken: string, refreshToken: string) => void;
+  login: (accessToken: string, refreshToken: string, remember?: boolean) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (accessToken: string, refreshToken: string) => {
-    AuthStorage.setToken(accessToken, refreshToken);
+  const login = (accessToken: string, refreshToken: string, remember: boolean = true) => {
+    AuthStorage.setToken(accessToken, refreshToken, remember);
     try {
       const payload = JSON.parse(atob(accessToken.split('.')[1]));
       setUser({ id: payload.sub, username: payload.username, role: payload.role });
