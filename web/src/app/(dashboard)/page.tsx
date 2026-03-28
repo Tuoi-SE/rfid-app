@@ -1,5 +1,11 @@
-import DashboardPageClient from '@/features/dashboard/components/dashboard-page-client';
+import { DashboardMain } from '@/features/dashboard/components/main';
 
-export default function DashboardPage() {
-  return <DashboardPageClient />;
-}
+const DashboardPage = () => {
+return (
+<>
+  <DashboardMain />
+</>
+);
+};
+
+export default DashboardPage;

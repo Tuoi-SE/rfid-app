@@ -1,5 +1,8 @@
-import { CategoriesPageClient } from '@/features/categories/components/categories-page-client';
+import { CategoriesMain } from '@/features/categories/components/main';
 
-export default function CategoriesPage() {
-  return <CategoriesPageClient />;
-}
+const CategoriesPage = () => {
+  return <CategoriesMain />;
+};
+
+
+export default CategoriesPage;

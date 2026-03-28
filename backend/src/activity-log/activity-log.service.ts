@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryActivityLogDto } from './dto/query-activity-log.dto';
 import { Prisma } from '.prisma/client';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { ActivityLogEntity } from './entities/activity-log.entity';
 
@@ -67,7 +67,7 @@ export class ActivityLogService {
     ]);
 
     const formattedData = data.map((i) => plainToInstance(ActivityLogEntity, i));
-    return paginate(formattedData, total, page, limit);
+    return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
   async getRecentActivity(count = 10) {

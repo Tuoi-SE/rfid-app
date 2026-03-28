@@ -1,5 +1,7 @@
 import LiveCapturePageClient from '@/features/tags/components/live-scan-client';
 
-export default function LiveCapturePage() {
-  return <LiveCapturePageClient />;
-}
+const LiveCapturePage = () => {
+return <LiveCapturePageClient />;
+};
+
+export default LiveCapturePage;

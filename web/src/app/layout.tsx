@@ -20,22 +20,24 @@ export const metadata: Metadata = {
   description: "Web Dashboard for managing UHF RFID Tags",
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="vi">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Providers>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </Providers>
-      </body>
-    </html>
-  );
-}
+}>) => {
+return (
+<html lang="vi">
+  <body
+    className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+  >
+    <Providers>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </Providers>
+  </body>
+</html>
+);
+};
+
+export default RootLayout;

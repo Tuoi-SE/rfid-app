@@ -6,181 +6,189 @@ import { PrismaPg } from '@prisma/adapter-pg';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-async function main() {
-  // Seed admin user
-  const adminExists = await prisma.user.findUnique({
-    where: { username: 'admin' },
-  });
-
-  if (!adminExists) {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.user.create({
-      data: {
-        username: 'admin',
-        password: hashedPassword,
-        role: 'ADMIN',
-      },
+class SeedRunner {
+  static async run() {
+    // Seed admin user
+    const adminExists = await prisma.user.findUnique({
+      where: { username: 'admin' },
     });
-    console.log('✅ Admin user created (admin / admin123)');
-  } else {
-    console.log('ℹ️  Admin user already exists, skipping.');
-  }
 
-  // Seed categories
-  const categories = [
-    { name: 'Điện tử', description: 'Thiết bị điện tử, linh kiện' },
-    { name: 'Thực phẩm', description: 'Hàng thực phẩm, đồ uống' },
-    { name: 'Vật liệu', description: 'Vật liệu xây dựng, nguyên liệu' },
-  ];
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await prisma.user.create({
+        data: {
+          username: 'admin',
+          password: hashedPassword,
+          role: 'ADMIN',
+        },
+      });
+      console.log('✅ Admin user created (admin / admin123)');
+    } else {
+      console.log('ℹ️  Admin user already exists, skipping.');
+    }
 
-  for (const cat of categories) {
-    await prisma.category.upsert({
-      where: { name: cat.name },
-      update: {},
-      create: cat,
-    });
-  }
-  console.log('✅ Categories seeded');
-
-  // Seed Locations - D-05
-  const locations = await Promise.all([
-    // ADMIN - vị trí gốc khi tag được tạo
-    prisma.location.upsert({
-      where: { code: 'ADMIN' },
-      update: {},
-      create: {
-        code: 'ADMIN',
-        name: 'Kho Admin',
-        type: 'ADMIN',
-        address: 'Trung tâm quản lý',
-      },
-    }),
-
-    // WAREHOUSE - Kho Tổng Hà Nội
-    prisma.location.upsert({
-      where: { code: 'WH-HN-01' },
-      update: {},
-      create: {
-        code: 'WH-HN-01',
-        name: 'Kho Tổng Hà Nội',
-        type: 'WAREHOUSE',
-        address: 'Hà Nội',
-      },
-    }),
-
-    // WAREHOUSE - Kho Tổng HCM
-    prisma.location.upsert({
-      where: { code: 'WH-HCM-01' },
-      update: {},
-      create: {
-        code: 'WH-HCM-01',
-        name: 'Kho Tổng HCM',
-        type: 'WAREHOUSE',
-        address: 'Hồ Chí Minh',
-      },
-    }),
-
-    // WORKSHOP - Xưởng May A
-    prisma.location.upsert({
-      where: { code: 'WS-A' },
-      update: {},
-      create: {
-        code: 'WS-A',
-        name: 'Xưởng May A',
-        type: 'WORKSHOP',
-        address: 'Khu công nghiệp A',
-      },
-    }),
-
-    // WORKSHOP - Xưởng May B
-    prisma.location.upsert({
-      where: { code: 'WS-B' },
-      update: {},
-      create: {
-        code: 'WS-B',
-        name: 'Xưởng May B',
-        type: 'WORKSHOP',
-        address: 'Khu công nghiệp B',
-      },
-    }),
-
-    // CUSTOMER - Khách Sạn Hà Nội 1 (HOTEL)
-    prisma.location.upsert({
-      where: { code: 'KS-HN-01' },
-      update: {},
-      create: {
-        code: 'KS-HN-01',
-        name: 'Khach San Ha Noi 1',
-        type: 'HOTEL',
-        address: '123 Nguyen Chi Thanh, Hanoi',
-      },
-    }),
-
-    // CUSTOMER - Resort Ha Noi 1 (RESORT)
-    prisma.location.upsert({
-      where: { code: 'RS-HN-01' },
-      update: {},
-      create: {
-        code: 'RS-HN-01',
-        name: 'Resort Ha Noi 1',
-        type: 'RESORT',
-        address: '456 West Lake, Hanoi',
-      },
-    }),
-
-    // CUSTOMER - Spa Ha Noi 1 (SPA)
-    prisma.location.upsert({
-      where: { code: 'SPA-HN-01' },
-      update: {},
-      create: {
-        code: 'SPA-HN-01',
-        name: 'Spa Ha Noi 1',
-        type: 'SPA',
-        address: '789 Truc Bach, Hanoi',
-      },
-    }),
-
-    // CUSTOMER - Khách Sạn Ho Chi Minh 1 (HOTEL)
-    prisma.location.upsert({
-      where: { code: 'KS-HCM-01' },
-      update: {},
-      create: {
-        code: 'KS-HCM-01',
-        name: 'Khach San Ho Chi Minh 1',
-        type: 'HOTEL',
-        address: '1 Dong Khoi, HCMC',
-      },
-    }),
-  ]);
-
-  console.log(`✅ Seeded ${locations.length} locations`);
-
-  // Seed sample products
-  const electronicsCategory = await prisma.category.findUnique({
-    where: { name: 'Điện tử' },
-  });
-
-  if (electronicsCategory) {
-    const products = [
-      { name: 'Arduino Uno R3', sku: 'ELEC-001', description: 'Board Arduino Uno R3', categoryId: electronicsCategory.id },
-      { name: 'Raspberry Pi 4', sku: 'ELEC-002', description: 'Board Raspberry Pi 4 Model B', categoryId: electronicsCategory.id },
-      { name: 'ESP32 DevKit', sku: 'ELEC-003', description: 'ESP32 Development Kit', categoryId: electronicsCategory.id },
+    // Seed categories
+    const categories = [
+      { name: 'Điện tử', description: 'Thiết bị điện tử, linh kiện' },
+      { name: 'Thực phẩm', description: 'Hàng thực phẩm, đồ uống' },
+      { name: 'Vật liệu', description: 'Vật liệu xây dựng, nguyên liệu' },
     ];
 
-    for (const prod of products) {
-      await prisma.product.upsert({
-        where: { sku: prod.sku },
+    for (const cat of categories) {
+      await prisma.category.upsert({
+        where: { name: cat.name },
         update: {},
-        create: prod,
+        create: cat,
       });
     }
-    console.log('✅ Sample products seeded');
+    console.log('✅ Categories seeded');
+
+    // Seed Locations - D-05
+    const locations = await Promise.all([
+      // ADMIN - vị trí gốc khi tag được tạo
+      prisma.location.upsert({
+        where: { code: 'ADMIN' },
+        update: {},
+        create: {
+          code: 'ADMIN',
+          name: 'Kho Admin',
+          type: 'ADMIN',
+          address: 'Trung tâm quản lý',
+        },
+      }),
+
+      // WAREHOUSE - Kho Tổng Hà Nội
+      prisma.location.upsert({
+        where: { code: 'WH-HN-01' },
+        update: {},
+        create: {
+          code: 'WH-HN-01',
+          name: 'Kho Tổng Hà Nội',
+          type: 'WAREHOUSE',
+          address: 'Hà Nội',
+        },
+      }),
+
+      // WAREHOUSE - Kho Tổng HCM
+      prisma.location.upsert({
+        where: { code: 'WH-HCM-01' },
+        update: {},
+        create: {
+          code: 'WH-HCM-01',
+          name: 'Kho Tổng HCM',
+          type: 'WAREHOUSE',
+          address: 'Hồ Chí Minh',
+        },
+      }),
+
+      // WORKSHOP - Xưởng May A
+      prisma.location.upsert({
+        where: { code: 'WS-A' },
+        update: {},
+        create: {
+          code: 'WS-A',
+          name: 'Xưởng May A',
+          type: 'WORKSHOP',
+          address: 'Khu công nghiệp A',
+        },
+      }),
+
+      // WORKSHOP - Xưởng May B
+      prisma.location.upsert({
+        where: { code: 'WS-B' },
+        update: {},
+        create: {
+          code: 'WS-B',
+          name: 'Xưởng May B',
+          type: 'WORKSHOP',
+          address: 'Khu công nghiệp B',
+        },
+      }),
+
+      // CUSTOMER - Khách Sạn Hà Nội 1 (HOTEL)
+      prisma.location.upsert({
+        where: { code: 'KS-HN-01' },
+        update: {},
+        create: {
+          code: 'KS-HN-01',
+          name: 'Khach San Ha Noi 1',
+          type: 'HOTEL',
+          address: '123 Nguyen Chi Thanh, Hanoi',
+        },
+      }),
+
+      // CUSTOMER - Resort Ha Noi 1 (RESORT)
+      prisma.location.upsert({
+        where: { code: 'RS-HN-01' },
+        update: {},
+        create: {
+          code: 'RS-HN-01',
+          name: 'Resort Ha Noi 1',
+          type: 'RESORT',
+          address: '456 West Lake, Hanoi',
+        },
+      }),
+
+      // CUSTOMER - Spa Ha Noi 1 (SPA)
+      prisma.location.upsert({
+        where: { code: 'SPA-HN-01' },
+        update: {},
+        create: {
+          code: 'SPA-HN-01',
+          name: 'Spa Ha Noi 1',
+          type: 'SPA',
+          address: '789 Truc Bach, Hanoi',
+        },
+      }),
+
+      // CUSTOMER - Khách Sạn Ho Chi Minh 1 (HOTEL)
+      prisma.location.upsert({
+        where: { code: 'KS-HCM-01' },
+        update: {},
+        create: {
+          code: 'KS-HCM-01',
+          name: 'Khach San Ho Chi Minh 1',
+          type: 'HOTEL',
+          address: '1 Dong Khoi, HCMC',
+        },
+      }),
+    ]);
+
+    console.log(`✅ Seeded ${locations.length} locations`);
+
+    // Seed sample products
+    const electronicsCategory = await prisma.category.findUnique({
+      where: { name: 'Điện tử' },
+    });
+
+    if (electronicsCategory) {
+      const products = [
+        { name: 'Arduino Uno R3', sku: 'ELEC-001', description: 'Board Arduino Uno R3', categoryId: electronicsCategory.id },
+        { name: 'Raspberry Pi 4', sku: 'ELEC-002', description: 'Board Raspberry Pi 4 Model B', categoryId: electronicsCategory.id },
+        { name: 'ESP32 DevKit', sku: 'ELEC-003', description: 'ESP32 Development Kit', categoryId: electronicsCategory.id },
+      ];
+
+      for (const prod of products) {
+        await prisma.product.upsert({
+          where: { sku: prod.sku },
+          update: {},
+          create: prod,
+        });
+      }
+      console.log('✅ Sample products seeded');
+    }
+  }
+
+  static handleError(error: unknown) {
+    console.error('Seed error:', error);
+    process.exit(1);
+  }
+
+  static disconnect() {
+    return prisma.$disconnect();
   }
 }
 
-main()
-  .catch((e) => {
-    console.error('Seed error:', e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+SeedRunner.run()
+  .catch(SeedRunner.handleError)
+  .finally(SeedRunner.disconnect);

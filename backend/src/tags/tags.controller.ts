@@ -18,10 +18,10 @@ import { LiveScanDto } from '@tags/dto/live-scan.dto';
 import { QueryTagsDto } from '@tags/dto/query-tags.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
-import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
-import { Public } from '@auth/decorators/public.decorator';
+import { PolicyDecorator } from '../casl/decorators/check-policies.decorator';
+import { PublicRouteDecorator } from '@auth/decorators/public.decorator';
 import { EventsGateway } from '../events/events.gateway';
-import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { ResponseMessageDecorator } from '@common/decorators/response-message.decorator';
 import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
@@ -39,32 +39,32 @@ export class TagsController {
 
   /** GET /api/tags — Danh sách thẻ có phân trang và filter */
   @Get()
-  @Public()
-  @ResponseMessage('Lấy danh sách thẻ thành công')
+  @PublicRouteDecorator.mark()
+  @ResponseMessageDecorator.withMessage('Lấy danh sách thẻ thành công')
   findAll(@Query() query: QueryTagsDto) {
     return this.tagsService.findAll(query);
   }
 
   /** GET /api/tags/:epc — Chi tiết 1 thẻ RFID */
   @Get(':epc')
-  @CheckPolicies((ability) => ability.can('read', 'Tag'))
-  @ResponseMessage('Lấy chi tiết thẻ thành công')
+  @PolicyDecorator.check((ability) => ability.can('read', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Lấy chi tiết thẻ thành công')
   findByEpc(@Param('epc') epc: string) {
     return this.tagsService.findByEpc(epc);
   }
 
   /** GET /api/tags/:epc/history — Lịch sử sự kiện của thẻ */
   @Get(':epc/history')
-  @CheckPolicies((ability) => ability.can('read', 'Tag'))
-  @ResponseMessage('Lấy lịch sử thẻ thành công')
+  @PolicyDecorator.check((ability) => ability.can('read', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Lấy lịch sử thẻ thành công')
   getHistory(@Param('epc') epc: string) {
     return this.tagsService.getHistory(epc);
   }
 
   /** POST /api/tags — Khởi tạo danh sách thẻ trắng vào hệ thống (ADMIN) */
   @Post()
-  @CheckPolicies((ability) => ability.can('create', 'Tag'))
-  @ResponseMessage('Khởi tạo thẻ trắng thành công')
+  @PolicyDecorator.check((ability) => ability.can('create', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Khởi tạo thẻ trắng thành công')
   async create(@Body() dto: CreateTagDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const tag = await this.tagsService.create(dto, userId);
@@ -74,8 +74,8 @@ export class TagsController {
 
   /** PATCH /api/tags/assign — Gán hàng loạt thẻ trắng cho 1 Sản phẩm (ADMIN) */
   @Patch('assign')
-  @CheckPolicies((ability) => ability.can('update', 'Tag'))
-  @ResponseMessage('Gán thẻ thành công')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Gán thẻ thành công')
   async assignTags(@Body() dto: AssignTagsDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const result = await this.tagsService.assignTags(dto, userId);
@@ -85,8 +85,8 @@ export class TagsController {
 
   /** POST /api/tags/live — Nhận dữ liệu quét thẻ realtime (Public) */
   @Post('live')
-  @Public()
-  @ResponseMessage('Nhận diện thẻ thành công')
+  @PublicRouteDecorator.mark()
+  @ResponseMessageDecorator.withMessage('Nhận diện thẻ thành công')
   liveScan(@Body() dto: LiveScanDto) {
     this.eventsGateway.emitLiveScan(dto.scans);
     return { count: dto.scans.length };
@@ -94,8 +94,8 @@ export class TagsController {
 
   /** PATCH /api/tags/:epc — Cập nhật thông tin thẻ (ADMIN) */
   @Patch(':epc')
-  @CheckPolicies((ability) => ability.can('update', 'Tag'))
-  @ResponseMessage('Cập nhật thẻ thành công')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Cập nhật thẻ thành công')
   async update(@Param('epc') epc: string, @Body() dto: UpdateTagDto, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;
     const tag = await this.tagsService.update(epc, dto, userId);
@@ -105,8 +105,8 @@ export class TagsController {
 
   /** DELETE /api/tags/:epc — Xóa mềm thẻ RFID (ADMIN) */
   @Delete(':epc')
-  @CheckPolicies((ability) => ability.can('delete', 'Tag'))
-  @ResponseMessage('Xóa thẻ thành công')
+  @PolicyDecorator.check((ability) => ability.can('delete', 'Tag'))
+  @ResponseMessageDecorator.withMessage('Xóa thẻ thành công')
   async remove(@Param('epc') epc: string, @Req() req: AuthenticatedRequest) {
     const result = await this.tagsService.remove(epc, req.user?.id);
     this.eventsGateway.emitTagsUpdated();

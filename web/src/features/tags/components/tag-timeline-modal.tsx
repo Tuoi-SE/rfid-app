@@ -43,65 +43,65 @@ const getEventTitle = (type: string) => {
   }
 };
 
-export function TagTimelineModal({ epc, onClose }: { epc: string; onClose: () => void }) {
-  const { data: events, isLoading } = useTagHistory(epc);
+export const TagTimelineModal = ({ epc, onClose }: { epc: string; onClose: () => void }) => {
+const { data: events, isLoading } = useTagHistory(epc);
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Lịch sử Hành trình</h2>
-            <p className="text-sm text-slate-500 mt-1 font-mono">{epc}</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6 overflow-y-auto flex-1">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-            </div>
-          ) : events && events.length > 0 ? (
-            <div className="relative border-l-2 border-slate-200 ml-4 py-2 space-y-8">
-              {events.map((event: TagEvent, index: number) => (
-                <div key={event.id} className="relative pl-8">
-                  <div className="absolute -left-[18px] top-1 bg-white border-4 border-slate-50 rounded-full p-1">
-                    {getEventIcon(event.type)}
-                  </div>
-                  
-                  <div className={`p-4 rounded-xl border border-slate-100 shadow-sm ${getEventColor(event.type)}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-base">{getEventTitle(event.type)}</h4>
-                      <span className="text-xs font-medium opacity-70">
-                        {new Date(event.createdAt).toLocaleString('vi-VN')}
-                      </span>
-                    </div>
-                    {event.location && (
-                      <div className="flex items-center gap-1.5 text-sm mb-1 opacity-90">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span className="font-medium">Vị trí: {event.location}</span>
-                      </div>
-                    )}
-                    {event.description && (
-                      <p className="text-sm opacity-80 mt-1 leading-relaxed">
-                        {event.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-slate-500">
-              <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p>Chưa có lịch sử nào cho thẻ này.</p>
-            </div>
-          )}
-        </div>
+return (
+<div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <div>
+        <h2 className="text-xl font-bold text-slate-800">Lịch sử Hành trình</h2>
+        <p className="text-sm text-slate-500 mt-1 font-mono">{epc}</p>
       </div>
+      <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
+        <X className="w-5 h-5" />
+      </button>
     </div>
-  );
-}
+
+    <div className="p-6 overflow-y-auto flex-1">
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        </div>
+      ) : events && events.length > 0 ? (
+        <div className="relative border-l-2 border-slate-200 ml-4 py-2 space-y-8">
+          {events.map((event: TagEvent, index: number) => (
+            <div key={event.id} className="relative pl-8">
+              <div className="absolute -left-[18px] top-1 bg-white border-4 border-slate-50 rounded-full p-1">
+                {getEventIcon(event.type)}
+              </div>
+              
+              <div className={`p-4 rounded-xl border border-slate-100 shadow-sm ${getEventColor(event.type)}`}>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-semibold text-base">{getEventTitle(event.type)}</h4>
+                  <span className="text-xs font-medium opacity-70">
+                    {new Date(event.createdAt).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+                {event.location && (
+                  <div className="flex items-center gap-1.5 text-sm mb-1 opacity-90">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span className="font-medium">Vị trí: {event.location}</span>
+                  </div>
+                )}
+                {event.description && (
+                  <p className="text-sm opacity-80 mt-1 leading-relaxed">
+                    {event.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 text-slate-500">
+          <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+          <p>Chưa có lịch sử nào cho thẻ này.</p>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+);
+};

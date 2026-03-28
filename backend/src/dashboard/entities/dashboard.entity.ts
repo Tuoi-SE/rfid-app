@@ -25,6 +25,18 @@ export class GenericReportEntity {
   @Expose({ name: 'recent_activity' })
   recentActivity!: any[];
 
+  @Expose({ name: 'products_growth' })
+  productsGrowth!: number;
+
+  @Expose({ name: 'tags_growth' })
+  tagsGrowth!: number;
+
+  @Expose({ name: 'categories_growth' })
+  categoriesGrowth!: number;
+
+  @Expose({ name: 'users_growth' })
+  usersGrowth!: number;
+
   constructor(partial: Partial<GenericReportEntity>) {
     Object.assign(this, partial);
   }

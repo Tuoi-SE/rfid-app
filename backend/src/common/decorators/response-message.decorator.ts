@@ -6,7 +6,7 @@ import { SetMetadata } from '@nestjs/common';
 export const RESPONSE_MESSAGE_KEY = 'response_message';
 
 /**
- * @ResponseMessage — Decorator custom message cho success response.
+ * @ResponseMessageDecorator.withMessage — Decorator custom message cho success response.
  *
  * Dùng trên controller method để interceptor tự động wrap:
  * { success: true, message: '<custom message>', data: <return value> }
@@ -15,8 +15,13 @@ export const RESPONSE_MESSAGE_KEY = 'response_message';
  *
  * @example
  * @Get()
- * @ResponseMessage('Lấy danh sách người dùng thành công')
+ * @ResponseMessageDecorator.withMessage('Lấy danh sách người dùng thành công')
  * findAll() { return this.service.findAll(); }
  */
-export const ResponseMessage = (message: string) =>
-  SetMetadata(RESPONSE_MESSAGE_KEY, message);
+export class ResponseMessageDecorator {
+  static readonly KEY = RESPONSE_MESSAGE_KEY;
+
+  static withMessage(message: string) {
+    return SetMetadata(ResponseMessageDecorator.KEY, message);
+  }
+}

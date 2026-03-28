@@ -11,104 +11,104 @@ interface UserFormDialogProps {
   error?: string | null;
 }
 
-export function UserFormDialog({
+export const UserFormDialog = ({
   editItem,
   isOpen,
   onClose,
   onSubmit,
   isSaving,
   error
-}: UserFormDialogProps) {
-  const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF' });
+}: UserFormDialogProps) => {
+const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF' });
 
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        username: editItem?.username || '',
-        email: editItem?.email || '',
-        password: '',
-        role: editItem?.role || 'STAFF',
-      });
-    }
-  }, [isOpen, editItem]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = { ...formData };
-    if (editItem && !payload.password) {
-      delete payload.password;
-    }
-    onSubmit(payload);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-slate-800">
-            {editItem ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'}
-          </h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-400" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Tên đăng nhập *</label>
-            <input
-              type="text"
-              value={formData.username}
-              onChange={e => setFormData({ ...formData, username: e.target.value })}
-              required
-              autoFocus
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={e => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Mật khẩu {editItem && '(Bỏ trống nếu không đổi)'}</label>
-            <input
-              type="password"
-              value={formData.password || ''}
-              onChange={e => setFormData({ ...formData, password: e.target.value })}
-              required={!editItem}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Vai trò *</label>
-            <select
-              value={formData.role}
-              onChange={e => setFormData({ ...formData, role: e.target.value })}
-              required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
-            >
-              <option value="STAFF">Nhân viên (STAFF)</option>
-              <option value="ADMIN">Quản trị (ADMIN)</option>
-            </select>
-          </div>
-          {error && (
-            <p className="text-red-500 text-sm">Lỗi: {error}</p>
-          )}
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-              Huỷ
-            </button>
-            <button type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {editItem ? 'Cập nhật' : 'Tạo mới'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+useEffect(() => {
+if (isOpen) {
+  setFormData({
+    username: editItem?.username || '',
+    email: editItem?.email || '',
+    password: '',
+    role: editItem?.role || 'STAFF',
+  });
 }
+}, [isOpen, editItem]);
+
+if (!isOpen) return null;
+
+const handleSubmit = (e: React.FormEvent) => {
+e.preventDefault();
+const payload = { ...formData };
+if (editItem && !payload.password) {
+  delete payload.password;
+}
+onSubmit(payload);
+};
+
+return (
+<div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+  <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+    <div className="flex items-center justify-between mb-5">
+      <h2 className="text-lg font-semibold text-slate-800">
+        {editItem ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'}
+      </h2>
+      <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-400" /></button>
+    </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Tên đăng nhập *</label>
+        <input
+          type="text"
+          value={formData.username}
+          onChange={e => setFormData({ ...formData, username: e.target.value })}
+          required
+          autoFocus
+          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+        <input
+          type="email"
+          value={formData.email}
+          onChange={e => setFormData({ ...formData, email: e.target.value })}
+          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Mật khẩu {editItem && '(Bỏ trống nếu không đổi)'}</label>
+        <input
+          type="password"
+          value={formData.password || ''}
+          onChange={e => setFormData({ ...formData, password: e.target.value })}
+          required={!editItem}
+          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Vai trò *</label>
+        <select
+          value={formData.role}
+          onChange={e => setFormData({ ...formData, role: e.target.value })}
+          required
+          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
+        >
+          <option value="STAFF">Nhân viên (STAFF)</option>
+          <option value="ADMIN">Quản trị (ADMIN)</option>
+        </select>
+      </div>
+      {error && (
+        <p className="text-red-500 text-sm">Lỗi: {error}</p>
+      )}
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+          Huỷ
+        </button>
+        <button type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {editItem ? 'Cập nhật' : 'Tạo mới'}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+);
+};

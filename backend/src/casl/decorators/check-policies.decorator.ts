@@ -9,6 +9,10 @@ export type PolicyHandlerCallback = (ability: AppAbility) => boolean;
 
 export type PolicyHandlerType = PolicyHandler | PolicyHandlerCallback;
 
-export const CHECK_POLICIES_KEY = 'check_policy';
-export const CheckPolicies = (...handlers: PolicyHandlerType[]) =>
-  SetMetadata(CHECK_POLICIES_KEY, handlers);
+export class PolicyDecorator {
+  static readonly CHECK_POLICIES_KEY = 'check_policy';
+
+  static check(...handlers: PolicyHandlerType[]) {
+    return SetMetadata(PolicyDecorator.CHECK_POLICIES_KEY, handlers);
+  }
+}

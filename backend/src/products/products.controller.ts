@@ -16,8 +16,8 @@ import { UpdateProductDto } from '@products/dto/update-product.dto';
 import { QueryProductsDto } from '@products/dto/query-products.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
-import { CheckPolicies } from '../casl/decorators/check-policies.decorator';
-import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { PolicyDecorator } from '../casl/decorators/check-policies.decorator';
+import { ResponseMessageDecorator } from '@common/decorators/response-message.decorator';
 import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
@@ -34,48 +34,48 @@ export class ProductsController {
 
   /** GET /api/products — Danh sách có phân trang + lọc category */
   @Get()
-  @CheckPolicies((ability) => ability.can('read', 'Product'))
-  @ResponseMessage('Lấy danh sách sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('read', 'Product'))
+  @ResponseMessageDecorator.withMessage('Lấy danh sách sản phẩm thành công')
   findAll(@Query() query: QueryProductsDto) {
     return this.productsService.findAll(query);
   }
 
   /** GET /api/products/:id — Chi tiết sản phẩm */
   @Get(':id')
-  @CheckPolicies((ability) => ability.can('read', 'Product'))
-  @ResponseMessage('Lấy thông tin sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('read', 'Product'))
+  @ResponseMessageDecorator.withMessage('Lấy thông tin sản phẩm thành công')
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
 
   /** POST /api/products — Tạo sản phẩm mới (ADMIN) */
   @Post()
-  @CheckPolicies((ability) => ability.can('create', 'Product'))
-  @ResponseMessage('Tạo sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('create', 'Product'))
+  @ResponseMessageDecorator.withMessage('Tạo sản phẩm thành công')
   create(@Body() dto: CreateProductDto, @Request() req: AuthenticatedRequest) {
     return this.productsService.create(dto, req.user.id);
   }
 
   /** PATCH /api/products/:id — Cập nhật sản phẩm (ADMIN) */
   @Patch(':id')
-  @CheckPolicies((ability) => ability.can('update', 'Product'))
-  @ResponseMessage('Cập nhật sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Product'))
+  @ResponseMessageDecorator.withMessage('Cập nhật sản phẩm thành công')
   update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Request() req: AuthenticatedRequest) {
     return this.productsService.update(id, dto, req.user.id);
   }
 
   /** DELETE /api/products/:id — Xóa mềm sản phẩm (ADMIN) */
   @Delete(':id')
-  @CheckPolicies((ability) => ability.can('delete', 'Product'))
-  @ResponseMessage('Xóa sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('delete', 'Product'))
+  @ResponseMessageDecorator.withMessage('Xóa sản phẩm thành công')
   remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.productsService.remove(id, req.user.id);
   }
 
   /** POST /api/products/:id/restore — Khôi phục sản phẩm đã xóa (ADMIN) */
   @Post(':id/restore')
-  @CheckPolicies((ability) => ability.can('update', 'Product'))
-  @ResponseMessage('Khôi phục sản phẩm thành công')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Product'))
+  @ResponseMessageDecorator.withMessage('Khôi phục sản phẩm thành công')
   restore(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.productsService.restore(id, req.user.id);
   }

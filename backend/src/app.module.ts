@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { validate } from './common/config/env.validation';
+import { EnvironmentValidator } from './common/config/env.validation';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -25,30 +25,40 @@ import { LocationsModule } from './locations/locations.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { LoggerConfigModule } from '@common/config/logger.config';
 
+class AppModuleConfig {
+  static async createCacheOptions(configService: ConfigService) {
+    return {
+      store: ioRedisStore({
+        host: configService.get<string>('REDIS_HOST', 'localhost'),
+        port: configService.get<number>('REDIS_PORT', 6379),
+        ttl: 60 * 1000, // 60 seconds default TTL
+      }),
+    };
+  }
+
+  static createThrottlerOptions(config: ConfigService) {
+    return [
+      {
+        ttl: config.get<number>('THROTTLE_TTL', 60000),
+        limit: config.get<number>('THROTTLE_LIMIT', 100),
+      },
+    ];
+  }
+}
+
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
-    ConfigModule.forRoot({ isGlobal: true, validate }),
+    ConfigModule.forRoot({ isGlobal: true, validate: EnvironmentValidator.validate }),
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: async (configService: ConfigService) => ({
-        store: ioRedisStore({
-          host: configService.get<string>('REDIS_HOST', 'localhost'),
-          port: configService.get<number>('REDIS_PORT', 6379),
-          ttl: 60 * 1000, // 60 seconds default TTL
-        }),
-      }),
+      useFactory: AppModuleConfig.createCacheOptions,
       inject: [ConfigService],
     }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ([
-        {
-          ttl: config.get<number>('THROTTLE_TTL', 60000),
-          limit: config.get<number>('THROTTLE_LIMIT', 100),
-        },
-      ]),
+      useFactory: AppModuleConfig.createThrottlerOptions,
     }),
     PrismaModule,
     CaslModule,

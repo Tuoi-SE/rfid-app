@@ -4,7 +4,7 @@ import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { QueryLocationsDto } from './dto/query-locations.dto';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { LocationEntity } from './entities/location.entity';
 import { Prisma } from '.prisma/client';
@@ -50,7 +50,7 @@ export class LocationsService {
     ]);
 
     const formattedData = data.map((i) => plainToInstance(LocationEntity, i));
-    return paginate(formattedData, total, page, limit);
+    return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
   async findOne(id: string) {

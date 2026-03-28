@@ -5,7 +5,7 @@ import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
 import { QueryTransfersDto } from './dto/query-transfers.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesDecorator } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
 interface RequestWithUser {
@@ -18,19 +18,19 @@ export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
 
   @Post()
-  @Roles(Role.ADMIN)
+  @RolesDecorator.allow(Role.ADMIN)
   create(@Body() dto: CreateTransferDto, @Request() req: RequestWithUser) {
     return this.transfersService.create(dto, req.user.id);
   }
 
   @Post(':id/confirm')
-  @Roles(Role.WAREHOUSE_MANAGER)
+  @RolesDecorator.allow(Role.WAREHOUSE_MANAGER)
   confirm(@Param('id') id: string, @Body() dto: ConfirmTransferDto, @Request() req: RequestWithUser) {
     return this.transfersService.confirm(id, dto, req.user.id);
   }
 
   @Post(':id/cancel')
-  @Roles(Role.ADMIN)
+  @RolesDecorator.allow(Role.ADMIN)
   cancel(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.transfersService.cancel(id, req.user.id);
   }

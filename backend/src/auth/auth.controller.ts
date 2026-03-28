@@ -5,7 +5,7 @@ import { LocalAuthGuard } from '@auth/guards/local-auth.guard';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { LoginDto } from '@auth/dto/login.dto';
 import { RefreshTokenDto } from '@auth/dto/refresh-token.dto';
-import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { ResponseMessageDecorator } from '@common/decorators/response-message.decorator';
 import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
 /**
@@ -32,7 +32,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 1000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  @ResponseMessage('Đăng nhập thành công')
+  @ResponseMessageDecorator.withMessage('Đăng nhập thành công')
   login(@Request() req: AuthenticatedRequest, @Body() _dto: LoginDto) {
     return this.authService.login(req.user);
   }
@@ -44,7 +44,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  @ResponseMessage('Lấy thông tin tài khoản thành công')
+  @ResponseMessageDecorator.withMessage('Lấy thông tin tài khoản thành công')
   getMe(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
@@ -56,7 +56,7 @@ export class AuthController {
    * @error AUTH_REFRESH_INVALID (401)
    */
   @Post('refresh')
-  @ResponseMessage('Làm mới phiên đăng nhập thành công')
+  @ResponseMessageDecorator.withMessage('Làm mới phiên đăng nhập thành công')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refresh_token);
   }
@@ -67,7 +67,7 @@ export class AuthController {
    * @returns null
    */
   @Post('logout')
-  @ResponseMessage('Đăng xuất thành công')
+  @ResponseMessageDecorator.withMessage('Đăng xuất thành công')
   logout(@Body() dto: RefreshTokenDto) {
     return this.authService.logout(dto.refresh_token);
   }

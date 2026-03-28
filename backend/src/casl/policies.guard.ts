@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, HttpStatus } from '@nestjs/c
 import { Reflector } from '@nestjs/core';
 import { CaslAbilityFactory } from './casl-ability.factory';
 import {
-  CHECK_POLICIES_KEY,
+  PolicyDecorator,
   PolicyHandlerType,
 } from './decorators/check-policies.decorator';
 import { BusinessException } from '@common/exceptions/business.exception';
@@ -16,7 +16,7 @@ export class PoliciesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const policyHandlers =
-      this.reflector.getAllAndOverride<PolicyHandlerType[]>(CHECK_POLICIES_KEY, [
+      this.reflector.getAllAndOverride<PolicyHandlerType[]>(PolicyDecorator.CHECK_POLICIES_KEY, [
         context.getHandler(),
         context.getClass(),
       ]);

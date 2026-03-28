@@ -6,7 +6,7 @@ import { UpdateUserDto } from '@users/dto/update-user.dto';
 import { QueryUsersDto } from '@users/dto/query-users.dto';
 import { Role, Prisma } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { UserEntity } from './entities/user.entity';
 
@@ -36,7 +36,7 @@ const USER_SELECT = {
  * - CRUD với audit tracking (created_by, updated_by, deleted_by)
  * - Soft delete + Restore
  * - Password hashing: bcrypt 10 rounds
- * - Response format: snake_case, dùng paginate() helper
+ * - Response format: snake_case, dùng PaginationHelper.paginate() helper
  */
 @Injectable()
 export class UsersService {
@@ -44,7 +44,7 @@ export class UsersService {
 
   /**
    * Lấy danh sách người dùng có phân trang và lọc.
-   * Sử dụng paginate() helper cho format chuẩn.
+   * Sử dụng PaginationHelper.paginate() helper cho format chuẩn.
    */
   async findAll(query: QueryUsersDto) {
     const { page = 1, limit = 20, search, role, include_deleted, only_deleted } = query;
@@ -78,7 +78,7 @@ export class UsersService {
     ]);
 
     const formattedItems = items.map((u) => plainToInstance(UserEntity, u));
-    return paginate(formattedItems, total, page, limit);
+    return PaginationHelper.paginate(formattedItems, total, page, limit);
   }
 
   /**

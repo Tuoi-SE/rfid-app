@@ -5,6 +5,7 @@ export interface Product {
   description: string | null;
   categoryId: string;
   category?: { id: string; name: string };
+  imageUrl?: string | null;
   _count?: { tags: number };
   createdAt: string;
 }

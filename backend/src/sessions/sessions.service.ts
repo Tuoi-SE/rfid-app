@@ -5,7 +5,7 @@ import { QuerySessionsDto } from './dto/query-sessions.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { Prisma, TagStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { SessionEntity } from './entities/session.entity';
 
@@ -34,7 +34,7 @@ export class SessionsService {
       ...item, 
       totalScans: item._count?.scans || 0 
     }));
-    return paginate(formattedData, total, page, limit);
+    return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
   async create(dto: CreateSessionDto, userId?: string) {

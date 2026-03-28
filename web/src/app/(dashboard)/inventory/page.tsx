@@ -1,5 +1,7 @@
 import { InventoryPageClient } from '@/features/inventory/components/inventory-page-client';
 
-export default function InventoryPage() {
-  return <InventoryPageClient />;
-}
+const InventoryPage = () => {
+return <InventoryPageClient />;
+};
+
+export default InventoryPage;

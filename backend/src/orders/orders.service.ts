@@ -5,7 +5,7 @@ import { QueryOrdersDto } from './dto/query-orders.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { randomBytes } from 'crypto';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { OrderStatus, Prisma } from '.prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { OrderEntity } from './entities/order.entity';
@@ -89,7 +89,7 @@ export class OrdersService {
       });
     });
 
-    return paginate(formattedData, total, page, limit);
+    return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
   async findOne(id: string) {

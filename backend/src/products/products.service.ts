@@ -5,7 +5,7 @@ import { UpdateProductDto } from '@products/dto/update-product.dto';
 import { QueryProductsDto } from '@products/dto/query-products.dto';
 import { Prisma } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { ProductEntity } from './entities/product.entity';
 
@@ -70,7 +70,7 @@ export class ProductsService {
     ]);
 
     const formattedItems = items.map((i) => plainToInstance(ProductEntity, i));
-    return paginate(formattedItems, total, page, limit);
+    return PaginationHelper.paginate(formattedItems, total, page, limit);
   }
 
   /**

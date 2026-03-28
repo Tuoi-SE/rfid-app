@@ -6,7 +6,7 @@ import { PrismaService } from '@prisma/prisma.service';
 import { InventoryAction, InventoryOperationDto } from './dto/inventory-operation.dto';
 import { TagStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { ActivityLogEntity } from '../activity-log/entities/activity-log.entity';
 import { TAGS_UPDATED_EVENT } from '@common/interfaces/scan.interface';
@@ -209,7 +209,7 @@ export class InventoryService {
     ]);
 
     const formattedData = data.map((i) => plainToInstance(ActivityLogEntity, i));
-    return paginate(formattedData, total, page, limit);
+    return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
   /**

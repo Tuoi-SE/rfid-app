@@ -4,14 +4,20 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventsGateway } from './events.gateway';
 import { ScanningModule } from '../scanning/scanning.module';
 
+class EventsModuleConfig {
+  static createJwtOptions(config: ConfigService) {
+    return {
+      secret: config.get('JWT_SECRET'),
+    };
+  }
+}
+
 @Module({
   imports: [
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET'),
-      }),
+      useFactory: EventsModuleConfig.createJwtOptions,
     }),
     ScanningModule,  // Required for BatchScanService (D-09)
   ],

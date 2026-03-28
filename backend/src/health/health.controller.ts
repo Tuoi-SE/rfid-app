@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { Cache } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { ResponseMessage } from '@common/decorators/response-message.decorator';
+import { ResponseMessageDecorator } from '@common/decorators/response-message.decorator';
 
 @Controller('api/health')
 export class HealthController {
@@ -13,7 +13,7 @@ export class HealthController {
   ) {}
 
   @Get()
-  @ResponseMessage('Kiểm tra sức khỏe hệ thống thành công')
+  @ResponseMessageDecorator.withMessage('Kiểm tra sức khỏe hệ thống thành công')
   async check() {
     const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
     const redisPort = this.configService.get<number>('REDIS_PORT', 6379);

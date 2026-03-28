@@ -19,49 +19,49 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
 });
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+const [token, setToken] = useState<string | null>(null);
+const [user, setUser] = useState<any>(null);
+const [isLoading, setIsLoading] = useState(true);
+const router = useRouter();
 
-  useEffect(() => {
-    const stored = AuthStorage.getToken();
-    if (stored) {
-      setToken(stored);
-      // Decode JWT to get user info
-      try {
-        const payload = JSON.parse(atob(stored.split('.')[1]));
-        setUser({ id: payload.sub, username: payload.username, role: payload.role });
-      } catch {
-        AuthStorage.removeToken();
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = (accessToken: string, refreshToken: string, remember: boolean = true) => {
-    AuthStorage.setToken(accessToken, refreshToken, remember);
-    try {
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
-      setUser({ id: payload.sub, username: payload.username, role: payload.role });
-    } catch {}
-    setToken(accessToken);
-    router.push('/');
-  };
-
-  const logout = () => {
+useEffect(() => {
+const stored = AuthStorage.getToken();
+if (stored) {
+  setToken(stored);
+  // Decode JWT to get user info
+  try {
+    const payload = JSON.parse(atob(stored.split('.')[1]));
+    setUser({ id: payload.sub, username: payload.username, role: payload.role });
+  } catch {
     AuthStorage.removeToken();
-    setToken(null);
-    setUser(null);
-    router.push('/login');
-  };
-
-  return (
-    <AuthContext.Provider value={{ token, user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  }
 }
+setIsLoading(false);
+}, []);
+
+const login = (accessToken: string, refreshToken: string, remember: boolean = true) => {
+AuthStorage.setToken(accessToken, refreshToken, remember);
+try {
+  const payload = JSON.parse(atob(accessToken.split('.')[1]));
+  setUser({ id: payload.sub, username: payload.username, role: payload.role });
+} catch {}
+setToken(accessToken);
+router.push('/');
+};
+
+const logout = () => {
+AuthStorage.removeToken();
+setToken(null);
+setUser(null);
+router.push('/login');
+};
+
+return (
+<AuthContext.Provider value={{ token, user, login, logout, isLoading }}>
+  {children}
+</AuthContext.Provider>
+);
+};
 
 export const useAuth = () => useContext(AuthContext);

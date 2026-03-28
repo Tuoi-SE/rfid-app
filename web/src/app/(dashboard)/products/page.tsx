@@ -1,5 +1,7 @@
-import { ProductsPageClient } from '@/features/products/components/products-page-client';
+import { ProductsMain } from '@/features/products/components/main';
 
-export default function ProductsPage() {
-  return <ProductsPageClient />;
-}
+const ProductsPage = () => {
+  return <ProductsMain />;
+};
+
+export default ProductsPage;

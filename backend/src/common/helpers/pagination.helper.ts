@@ -1,7 +1,7 @@
 /**
  * PaginatedResult — Format chuẩn cho response có phân trang.
  *
- * Controller chỉ cần return paginate(items, total, page, limit)
+ * Controller chỉ cần return PaginationHelper.paginate(items, total, page, limit)
  * → Interceptor sẽ auto-wrap thành:
  *
  * {
@@ -26,7 +26,7 @@ export interface PaginatedResult<T> {
 }
 
 /**
- * Helper function tạo paginated response.
+ * Helper class tạo paginated response.
  *
  * @param items — Danh sách items đã format
  * @param total — Tổng số records (trước pagination)
@@ -36,16 +36,18 @@ export interface PaginatedResult<T> {
  *
  * @example
  * const [items, total] = await Promise.all([...findMany, ...count]);
- * return paginate(items.map(format), total, query.page, query.limit);
+ * return PaginationHelper.paginate(items.map(format), total, query.page, query.limit);
  */
-export function paginate<T>(items: T[], total: number, page: number, limit: number): PaginatedResult<T> {
-  return {
-    items,
-    pagination: {
-      page,
-      limit,
-      total,
-      total_pages: Math.ceil(total / limit),
-    },
-  };
+export class PaginationHelper {
+  static paginate<T>(items: T[], total: number, page: number, limit: number): PaginatedResult<T> {
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
+  }
 }

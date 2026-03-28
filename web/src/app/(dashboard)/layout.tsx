@@ -1,14 +1,16 @@
 import { AppShell } from "@/components/AppShell";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function DashboardLayout({
+const DashboardLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <ProtectedRoute>
-      <AppShell>{children}</AppShell>
-    </ProtectedRoute>
-  );
-}
+}>) => {
+return (
+<ProtectedRoute>
+  <AppShell>{children}</AppShell>
+</ProtectedRoute>
+);
+};
+
+export default DashboardLayout;

@@ -1,5 +1,10 @@
 import { SetMetadata } from '@nestjs/common';
 import { Role } from '.prisma/client';
 
-export const ROLES_KEY = 'roles';
-export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
+export class RolesDecorator {
+  static readonly ROLES_KEY = 'roles';
+
+  static allow(...roles: Role[]) {
+    return SetMetadata(RolesDecorator.ROLES_KEY, roles);
+  }
+}

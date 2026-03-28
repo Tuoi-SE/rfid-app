@@ -8,7 +8,7 @@ import { AssignTagsDto } from '@tags/dto/bulk-update.dto';
 import { QueryTagsDto } from '@tags/dto/query-tags.dto';
 import { Prisma } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
-import { paginate } from '@common/helpers/pagination.helper';
+import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { TagEntity } from './entities/tag.entity';
 
@@ -58,7 +58,7 @@ export class TagsService {
     ]);
 
     const formattedItems = items.map((i) => plainToInstance(TagEntity, i));
-    return paginate(formattedItems, total, page, limit);
+    return PaginationHelper.paginate(formattedItems, total, page, limit);
   }
 
   /**

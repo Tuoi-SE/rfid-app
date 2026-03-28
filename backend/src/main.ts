@@ -5,47 +5,48 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@common/filters/http-exception.filter';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
-import { setupSwagger } from '@common/config/swagger.config';
+import { SwaggerConfig } from '@common/config/swagger.config';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useLogger(app.get(Logger));
+class ApplicationBootstrap {
+  static async run() {
+    const app = await NestFactory.create(AppModule, { bufferLogs: true });
+    app.useLogger(app.get(Logger));
 
-  const config = app.get(ConfigService);
-  const corsOrigins = config.get('CORS_ORIGINS', 'http://localhost:3001');
+    const config = app.get(ConfigService);
+    const corsOrigins = config.get('CORS_ORIGINS', 'http://localhost:3001');
 
-  app.enableCors({
-    origin: corsOrigins.split(',').map((o: string) => o.trim()),
-    credentials: true,
-  });
+    app.enableCors({
+      origin: corsOrigins.split(',').map((o: string) => o.trim()),
+      credentials: true,
+    });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
 
-  app.useGlobalFilters(new GlobalExceptionFilter());
+    app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Auto-wrap response and apply ClassSerializer
-  const reflector = app.get(Reflector);
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(reflector, { excludeExtraneousValues: false }),
-    new ResponseInterceptor(reflector),
-  );
+    // Auto-wrap response and apply ClassSerializer
+    const reflector = app.get(Reflector);
+    app.useGlobalInterceptors(
+      new ClassSerializerInterceptor(reflector, { excludeExtraneousValues: false }),
+      new ResponseInterceptor(reflector),
+    );
 
-  setupSwagger(app);
+    SwaggerConfig.setup(app);
 
-  app.enableShutdownHooks();
+    app.enableShutdownHooks();
 
-  const port = config.get('PORT', 3000);
-  await app.listen(port);
-  const logger = app.get(Logger);
-  logger.log(`Server running on http://localhost:${port}`);
-  logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
+    const port = config.get('PORT', 3000);
+    await app.listen(port);
+    const logger = app.get(Logger);
+    logger.log(`Server running on http://localhost:${port}`);
+    logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
+  }
 }
 
-bootstrap();
-
+ApplicationBootstrap.run();

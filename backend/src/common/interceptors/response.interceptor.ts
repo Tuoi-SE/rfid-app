@@ -14,7 +14,7 @@ import { RESPONSE_MESSAGE_KEY } from '@common/decorators/response-message.decora
  *
  * {
  *   "success": true,
- *   "message": "...",     ← từ @ResponseMessage() decorator hoặc mặc định "Thành công"
+ *   "message": "...",     ← từ @ResponseMessageDecorator.withMessage() hoặc mặc định "Thành công"
  *   "data": ...           ← return value của controller method
  * }
  *
