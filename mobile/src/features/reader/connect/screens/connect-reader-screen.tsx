@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, Linking
+  StyleSheet, ActivityIndicator, Alert, Linking, Platform, SafeAreaView
 } from 'react-native';
+import { Bluetooth, Settings as SettingsIcon, RefreshCw, Cpu, Battery, Signal, ChevronRight, CheckCircle2, XCircle } from 'lucide-react-native';
 import { useReaderConnection } from '../../ble/hooks/use-reader-connection';
 import { useReaderStore } from '../../ble/store/reader.store';
 
@@ -15,7 +16,7 @@ export function ConnectReaderScreen({ navigation }: any) {
   const [isConnecting, setIsConnecting] = useState(false);
   
   const { scanDevices, connectToDevice } = useReaderConnection();
-  const { foundDevices } = useReaderStore();
+  const { foundDevices, connectedDevice } = useReaderStore();
   
   const { addOrUpdateTag } = useScanSessionStore();
   const { updateServerNames } = useTagCacheStore();
@@ -25,15 +26,11 @@ export function ConnectReaderScreen({ navigation }: any) {
     try {
       await scanDevices();
       
-      // We rely on the store to populate `foundDevices`. If empty after 10s:
       setTimeout(() => {
         if (useReaderStore.getState().foundDevices.length === 0) {
           Alert.alert(
             'Không tìm thấy thiết bị',
-            'Đảm bảo RFID reader đang bật và ở gần điện thoại.\n\n' +
-            '1. Bật nguồn reader\n' +
-            '2. Đợi đèn LED nhấp nháy\n' +
-            '3. Quay lại app và thử lại',
+            'Đảm bảo RFID reader đang bật và ở gần điện thoại.',
             [{ text: 'OK' }]
           );
         }
@@ -66,7 +63,7 @@ export function ConnectReaderScreen({ navigation }: any) {
         'Không kết nối được',
         e.message + '\n\nĐảm bảo:\n• Reader đã được Pair trong Bluetooth Settings\n• Reader đang bật và gần điện thoại',
         [
-          { text: 'Mở Bluetooth Settings', onPress: () => Linking.openSettings() },
+          { text: 'Thiết lập', onPress: () => Linking.openSettings() },
           { text: 'OK' }
         ]
       );
@@ -75,103 +72,333 @@ export function ConnectReaderScreen({ navigation }: any) {
     }
   };
 
+  const renderDeviceItem = ({ item }: { item: any }) => {
+    const isRFID = (item.name || '').toLowerCase().match(/uhf|rfid|h103|reader|hand|^3$/);
+    const isThisConnected = connectedDevice?.id === item.id;
+
+    return (
+      <TouchableOpacity
+        style={[styles.deviceItem, isThisConnected && styles.deviceItemActive]}
+        onPress={() => !isThisConnected && connectToSelectedDevice(item)}
+        disabled={isConnecting || isThisConnected}
+      >
+        <View style={styles.deviceIconContainer}>
+          <Cpu color={isRFID ? "#4F46E5" : "#64748B"} size={22} />
+        </View>
+        
+        <View style={styles.deviceInfo}>
+          <Text style={styles.deviceName} numberOfLines={1}>
+            {item.name || 'Unknown Device'}
+          </Text>
+          <Text style={styles.deviceMac}>{item.id}</Text>
+        </View>
+
+        {isThisConnected ? (
+          <View style={styles.connectedBadge}>
+            <CheckCircle2 color="#10B981" size={18} />
+          </View>
+        ) : (
+          <View style={styles.connectAction}>
+            {isConnecting ? (
+              <ActivityIndicator size="small" color="#4F46E5" />
+            ) : (
+              <ChevronRight color="#CBD5E1" size={20} />
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Kết Nối RFID (BLE)</Text>
-      <Text style={styles.subtitle}>Quét BLE để tìm RFID reader</Text>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* Connection Status Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <View style={styles.statusIndicator}>
+              <View style={[styles.statusDot, connectedDevice ? styles.statusDotActive : styles.statusDotInactive]} />
+              <Text style={[styles.statusText, connectedDevice ? styles.statusTextActive : styles.statusTextInactive]}>
+                {connectedDevice ? 'RFID ONLINE' : 'DISCONNECTED'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => Linking.openSettings()}>
+              <SettingsIcon color="#64748B" size={20} />
+            </TouchableOpacity>
+          </View>
 
-      <TouchableOpacity
-        style={[styles.btn, isScanningForDevices && styles.btnDisabled]}
-        onPress={startScan}
-        disabled={isScanningForDevices || isConnecting}
-      >
-        {isScanningForDevices
-          ? <><ActivityIndicator color="#fff" /><Text style={styles.btnText}> Đang tìm...</Text></>
-          : <Text style={styles.btnText}>📡 Tìm Thiết Bị BLE</Text>
-        }
-      </TouchableOpacity>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroDeviceName}>
+              {connectedDevice?.name || 'Chưa kết nối thiết bị'}
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              {connectedDevice ? `MAC: ${connectedDevice.id}` : 'Vui lòng bật Bluetooth và quét thiết bị'}
+            </Text>
+          </View>
 
-      <TouchableOpacity
-        style={styles.btnSettings}
-        onPress={() => Linking.openSettings()}
-      >
-        <Text style={styles.btnSettingsText}>⚙️ Mở Bluetooth Settings (để Pair)</Text>
-      </TouchableOpacity>
-
-      {foundDevices.length === 0 && !isScanningForDevices && (
-        <Text style={styles.instructions}>
-          Nhấn "Tìm Thiết Bị" để quét BLE.{'\n\n'}
-          ⚠️ Đảm bảo RFID reader đã bật nguồn{'\n'}
-          và ở gần điện thoại.
-        </Text>
-      )}
-
-      {foundDevices.length > 0 && (
-        <Text style={styles.deviceCount}>
-          Tìm thấy {foundDevices.length} thiết bị:
-        </Text>
-      )}
-
-      <FlatList
-        data={foundDevices.filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i)}
-        keyExtractor={(d, index) => `${d.id}_${index}`}
-        renderItem={({ item }) => {
-          const isRFID = (item.name || '').toLowerCase().match(/uhf|rfid|h103|reader|hand|^3$/);
-          return (
-            <TouchableOpacity
-              style={[styles.deviceItem, isRFID && styles.deviceRFID]}
-              onPress={() => connectToSelectedDevice(item)}
-              disabled={isConnecting}
+          <View style={styles.heroActionRow}>
+            <TouchableOpacity 
+              style={[styles.mainBtn, isScanningForDevices && styles.mainBtnDisabled]}
+              onPress={startScan}
+              disabled={isScanningForDevices || isConnecting}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.deviceName}>
-                  {isRFID ? '⭐ ' : ''}{item.name || 'Không tên'}
-                </Text>
-                <Text style={styles.macText}>MAC: {item.id}</Text>
-              </View>
-              <Text style={styles.connectText}>
-                {isConnecting ? '...' : 'Kết nối →'}
+              {isScanningForDevices ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <RefreshCw color="#FFFFFF" size={18} />
+              )}
+              <Text style={styles.mainBtnText}>
+                {isScanningForDevices ? ' Đang tìm kiếm...' : ' Tìm thiết bị mới'}
               </Text>
             </TouchableOpacity>
-          );
-        }}
-      />
-    </View>
+          </View>
+        </View>
+
+        <View style={styles.listSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>THIẾT BỊ KHẢ DỤNG</Text>
+            <Bluetooth color="#4F46E5" size={16} />
+          </View>
+
+          <FlatList
+            data={foundDevices.filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i)}
+            keyExtractor={(item) => item.id}
+            renderItem={renderDeviceItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                {!isScanningForDevices && (
+                  <>
+                    <View style={styles.emptyIconCircle}>
+                      <Bluetooth color="#94A3B8" size={32} />
+                    </View>
+                    <Text style={styles.emptyText}>Chưa có thiết bị nào</Text>
+                    <Text style={styles.emptySubtext}>Nhấn nút "Tìm thiết bị" ở trên để bắt đầu</Text>
+                  </>
+                )}
+              </View>
+            }
+          />
+        </View>
+
+        {/* Footer info bars */}
+        <View style={styles.footerInfo}>
+          <View style={styles.footerItem}>
+            <Battery color="#94A3B8" size={14} />
+            <Text style={styles.footerText}>-- %</Text>
+          </View>
+          <View style={styles.footerDivider} />
+          <View style={styles.footerItem}>
+            <Signal color="#94A3B8" size={14} />
+            <Text style={styles.footerText}>BLE 5.0</Text>
+          </View>
+          <View style={styles.footerDivider} />
+          <View style={styles.footerItem}>
+            <Text style={[styles.footerText, { color: '#4F46E5', fontWeight: 'bold' }]}>v1.2.4</Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a1a', padding: 16 },
-  title: {
-    fontSize: 22, fontWeight: 'bold', color: '#4dd0e1',
-    marginBottom: 4, textAlign: 'center'
+  safe: { flex: 1, backgroundColor: '#F7F9FB' },
+  container: { flex: 1, padding: 20 },
+  
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 32,
   },
-  subtitle: { color: '#888', fontSize: 12, textAlign: 'center', marginBottom: 20 },
-  btn: {
-    backgroundColor: '#1976D2', padding: 14, borderRadius: 10,
-    alignItems: 'center', marginBottom: 10, flexDirection: 'row',
-    justifyContent: 'center'
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  btnDisabled: { backgroundColor: '#555' },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  btnSettings: {
-    backgroundColor: '#2a2a4e', padding: 12, borderRadius: 10,
-    alignItems: 'center', marginBottom: 20
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  btnSettingsText: { color: '#aaa', fontSize: 14 },
-  instructions: {
-    color: '#666', textAlign: 'center', marginTop: 40,
-    lineHeight: 24
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
   },
-  deviceCount: { color: '#aaa', fontSize: 13, marginBottom: 8 },
+  statusDotActive: { backgroundColor: '#10B981' },
+  statusDotInactive: { backgroundColor: '#EF4444' },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusTextActive: { color: '#059669' },
+  statusTextInactive: { color: '#DC2626' },
+
+  heroContent: {
+    marginBottom: 24,
+  },
+  heroDeviceName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  heroActionRow: {
+    flexDirection: 'row',
+  },
+  mainBtn: {
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    flex: 1,
+  },
+  mainBtnDisabled: {
+    backgroundColor: '#818CF8',
+  },
+  mainBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+
+  listSection: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1,
+  },
+
+  listContent: {
+    paddingBottom: 20,
+  },
   deviceItem: {
-    backgroundColor: '#1a1a2e', padding: 14, borderRadius: 10,
-    marginBottom: 10, flexDirection: 'row',
-    justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 1, borderColor: '#2a2a4e'
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  deviceRFID: { borderColor: '#4dd0e1', borderWidth: 2, backgroundColor: '#0d2137' },
-  deviceName: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  macText: { color: '#888', fontSize: 12 },
-  connectText: { color: '#4dd0e1', fontWeight: 'bold' },
+  deviceItemActive: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  deviceIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  deviceInfo: {
+    flex: 1,
+  },
+  deviceName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  deviceMac: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  connectedBadge: {
+    marginLeft: 12,
+  },
+  connectAction: {
+    marginLeft: 12,
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#475569',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+
+  footerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  footerDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 20,
+  }
 });

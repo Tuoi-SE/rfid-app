@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, TextInput, Modal, Alert
+  StyleSheet, TextInput, Modal, Alert, Platform, Dimensions, SafeAreaView
 } from 'react-native';
+import { Tag, Save, Trash2, Watch, Signal, RefreshCw, Layers, History, PlayCircle, StopCircle, ArrowUpRight } from 'lucide-react-native';
 
 import { useReaderScan } from '../../../reader/ble/hooks/use-reader-scan';
 import { useReaderStore } from '../../../reader/ble/store/reader.store';
@@ -10,6 +11,8 @@ import { useReaderStore } from '../../../reader/ble/store/reader.store';
 import { useScanSessionStore } from '../../store/scan-session.store';
 import { useTagCacheStore } from '../../store/tag-cache.store';
 import { inventoryApi } from '../../api/sessions';
+
+const { width } = Dimensions.get('window');
 
 export function InventoryScanScreen() {
   const { isScanning, startScan, stopScan } = useReaderScan();
@@ -26,7 +29,6 @@ export function InventoryScanScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Auto-start scanning when entering screen
   useEffect(() => {
     if (status === 'connected' && !isScanning) {
       startScan().catch(e => console.log('[UI] Auto-start error:', e.message));
@@ -36,7 +38,6 @@ export function InventoryScanScreen() {
     };
   }, [status]);
 
-  // Sync real-time to backend
   useEffect(() => {
     if (isScanning) {
       const mappedTags = Object.values(scannedTags)
@@ -64,32 +65,8 @@ export function InventoryScanScreen() {
     );
   };
 
-  const handleSaveSession = async () => {
-    const presentTags = displayList.filter(t => t.isPresent);
-    if (presentTags.length === 0) {
-      Alert.alert('Chưa có dữ liệu', 'Bóp cò reader để quét thẻ RFID trước.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await saveToStorage();
-      await inventoryApi.pushSession({
-        name: `Phiên ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}`,
-        scans: presentTags.map(t => ({ epc: t.epc, rssi: t.rssi, time: new Date(t.lastScanTime) }))
-      });
-      Alert.alert('✅ Đã lưu', `${presentTags.length} thẻ đã được gửi lên server.`);
-    } catch {
-      await saveToStorage();
-      Alert.alert('📱 Lưu offline', 'Phiên được lưu offline. Sẽ đồng bộ khi có mạng.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const syncTags = async () => {
     try {
-      Alert.alert('', 'Đang đồng bộ dữ liệu thẻ...');
       const serverNames = await inventoryApi.pullTags();
       updateServerNames(serverNames);
       Alert.alert('Thành công', `Đã đồng bộ ${Object.keys(serverNames).length} định danh thẻ.`);
@@ -98,180 +75,229 @@ export function InventoryScanScreen() {
     }
   };
 
-  const getRssiColor = (rssi: number) => {
-    if (rssi > -60) return '#4CAF50';
-    if (rssi > -75) return '#FF9800';
-    return '#f44336';
+  const getTimeAgo = (date: string | Date) => {
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    return 'long ago';
   };
 
   const presentCount = displayList.filter(t => t.isPresent).length;
-  const missingCount = displayList.filter(t => !t.isPresent).length;
 
   return (
-    <View style={styles.container}>
-      {/* Status bar */}
-      <View style={styles.statusBar}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-          <View style={[styles.statusDot, { backgroundColor: status === 'connected' ? '#4CAF50' : '#f44336' }]} />
-          <Text style={styles.statusText} numberOfLines={1}>
-            {status !== 'connected' ? '🔴 Chưa kết nối reader' : '🟢 Đang lắng nghe...'}
-          </Text>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        
+        {/* Connection Bar */}
+        <View style={styles.connBar}>
+          <View style={styles.connStatus}>
+            <View style={[styles.statusDot, { backgroundColor: status === 'connected' ? '#10B981' : '#EF4444' }]} />
+            <Text style={styles.statusText}>{status === 'connected' ? 'READER ONLINE' : 'DISCONNECTED'}</Text>
+          </View>
+          <TouchableOpacity style={styles.utilBtn} onPress={syncTags}>
+            <RefreshCw size={18} color="#64748B" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.btnSync} onPress={syncTags}>
-          <Text style={{ fontSize: 18 }}>🔄</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Stats */}
-      <View style={styles.statsPanel}>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>{displayList.length}</Text>
-          <Text style={styles.statLabel}>Tổng thẻ</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: '#4CAF50' }]}>{presentCount}</Text>
-          <Text style={styles.statLabel}>Có mặt</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: '#f44336' }]}>{missingCount}</Text>
-          <Text style={styles.statLabel}>Vắng mặt</Text>
-        </View>
-      </View>
-
-      {/* Tag List */}
-      <FlatList
-        data={displayList}
-        keyExtractor={item => item.epc}
-        style={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onLongPress={() => {
-              setSelectedTag(item.epc);
-              setNewName(item.displayName);
-              setIsModalVisible(true);
-            }}
-          >
-            <View style={styles.cardHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={[styles.indicatorDot, { backgroundColor: item.isPresent ? '#4CAF50' : '#f44336' }]} />
-                <Text style={styles.tagName}>{item.displayName}</Text>
+        {/* Counter Hero Section */}
+        <View style={styles.heroBox}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroTop}>
+              <View style={styles.heroIconBox}>
+                <Layers color="#4F46E5" size={24} />
               </View>
-              <Text style={{ color: getRssiColor(item.rssi), fontSize: 13, fontWeight: 'bold' }}>
-                {item.rssi} dBm
-              </Text>
+              <View style={styles.heroMeta}>
+                <Text style={styles.heroLabel}>TỔNG SỐ THẺ QUÉT ĐƯỢC</Text>
+                <Text style={styles.heroSublabel}>Live UHF Scanning</Text>
+              </View>
             </View>
-            <Text style={styles.cardEpc}>{item.epc}</Text>
-            <Text style={styles.cardInfo}>
-              {item.isPresent ? '✅ Đang quét' : '❌ Mất tín hiệu'} · {item.scanCount} lần
+
+            <View style={styles.counterRow}>
+              <Text style={styles.counterValue}>{presentCount}</Text>
+              <Text style={styles.counterUnit}>thẻ</Text>
+            </View>
+
+            <View style={styles.heroFooter}>
+              <View style={[styles.liveBadge, { backgroundColor: isScanning ? '#ECFDF5' : '#F8FAFC' }]}>
+                <View style={[styles.liveDot, { backgroundColor: isScanning ? '#10B981' : '#CBD5E1' }]} />
+                <Text style={[styles.liveText, { color: isScanning ? '#059669' : '#64748B' }]}>
+                  {isScanning ? 'ĐANG QUÉT' : 'TẠM DỪNG'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={handleNewSession} style={styles.clearBtn}>
+                <History color="#64748B" size={16} />
+                <Text style={styles.clearText}>Làm mới</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Action Button */}
+        <View style={styles.actionSection}>
+          <TouchableOpacity 
+            style={[styles.startBtn, isScanning && styles.startBtnActive]} 
+            onPress={() => isScanning ? stopScan() : startScan().catch(()=>{})}
+          >
+            {isScanning ? (
+              <StopCircle color="#FFFFFF" size={24} />
+            ) : (
+              <PlayCircle color="#FFFFFF" size={24} />
+            )}
+            <Text style={styles.startBtnText}>
+              {isScanning ? 'DỪNG QUÉT RFID' : 'BẮT ĐẦU KIỂM KÊ'}
             </Text>
           </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📡</Text>
-            <Text style={styles.emptyTitle}>
-              {status !== 'connected' ? 'Kết nối reader ở tab Bluetooth trước' : 'Bóp cò reader hướng vào thẻ RFID'}
-            </Text>
-            <Text style={styles.emptySub}>
-              {status === 'connected' && 'Thẻ quét được sẽ tự hiện ở đây'}
-            </Text>
-          </View>
-        }
-      />
+        </View>
 
-      {/* Bottom Actions */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.btnNewSession} onPress={handleNewSession}>
-          <Text style={styles.btnNewSessionText}>🗑️ Phiên mới</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.btnSave, isSaving && styles.btnSaveDisabled]} 
-          onPress={handleSaveSession} disabled={isSaving}
-        >
-          <Text style={styles.btnSaveText}>
-            {isSaving ? '⏳ Đang lưu...' : `💾 Lưu phiên (${presentCount})`}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Content Section */}
+        <View style={styles.contentHeader}>
+          <Text style={styles.contentTitle}>THIẾT BỊ GẦN ĐÂY</Text>
+        </View>
 
-      {/* Rename Modal */}
-      <Modal visible={isModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>✏️ Đổi tên thẻ</Text>
-            <Text style={styles.modalEpc}>{selectedTag}</Text>
-            <TextInput
-              style={styles.input}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Nhập tên mới..."
-              placeholderTextColor="#666"
-              autoFocus
-            />
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
-                style={[styles.btnAction, { backgroundColor: '#333' }]}
-                onPress={() => setIsModalVisible(false)}
-              >
-                <Text style={styles.btnActionText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btnAction, { backgroundColor: '#4dd0e1' }]}
-                onPress={() => {
-                  if (selectedTag && newName.trim()) {
-                    renameTag(selectedTag, newName.trim());
-                    setIsModalVisible(false);
-                  }
-                }}
-              >
-                <Text style={styles.btnActionText}>💾 Lưu</Text>
-              </TouchableOpacity>
+        <FlatList
+          data={displayList}
+          keyExtractor={item => item.epc}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.tagCard, !item.isPresent && styles.tagCardDim]}
+              onLongPress={() => {
+                setSelectedTag(item.epc);
+                setNewName(item.displayName);
+                setIsModalVisible(true);
+              }}
+            >
+              <View style={styles.tagIconHolder}>
+                <Tag size={20} color="#4F46E5" />
+              </View>
+              
+              <View style={styles.tagInfo}>
+                <Text style={styles.tagTitle} numberOfLines={1}>{item.displayName}</Text>
+                <Text style={styles.tagEpc}>{item.epc.substring(0, 16)}...</Text>
+              </View>
+
+              <View style={styles.tagRight}>
+                <View style={styles.tagSignal}>
+                  <Signal size={12} color={item.rssi > -60 ? '#10B981' : '#F59E0B'} />
+                  <Text style={[styles.tagRssi, { color: item.rssi > -60 ? '#059669' : '#B45309' }]}>
+                    {item.rssi}
+                  </Text>
+                </View>
+                <Text style={styles.tagTime}>{getTimeAgo(item.lastScanTime)}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Layers color="#E2E8F0" size={48} />
+              <Text style={styles.emptyTitle}>
+                {status !== 'connected' ? 'Vui lòng kết nối RFID Reader' : 'Chưa tìm thấy thẻ nào'}
+              </Text>
+            </View>
+          }
+        />
+
+        {/* Rename Modal */}
+        <Modal visible={isModalVisible} transparent animationType="fade">
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalBody}>
+              <Text style={styles.modalTitle}>Đổi tên sản phẩm</Text>
+              <Text style={styles.modalSubtitle}>Định danh cho thẻ RFID này</Text>
+              
+              <TextInput
+                style={styles.modalInput}
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Nhập tên sản phẩm..."
+                placeholderTextColor="#94A3B8"
+              />
+              
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setIsModalVisible(false)}>
+                  <Text style={styles.modalBtnCancelText}>Bỏ qua</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalBtnSave}
+                  onPress={() => {
+                    if (selectedTag && newName.trim()) {
+                      renameTag(selectedTag, newName.trim());
+                      setIsModalVisible(false);
+                    }
+                  }}
+                >
+                  <Text style={styles.modalBtnSaveText}>Lưu định danh</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: '#0a0a1a' },
-  statusBar:   { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#0d1b2a', borderBottomWidth: 1, borderBottomColor: '#1a2a3e' },
-  statusDot:   { width: 8, height: 8, borderRadius: 4 },
-  statusText:  { color: '#aaa', fontSize: 13 },
-  btnSync:     { padding: 8, backgroundColor: '#1a2a3e', borderRadius: 8, marginLeft: 8 },
+  safe: { flex: 1, backgroundColor: '#F7F9FB' },
+  container: { flex: 1 },
   
-  statsPanel:  { flexDirection: 'row', backgroundColor: '#1a1a2e', borderRadius: 12, padding: 16, margin: 12, marginBottom: 0, justifyContent: 'space-around' },
-  statBox:     { alignItems: 'center' },
-  statValue:   { fontSize: 28, fontWeight: 'bold', color: '#4dd0e1' },
-  statLabel:   { color: '#888', fontSize: 12, marginTop: 2 },
-  
-  list:        { flex: 1, paddingHorizontal: 12, paddingTop: 12 },
-  card:        { backgroundColor: '#1a1a2e', borderRadius: 10, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2a2a4e' },
-  cardHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  indicatorDot:{ width: 8, height: 8, borderRadius: 4 },
-  tagName:     { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cardEpc:     { color: '#4dd0e1', fontSize: 11, marginTop: 8, fontFamily: 'monospace' },
-  cardInfo:    { color: '#666', fontSize: 12, marginTop: 6 },
+  connBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
+  connStatus: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusText: { fontSize: 10, fontWeight: '800', color: '#64748B', letterSpacing: 0.5 },
+  utilBtn: { width: 36, height: 36, backgroundColor: '#FFFFFF', borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
 
-  emptyState:  { alignItems: 'center', paddingTop: 60 },
-  emptyIcon:   { fontSize: 48, marginBottom: 16 },
-  emptyTitle:  { color: '#888', fontSize: 16, textAlign: 'center' },
-  emptySub:    { color: '#555', fontSize: 13, marginTop: 8 },
+  heroBox: { paddingHorizontal: 20, paddingBottom: 20 },
+  heroCard: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  heroIconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  heroMeta: { flex: 1 },
+  heroLabel: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 1 },
+  heroSublabel: { fontSize: 12, color: '#64748B', marginTop: 2 },
   
-  bottomBar:   { flexDirection: 'row', gap: 12, padding: 12, borderTopWidth: 1, borderTopColor: '#1a2a3e', backgroundColor: '#0d1b2a' },
-  btnNewSession:{ flex: 1, backgroundColor: '#2a2a3e', padding: 14, borderRadius: 10, alignItems: 'center' },
-  btnNewSessionText: { color: '#aaa', fontSize: 15, fontWeight: 'bold' },
-  btnSave:     { flex: 2, backgroundColor: '#4CAF50', padding: 14, borderRadius: 10, alignItems: 'center' },
-  btnSaveDisabled:{ backgroundColor: '#333', opacity: 0.7 },
-  btnSaveText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
-  
-  modalOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent:{ backgroundColor: '#1a1a2e', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalTitle:  { color: '#4dd0e1', fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  modalEpc:    { color: '#555', fontSize: 11, marginBottom: 16, fontFamily: 'monospace' },
-  input:       { backgroundColor: '#0a0a1a', color: '#fff', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: '#4dd0e1' },
-  btnAction:   { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
-  btnActionText:{ color: '#fff', fontWeight: 'bold' },
+  counterRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 24, justifyContent: 'center' },
+  counterValue: { fontSize: 64, fontWeight: 'bold', color: '#1E293B' },
+  counterUnit: { fontSize: 18, fontWeight: 'bold', color: '#94A3B8', marginLeft: 8 },
+
+  heroFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
+  liveText: { fontSize: 11, fontWeight: '800' },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  clearText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+
+  actionSection: { paddingHorizontal: 20, marginBottom: 24 },
+  startBtn: { backgroundColor: '#4F46E5', height: 60, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+  startBtnActive: { backgroundColor: '#EF4444', shadowColor: '#EF4444' },
+  startBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
+
+  contentHeader: { paddingHorizontal: 24, marginBottom: 12 },
+  contentTitle: { fontSize: 12, fontWeight: '800', color: '#94A3B8', letterSpacing: 1 },
+
+  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  tagCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  tagCardDim: { opacity: 0.5 },
+  tagIconHolder: { width: 44, height: 44, backgroundColor: '#F8FAFC', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  tagInfo: { flex: 1 },
+  tagTitle: { fontSize: 15, fontWeight: 'bold', color: '#1E293B', marginBottom: 2 },
+  tagEpc: { fontSize: 11, color: '#94A3B8', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  tagRight: { alignItems: 'flex-end', gap: 4 },
+  tagSignal: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tagRssi: { fontSize: 13, fontWeight: '800' },
+  tagTime: { fontSize: 10, color: '#94A3B8', fontWeight: '500' },
+
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  emptyTitle: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginTop: 12 },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', padding: 24 },
+  modalBody: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 10 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1E293B', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: '#64748B', marginBottom: 20 },
+  modalInput: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, fontSize: 16, color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  modalBtnCancel: { flex: 1, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5F9' },
+  modalBtnCancelText: { color: '#64748B', fontWeight: 'bold' },
+  modalBtnSave: { flex: 2, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#4F46E5' },
+  modalBtnSaveText: { color: '#FFFFFF', fontWeight: 'bold' },
 });

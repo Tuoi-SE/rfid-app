@@ -201,7 +201,7 @@ export class AuthService {
   /** Tạo refresh token JWT. Dùng secret riêng, thời hạn dài hơn (7 ngày). */
   private generateRefreshToken(user: { id: string; username: string; role: string }) {
     return this.jwtService.sign(
-      { sub: user.id, username: user.username, role: user.role },
+      { sub: user.id, username: user.username, role: user.role, jti: crypto.randomUUID() },
       { secret: this.refreshSecret, expiresIn: `${this.refreshExpDays}d` },
     );
   }

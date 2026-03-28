@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { useAuthStore } from '../store/auth.store';
-import { QrCode, Lock, User } from 'lucide-react-native';
+import { User, Lock, Fingerprint, Scan, Eye, EyeOff } from 'lucide-react-native';
 import { loginApi } from '../api/login';
 
 export function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const login = useAuthStore(state => state.login);
 
   const handleLogin = async () => {
@@ -18,8 +19,14 @@ export function LoginScreen() {
 
     setLoading(true);
     try {
-      const data = await loginApi({ username, password });
-      login(data.access_token, username);
+      const response: any = await loginApi({ username, password });
+      const token = response.data?.access_token || response.access_token;
+      
+      if (token) {
+        login(token, username);
+      } else {
+        throw new Error('Không nhận được token từ server');
+      }
     } catch (error: any) {
       Alert.alert('Đăng nhập thất bại', error.message || 'Lỗi không xác định');
     } finally {
@@ -33,40 +40,66 @@ export function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.content}>
-        <View style={styles.headerContainer}>
-          <QrCode size={64} color="#0052cc" />
-          <Text style={styles.title}>RFID Manager</Text>
-          <Text style={styles.subtitle}>Đăng nhập để quét thẻ và lưu phiên</Text>
+        
+        {/* Header & Logo Section */}
+        <View style={styles.headerSection}>
+          <Image 
+            source={require('../../../../assets/vtex_logo.png')} 
+            style={styles.logoImage} 
+            resizeMode="contain" 
+          />
+          <View style={styles.titleWrapper}>
+            <Text style={styles.title}>RFID Inventory</Text>
+            <Text style={styles.subtitle}>Enterprise Precision Logistics</Text>
+          </View>
         </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <View style={styles.iconContainer}>
-              <User size={20} color="#666" />
+        {/* Main Form Section */}
+        <View style={styles.formSection}>
+          
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>USERNAME</Text>
+            <View style={styles.inputBox}>
+              <User size={18} color="#94A3B8" style={{ marginLeft: 16 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your ID"
+                placeholderTextColor="rgba(119, 117, 135, 0.5)"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                editable={!loading}
+              />
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Tên đăng nhập"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              editable={!loading}
-            />
           </View>
 
-          <View style={styles.inputGroup}>
-            <View style={styles.iconContainer}>
-              <Lock size={20} color="#666" />
+          <View style={styles.inputWrapper}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <TouchableOpacity>
+                <Text style={styles.forgotLink}>Forgot Access?</Text>
+              </TouchableOpacity>
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Mật khẩu"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!loading}
-            />
+            <View style={styles.inputBox}>
+              <Lock size={18} color="#94A3B8" style={{ marginLeft: 16 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="rgba(119, 117, 135, 0.5)"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                editable={!loading}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 16 }}>
+                {showPassword ? (
+                  <EyeOff size={18} color="#94A3B8" />
+                ) : (
+                  <Eye size={18} color="#94A3B8" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity 
@@ -75,11 +108,36 @@ export function LoginScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.loginBtnText}>Đăng nhập</Text>
+              <Text style={styles.loginBtnText}>Sign in to Inventory</Text>
             )}
           </TouchableOpacity>
+        </View>
+
+        {/* Footer / Biometric Section */}
+        <View style={styles.footerSection}>
+          
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>SECURE ACCESS</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <View style={{ alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity style={styles.bioBtn}>
+              <Fingerprint size={28} color="#3525CD" />
+            </TouchableOpacity>
+            <Text style={styles.bioText}>BIOMETRIC LOGIN</Text>
+          </View>
+
+          <View style={styles.modeContainer}>
+            <Text style={styles.modeLabel}>Precision Mode:</Text>
+            <View style={styles.modeBadge}>
+              <Text style={styles.modeBadgeText}>RFID_v4.2.0</Text>
+            </View>
+          </View>
+
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -89,70 +147,162 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#F7F9FB',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    gap: 32,
   },
-  headerContainer: {
+  
+  headerSection: {
     alignItems: 'center',
-    marginBottom: 48,
+    gap: 8,
+    marginTop: 20,
+  },
+  logoImage: {
+    width: 200,
+    height: 80,
+    marginBottom: 8,
+  },
+  titleWrapper: {
+    alignItems: 'center',
+    gap: 4,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#191C1E',
+    letterSpacing: -1.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#464555',
   },
-  formContainer: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+
+  formSection: {
+    gap: 16,
   },
-  inputGroup: {
+  inputWrapper: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#464555',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 4,
+  },
+  forgotLink: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#3525CD',
+    marginRight: 4,
+  },
+  inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e1e4e8',
-  },
-  iconContainer: {
-    padding: 14,
+    borderColor: 'rgba(199, 196, 216, 0.25)',
   },
   input: {
     flex: 1,
-    paddingVertical: 14,
-    paddingRight: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     fontSize: 16,
-    color: '#333',
+    color: '#191C1E',
   },
   loginBtn: {
-    backgroundColor: '#0052cc',
+    backgroundColor: '#3525CD',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#3525CD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   loginBtnDisabled: {
-    backgroundColor: '#80a8e5',
+    backgroundColor: 'rgba(53, 37, 205, 0.5)',
+    shadowOpacity: 0,
   },
   loginBtnText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  footerSection: {
+    marginTop: 16,
+    alignItems: 'center',
+    gap: 24,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(199, 196, 216, 0.3)',
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#777587',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  bioBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 196, 216, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  bioText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#464555',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  modeLabel: {
+    fontSize: 12,
+    color: '#464555',
+  },
+  modeBadge: {
+    backgroundColor: '#ECEEF0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  modeBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#464555',
   },
 });
