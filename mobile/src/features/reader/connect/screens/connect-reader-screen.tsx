@@ -3,7 +3,8 @@ import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, Linking, Platform, SafeAreaView
 } from 'react-native';
-import { Bluetooth, Settings as SettingsIcon, RefreshCw, Cpu, Battery, Signal, ChevronRight, CheckCircle2, XCircle } from 'lucide-react-native';
+import { Bluetooth, Settings as SettingsIcon, RefreshCw, Cpu, Battery, Signal, ChevronRight, CheckCircle2, XCircle, Check } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { useReaderConnection } from '../../ble/hooks/use-reader-connection';
 import { useReaderStore } from '../../ble/store/reader.store';
 
@@ -14,6 +15,7 @@ import { useTagCacheStore } from '../../../inventory/store/tag-cache.store';
 export function ConnectReaderScreen({ navigation }: any) {
   const [isScanningForDevices, setIsScanningForDevices] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const { scanDevices, connectToDevice } = useReaderConnection();
   const { foundDevices, connectedDevice } = useReaderStore();
@@ -57,7 +59,12 @@ export function ConnectReaderScreen({ navigation }: any) {
         addOrUpdateTag(tag.epc, tag.rssi);
       });
 
-      navigation.navigate('QuetThe');
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        navigation.navigate('QuetThe');
+      }, 3000);
+
     } catch (e: any) {
       Alert.alert(
         'Không kết nối được',
@@ -199,7 +206,28 @@ export function ConnectReaderScreen({ navigation }: any) {
           </View>
         </View>
       </View>
+
+      {/* Success Modal Overlay */}
+      {showSuccess && (
+        <View style={styles.overlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+          <View style={styles.successCard}>
+            {/* Top Badge Decoration */}
+            <View style={styles.badgeDecoration}>
+              <View style={styles.badgeInner}>
+                <Check color="#FFFFFF" size={24} strokeWidth={3} />
+              </View>
+            </View>
+
+            <Text style={styles.successTitle}>Success</Text>
+            <Text style={styles.successSubtitle}>
+              Hệ thống đang xử lý kết nối.{"\n"}Vui lòng đợi trong giây lát.
+            </Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
+
   );
 }
 
@@ -400,5 +428,70 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: '#E2E8F0',
     marginHorizontal: 20,
+  },
+
+  // Success Modal Styles
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successCard: {
+    width: 320,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    // Glassmorphism effect via BlurView and these shadow/colors
+    shadowColor: '#5CD88F',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 0, 
+    elevation: 10,
+  },
+  successTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+    letterSpacing: -1,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  badgeDecoration: {
+    position: 'absolute',
+    top: -46,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(92, 216, 143, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(92, 216, 143, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  badgeInner: {
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    backgroundColor: '#5CD88F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   }
 });
+
