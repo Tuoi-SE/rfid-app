@@ -58,12 +58,24 @@ export const ProductsMain = () => {
         }
       />
 
-      <ProductsStatCards totalProducts={products.length} />
+      <ProductsStatCards products={products} />
 
       <TableActions
         searchPlaceholder="Tìm kiếm tên sản phẩm hoặc SKU..."
         searchValue={search}
         onSearchChange={setSearch}
+        showExport={true}
+        onExport={() => {
+          const exportData = state.sortedItems.map(p => ({
+            'SKU': p.sku,
+            'Tên Sản Phẩm': p.name,
+            'Danh Mục': p.category?.name || '',
+            'Ngày Tạo': new Date(p.createdAt).toLocaleDateString('vi-VN')
+          }));
+          import('@/utils/export-excel').then(mod => {
+            mod.exportToExcel(exportData, 'Danh_Sach_San_Pham');
+          });
+        }}
         statusText={`Hiển thị ${state.sortedItems.length} / ${state.totalItems} kết quả`}
       />
 

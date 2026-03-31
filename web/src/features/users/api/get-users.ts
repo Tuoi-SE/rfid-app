@@ -5,6 +5,8 @@ interface GetUsersParams {
   search?: string;
   page?: number;
   limit?: number;
+  only_deleted?: boolean;
+  include_deleted?: boolean;
 }
 
 export interface PaginationMeta {
@@ -26,6 +28,8 @@ export const getUsers = (params?: GetUsersParams): Promise<PaginatedUsersRespons
   if (params?.search) query.append('search', params.search);
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
+  if (params?.only_deleted) query.append('only_deleted', 'true');
+  if (params?.include_deleted) query.append('include_deleted', 'true');
   
   const queryString = query.toString() ? `?${query.toString()}` : '';
   return httpClient(`/users${queryString}`);

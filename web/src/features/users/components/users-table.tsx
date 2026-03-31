@@ -1,4 +1,4 @@
-import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, RotateCcw } from 'lucide-react';
 import { User } from '../types';
 import { Pagination } from '@/components/Pagination';
 
@@ -7,6 +7,7 @@ interface UsersTableProps {
   currentUserId?: string;
   onEdit: (u: User) => void;
   onDelete: (id: string) => void;
+  onRestore?: (id: string) => void;
   
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
@@ -28,6 +29,7 @@ export function UsersTable({
   currentUserId, 
   onEdit, 
   onDelete,
+  onRestore,
   selectedIds = [],
   onToggleSelect = () => {},
   onSelectAll = () => {},
@@ -95,7 +97,8 @@ export function UsersTable({
             }
             
             // Check if deactivated or deleted
-            const isDisabled = false;
+            const isDisabled = !!(u.deleted_at || u.deletedAt);
+            console.log('DEBUG User row rendered:', { id: u.id, deleted_at: u.deleted_at, deletedAt: u.deletedAt, isDisabled });
 
             return (
               <tr key={u.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(u.id) ? 'bg-[#04147B]/5' : ''}`}>
@@ -135,7 +138,7 @@ export function UsersTable({
                 </td>
                 <td className="px-5 py-4 text-left">
                   <span className="text-[13px] font-medium text-slate-500">
-                    {new Date(u.createdAt).toLocaleDateString('vi-VN')}
+                    {new Date(u.created_at || u.createdAt || '').toLocaleDateString('vi-VN')}
                   </span>
                 </td>
                 <td className="px-5 py-4 text-left">
@@ -147,15 +150,22 @@ export function UsersTable({
                   </div>
                 </td>
                 <td className="px-5 py-4 text-right">
-                  <div className="flex items-center justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onEdit(u)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-[#04147B]" title="Sửa">
-                      <Pencil className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center justify-end gap-1">
+                    {!isDisabled ? (
+                      <button onClick={() => onEdit(u)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-[#04147B]" title="Sửa">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => onRestore && onRestore(u.id)} className="p-2 hover:bg-emerald-50 rounded-lg transition-colors text-slate-500 hover:text-emerald-600 font-bold flex items-center gap-1.5" title="Khôi phục">
+                        <RotateCcw className="w-4 h-4 text-emerald-500" />
+                        <span className="text-[11px] text-emerald-600 hidden sm:inline">Khôi phục</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => onDelete(u.id)} 
-                      disabled={currentUserId === u.id}
+                      disabled={currentUserId === u.id || isDisabled}
                       className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent" 
-                      title={currentUserId === u.id ? "Không thể tự xoá chính mình" : "Xoá"}
+                      title={currentUserId === u.id ? "Không thể tự xoá chính mình" : (isDisabled ? "Đã xoá" : "Xoá")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

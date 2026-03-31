@@ -1,38 +1,68 @@
 import { Package, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
+import { Product } from '../types';
+
 interface ProductsStatCardsProps {
-  totalProducts: number;
+  products: Product[];
 }
 
-export const ProductsStatCards = ({ totalProducts }: ProductsStatCardsProps) => {
+export const ProductsStatCards = ({ products }: ProductsStatCardsProps) => {
+  const totalProducts = products.length;
+  const assignedCount = products.filter(p => (p._count?.tags || 0) > 0).length;
+  // Prevent division by zero
+  const assignedPercent = totalProducts > 0 ? ((assignedCount / totalProducts) * 100).toFixed(1) + '%' : '0%';
+  
+  // Real-time: find latest updated or created product
+  const latestDate = products.reduce((latest, current) => {
+    const currentObj = current as any;
+    const itemDate = new Date(currentObj.updatedAt || current.createdAt).getTime();
+    return itemDate > latest ? itemDate : latest;
+  }, 0);
+
+  // Simple relative time display
+  const getRelativeTime = (timestamp: number) => {
+    if (!timestamp) return 'Chưa có';
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'Vừa xong';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} phút trước`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
+    return new Date(timestamp).toLocaleDateString('vi-VN');
+  };
+
+  const lastUpdateStr = getRelativeTime(latestDate);
+  const newlyCreatedCount = products.filter(p => {
+    const pDate = (p as any).updatedAt || p.createdAt;
+    return (Date.now() - new Date(pDate).getTime()) < 86400 * 1000;
+  }).length;
+
   const stats = [
     {
       label: 'Tổng Sản phẩm',
       value: totalProducts.toLocaleString(),
-      badge: '+12%',
+      badge: newlyCreatedCount > 0 ? `+${newlyCreatedCount} hôm nay` : null,
       badgeColor: 'text-emerald-600 bg-emerald-50',
       icon: Package,
       iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
     {
       label: 'Đã gán RFID',
-      value: '98.2%',
-      badge: 'Tốt',
+      value: assignedPercent,
+      badge: assignedCount === totalProducts && totalProducts > 0 ? 'Hoàn hảo' : 'Tốt',
       badgeColor: 'text-emerald-600 bg-emerald-50',
       icon: CheckCircle2,
       iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
     {
-      label: 'Lỗi/Mất tín hiệu',
-      value: '14 sản phẩm',
-      badge: 'Cần kiểm tra',
-      badgeColor: 'text-red-600 bg-red-50',
-      icon: AlertCircle,
+      label: 'Số lượng Thẻ Đã Gán',
+      value: products.reduce((acc, p) => acc + (p._count?.tags || 0), 0) + ' chiếc',
+      badge: 'Kho',
+      badgeColor: 'text-indigo-600 bg-indigo-50',
+      icon: Package,
       iconColor: 'text-[#04147B] bg-[#04147B]/10'
     },
     {
       label: 'Cập nhật cuối',
-      value: '2 phút trước',
+      value: lastUpdateStr,
       badge: null,
       badgeColor: '',
       icon: RefreshCw,

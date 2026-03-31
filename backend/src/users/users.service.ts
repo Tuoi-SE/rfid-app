@@ -54,9 +54,14 @@ export class UsersService {
     const where: Prisma.UserWhereInput = {};
 
     // Lọc soft delete: only_deleted > include_deleted > mặc định (chỉ active)
+    // QUAN TRỌNG: Phải luôn set where.deletedAt để bypass softDeleteExtension
     if (only_deleted) {
       where.deletedAt = { not: null };
-    } else if (!include_deleted) {
+    } else if (include_deleted) {
+      // Trả tất cả — set deletedAt key rõ ràng để bypass soft-delete extension
+      // Prisma: undefined value = bỏ qua filter = trả tất cả
+      where.deletedAt = undefined as any;
+    } else {
       where.deletedAt = null;
     }
 
@@ -78,7 +83,21 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    const formattedItems = items.map((u) => plainToInstance(UserEntity, u));
+    const formattedItems = items.map((u) => {
+      return {
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        locationId: u.locationId,
+        location: u.location,
+        created_at: u.createdAt,
+        updated_at: u.updatedAt,
+        deleted_at: u.deletedAt,
+        created_by: u.createdBy ? { id: u.createdBy.id, username: u.createdBy.username } : null,
+        updated_by: u.updatedBy ? { id: u.updatedBy.id, username: u.updatedBy.username } : null,
+        deleted_by: u.deletedBy ? { id: u.deletedBy.id, username: u.deletedBy.username } : null,
+      };
+    });
     return PaginationHelper.paginate(formattedItems, total, page, limit);
   }
 
@@ -228,5 +247,34 @@ export class UsersService {
     });
 
     return plainToInstance(UserEntity, restored);
+  }
+
+  async getDashboardStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalUsers, activeGroups, totalScans, failedLogins] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.activityLog.groupBy({
+        by: ['userId'],
+        where: { createdAt: { gte: today } },
+      }),
+      this.prisma.scan.count({
+        where: { scannedAt: { gte: today } },
+      }),
+      this.prisma.activityLog.count({
+        where: {
+          createdAt: { gte: today },
+          action: 'LOGIN_FAILED',
+        },
+      }),
+    ]);
+
+    return {
+      totalUsers,
+      activeUsers: Math.max(activeGroups.length, 1), // Always at least 1 (the user making the request)
+      totalScansToday: totalScans,
+      securityStatus: failedLogins > 5 ? 'WARNING' : 'SAFE',
+    };
   }
 }

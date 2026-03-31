@@ -3,9 +3,11 @@ import { ChevronDown, Search, BarChart3 } from 'lucide-react';
 
 interface ActivityLogsToolbarProps {
   totalEvents: number;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
 }
 
-export const ActivityLogsToolbar = ({ totalEvents }: ActivityLogsToolbarProps) => {
+export const ActivityLogsToolbar = ({ totalEvents, searchValue, onSearchChange }: ActivityLogsToolbarProps) => {
   return (
     <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 mb-4">
       {/* Filters Area */}
@@ -36,6 +38,8 @@ export const ActivityLogsToolbar = ({ totalEvents }: ActivityLogsToolbarProps) =
             <input 
               type="text" 
               placeholder="Tìm người dùng..." 
+              value={searchValue}
+              onChange={(event) => onSearchChange(event.target.value)}
               className="bg-transparent border-none outline-none w-full text-slate-600 placeholder:text-slate-300 text-sm"
             />
           </div>

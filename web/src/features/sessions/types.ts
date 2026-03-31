@@ -19,4 +19,6 @@ export interface SessionData {
   user?: SessionOperator | null;
   order?: SessionOrder | null;
   hasUnassignedTags?: boolean;
+  hasAssignedTags?: boolean;
+  hasTransferredTags?: boolean;
 }

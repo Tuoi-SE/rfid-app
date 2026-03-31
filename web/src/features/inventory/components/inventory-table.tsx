@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { Pagination } from '@/components/Pagination';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
+import toast from 'react-hot-toast';
 
 export interface InventoryProductStat {
   id: string;
@@ -264,13 +265,13 @@ export const InventoryTable = ({ data }: InventoryTableProps) => {
         {
           label: 'Xuất Excel',
           icon: FileSpreadsheet,
-          onClick: () => alert(`Đang xuất Excel cho ${selectedCount} sản phẩm...`),
+          onClick: () => toast(`Đang xuất Excel cho ${selectedCount} sản phẩm...`, { icon: '⏳' }),
           variant: 'primary'
         },
         {
           label: 'In tem lệnh',
           icon: Printer,
-          onClick: () => alert(`Đang chuẩn bị in tem cho ${selectedCount} sản phẩm...`),
+          onClick: () => toast(`Đang chuẩn bị in tem cho ${selectedCount} sản phẩm...`, { icon: '⏳' }),
         }
       ]}
     />

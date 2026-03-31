@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { TransfersService } from './transfers.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
@@ -18,14 +27,18 @@ export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
 
   @Post()
-  @RolesDecorator.allow(Role.ADMIN)
+  @RolesDecorator.allow(Role.ADMIN, Role.WAREHOUSE_MANAGER)
   create(@Body() dto: CreateTransferDto, @Request() req: RequestWithUser) {
     return this.transfersService.create(dto, req.user as any);
   }
 
   @Post(':id/confirm')
   @RolesDecorator.allow(Role.WAREHOUSE_MANAGER)
-  confirm(@Param('id') id: string, @Body() dto: ConfirmTransferDto, @Request() req: RequestWithUser) {
+  confirm(
+    @Param('id') id: string,
+    @Body() dto: ConfirmTransferDto,
+    @Request() req: RequestWithUser,
+  ) {
     return this.transfersService.confirm(id, dto, req.user as any);
   }
 
@@ -37,8 +50,16 @@ export class TransfersController {
 
   @Post(':id/destination')
   @RolesDecorator.allow(Role.ADMIN)
-  updateDestination(@Param('id') id: string, @Body('destinationId') destinationId: string, @Request() req: RequestWithUser) {
-    return this.transfersService.updateDestination(id, destinationId, req.user as any);
+  updateDestination(
+    @Param('id') id: string,
+    @Body('destinationId') destinationId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.transfersService.updateDestination(
+      id,
+      destinationId,
+      req.user as any,
+    );
   }
 
   @Get()

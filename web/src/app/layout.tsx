@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   description: "Web Dashboard for managing UHF RFID Tags",
 };
 
+import { Toaster } from 'react-hot-toast';
+
 const RootLayout = ({
   children,
 }: Readonly<{
@@ -32,6 +34,7 @@ return (
   >
     <Providers>
       <AuthProvider>
+        <Toaster position="top-right" />
         {children}
       </AuthProvider>
     </Providers>

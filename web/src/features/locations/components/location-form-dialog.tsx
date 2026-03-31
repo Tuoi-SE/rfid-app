@@ -16,6 +16,7 @@ interface LocationFormDialogProps {
 const LOCATION_TYPES: { value: LocationType; label: string }[] = [
   { value: 'WAREHOUSE', label: 'Kho Tổng (Warehouse)' },
   { value: 'WORKSHOP', label: 'Xưởng May (Workshop)' },
+  { value: 'WORKSHOP_WAREHOUSE', label: 'Kho Xưởng (Workshop Warehouse)' },
   { value: 'HOTEL', label: 'Khách Sạn (Hotel)' },
   { value: 'RESORT', label: 'Resort' },
   { value: 'SPA', label: 'Spa' },

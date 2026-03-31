@@ -71,7 +71,21 @@ export const LocationsMain = () => {
         searchPlaceholder="Tìm địa điểm..."
         searchValue={search}
         onSearchChange={setSearch}
-        statusText={`Hiển thị ${locations.length} kết quả`}
+        showExport={true}
+        onExport={() => {
+          const exportData = state.sortedItems.map((l: any) => ({
+            'ID Địa Điểm': l.id?.slice(-8).toUpperCase() || '',
+            'Tên Phân Xưởng/Kho': l.name,
+            'Địa Chỉ': l.address || '',
+            'Phân Loại': l.type === 'WAREHOUSE' ? 'Kho Trung Tâm' : l.type === 'WORKSHOP' ? 'Phân Xưởng' : 'Nhà Xưởng & Máy Móc',
+            'Số Lượng Thẻ RFID': l.tags_count || 0,
+            'Tình Trạng': l.status || 'Hoạt Động'
+          }));
+          import('@/utils/export-excel').then(mod => {
+            mod.exportToExcel(exportData, 'Danh_Sach_Dia_Diem');
+          });
+        }}
+        statusText={`Hiển thị ${state.sortedItems.length} kết quả`}
       />
 
       {isLoading ? (

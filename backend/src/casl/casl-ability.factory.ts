@@ -23,23 +23,38 @@ export type Subjects =
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
+const normalizeRole = (role: Role | string): Role | null => {
+  const value = String(role || '').trim().toUpperCase();
+
+  if (value === Role.ADMIN) return Role.ADMIN;
+  if (value === Role.STAFF) return Role.STAFF;
+  if (value === Role.WAREHOUSE_MANAGER || value === 'MANAGER' || value === 'WAREHOUSEMANAGER') {
+    return Role.WAREHOUSE_MANAGER;
+  }
+
+  return null;
+};
+
 @Injectable()
 export class CaslAbilityFactory {
-  createForUser(user: { id: string; role: Role }): AppAbility {
-    const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+  createForUser(user: { id: string; role: Role | string }): AppAbility {
+    const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+    const role = normalizeRole(user.role);
 
-    switch (user.role) {
+    switch (role) {
       case Role.ADMIN:
         can('manage', 'all');
         break;
 
       case Role.WAREHOUSE_MANAGER:
-        // Read-only cho hầu hết tài nguyên
+        // Manager thao tác phiếu kho của chính mình (chi tiết ownership check ở service layer)
         can('read', 'Category');
         can('read', 'Product');
         can('read', 'Tag');
         can('read', 'Order');
         can('create', 'Order');
+        can('update', 'Order');
+        can('delete', 'Order');
 
         can('read', 'Location');
         can('read', 'Inventory');

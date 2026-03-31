@@ -15,6 +15,9 @@ export interface Order {
   updatedAt: string;
   items: OrderItem[];
   progress?: number;
+  createdById?: string;
+  createdBy?: { id: string; username: string; role?: string };
+  location?: { id: string; name: string; type: string };
 }
 
 export interface OrderItemForm {

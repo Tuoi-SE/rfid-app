@@ -32,6 +32,8 @@ export class LocationsService {
     // Key filter: type=WORKSHOP for workshop management (D-06)
     if (type) {
       where.type = type;
+    } else {
+      where.type = { not: 'WORKSHOP_WAREHOUSE' };
     }
 
     const [data, total] = await Promise.all([
@@ -44,6 +46,10 @@ export class LocationsService {
           _count: { select: { tags: true } },
           createdBy: { select: { id: true, username: true } },
           updatedBy: { select: { id: true, username: true } },
+          children: {
+            where: { deletedAt: null },
+            select: { id: true, code: true, name: true, type: true, address: true }
+          }
         },
       }),
       this.prisma.location.count({ where }),
@@ -71,7 +77,7 @@ export class LocationsService {
     const existing = await this.prisma.location.findFirst({ where: { code: dto.code, deletedAt: null } });
     if (existing) throw new BusinessException(`Mã vị trí "${dto.code}" đã tồn tại`, 'LOCATION_EXISTS', HttpStatus.BAD_REQUEST);
 
-    return this.prisma.location.create({
+    const location = await this.prisma.location.create({
       data: {
         ...dto,
         createdById: userId || undefined,
@@ -79,6 +85,25 @@ export class LocationsService {
       },
       include: { _count: { select: { tags: true } } },
     });
+
+    if (location.type === 'WORKSHOP') {
+      const warehouseCode = `WH-${location.code}`;
+      const existingWH = await this.prisma.location.findFirst({ where: { code: warehouseCode, deletedAt: null } });
+      if (!existingWH) {
+        await this.prisma.location.create({
+          data: {
+            code: warehouseCode,
+            name: `Kho - ${location.name}`,
+            type: 'WORKSHOP_WAREHOUSE',
+            address: location.address,
+            parentId: location.id,
+            createdById: userId || undefined,
+            updatedById: userId || undefined,
+          }
+        });
+      }
+    }
+
     return plainToInstance(LocationEntity, location);
   }
 
@@ -122,6 +147,16 @@ export class LocationsService {
         deletedById: userId || undefined,
       },
     });
+
+    if (location.type === 'WORKSHOP') {
+      await this.prisma.location.updateMany({
+        where: { parentId: id, deletedAt: null },
+        data: {
+          deletedAt: now,
+          deletedById: userId || undefined,
+        }
+      });
+    }
 
     return { id, deletedAt: now };
   }

@@ -1,4 +1,5 @@
 import { Hash, ClipboardCheck, AlertCircle, ScanBarcode, Activity } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface TagsStatCardsProps {
   totalTags: number;
@@ -66,7 +67,7 @@ export const TagsStatCards = ({ totalTags, inStock, missing, active24h }: TagsSt
             <button
               className="absolute bottom-4 right-4 2xl:bottom-6 2xl:right-6 w-8 h-8 xl:w-9 xl:h-9 2xl:w-10 2xl:h-10 bg-[#04147B] text-white rounded-xl 2xl:rounded-[14px] flex items-center justify-center shadow-lg shadow-blue-900/20 transform transition-all hover:scale-105 active:scale-95 group/btn border border-transparent hover:border-blue-400"
               title="Quét Tag Mới"
-              onClick={() => alert('Sẽ mở Modal quét máy đọc RFID')}
+              onClick={() => toast('Sẽ mở Modal quét máy đọc RFID', { icon: '🚧' })}
             >
               <ScanBarcode className="w-4 h-4 xl:w-4 xl:h-4 2xl:w-5 2xl:h-5 text-blue-200 group-hover/btn:text-white transition-colors" />
             </button>

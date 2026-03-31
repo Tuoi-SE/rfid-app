@@ -9,7 +9,6 @@ export const useActivityLogs = (page = 1, limit = 25, search?: string) => {
         page: page.toString(),
         limit: limit.toString(),
       });
-      if (search) params.append('search', search);
       return getActivityLogs(params.toString());
     },
     refetchInterval: 3000, 

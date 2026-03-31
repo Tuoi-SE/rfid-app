@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useScanSessionStore } from '../../inventory/store/scan-session.store';
 import { useTagCacheStore } from '../../inventory/store/tag-cache.store';
@@ -8,9 +8,20 @@ import { Order } from '../types';
 
 export function useTransactionPicking(selectedOrder: Order | null, onComplete: () => void) {
   const [isSaving, setIsSaving] = useState(false);
+  const lastOrderIdRef = useRef<string | null>(null);
   const { scannedTags, clearAll: clearScanSession } = useScanSessionStore();
   const { serverNames } = useTagCacheStore();
   const { isScanning, startScan, stopScan } = useReaderScan();
+
+  // Mỗi khi đổi phiếu, reset buffer quét để tránh dính dữ liệu cũ từ luồng khác (VD: điều chuyển).
+  useEffect(() => {
+    const currentOrderId = selectedOrder?.id || null;
+    if (lastOrderIdRef.current === currentOrderId) return;
+    lastOrderIdRef.current = currentOrderId;
+
+    clearScanSession();
+    stopScan().catch(() => {});
+  }, [selectedOrder?.id]);
 
   const toggleScan = async () => {
     try {

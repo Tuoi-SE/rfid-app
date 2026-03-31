@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useScanSessionStore } from '../../inventory/store/scan-session.store';
 import { useTagCacheStore } from '../../inventory/store/tag-cache.store';
@@ -8,9 +8,20 @@ import { TransferData } from '../types';
 
 export function useTransferPicking(selectedTransfer: TransferData | null, onComplete: () => void) {
   const [isSaving, setIsSaving] = useState(false);
+  const lastTransferIdRef = useRef<string | null>(null);
   const { scannedTags, clearAll: clearScanSession } = useScanSessionStore();
   const { serverNames } = useTagCacheStore();
   const { isScanning, startScan, stopScan } = useReaderScan();
+
+  // Mỗi khi đổi phiếu điều chuyển, xoá dữ liệu scan cũ để không lẫn với luồng xuất/nhập.
+  useEffect(() => {
+    const currentTransferId = selectedTransfer?.id || null;
+    if (lastTransferIdRef.current === currentTransferId) return;
+    lastTransferIdRef.current = currentTransferId;
+
+    clearScanSession();
+    stopScan().catch(() => {});
+  }, [selectedTransfer?.id]);
 
   const toggleScan = async () => {
     try {

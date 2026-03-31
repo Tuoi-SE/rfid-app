@@ -5,7 +5,7 @@ import { AuthStorage } from '@/lib/http/auth-storage';
 
 interface AuthContextType {
   token: string | null;
-  user: { id: string; username: string; role: string } | null;
+  user: { id: string; username: string; role: string; locationId?: string | null } | null;
   login: (accessToken: string, refreshToken: string, remember?: boolean) => void;
   logout: () => void;
   isLoading: boolean;
@@ -32,7 +32,12 @@ if (stored) {
   // Decode JWT to get user info
   try {
     const payload = JSON.parse(atob(stored.split('.')[1]));
-    setUser({ id: payload.sub, username: payload.username, role: payload.role });
+    setUser({
+      id: payload.sub,
+      username: payload.username,
+      role: payload.role,
+      locationId: payload.locationId,
+    });
   } catch {
     AuthStorage.removeToken();
   }
@@ -44,7 +49,12 @@ const login = (accessToken: string, refreshToken: string, remember: boolean = tr
 AuthStorage.setToken(accessToken, refreshToken, remember);
 try {
   const payload = JSON.parse(atob(accessToken.split('.')[1]));
-  setUser({ id: payload.sub, username: payload.username, role: payload.role });
+  setUser({
+    id: payload.sub,
+    username: payload.username,
+    role: payload.role,
+    locationId: payload.locationId,
+  });
 } catch {}
 setToken(accessToken);
 router.push('/');

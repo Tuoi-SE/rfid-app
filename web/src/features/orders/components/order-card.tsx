@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Edit2, Trash2, Eye, MoreVertical } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Edit2, Trash2, Eye, MoreVertical, MapPin, User as UserIcon } from 'lucide-react';
 import { Order, OrderItem } from '../types';
+import { useAuth } from '@/providers/AuthProvider';
 
 interface OrderCardProps {
   order: Order;
@@ -10,6 +11,10 @@ interface OrderCardProps {
 }
 
 export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const canModify = !isAdmin;
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -25,9 +30,9 @@ export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) =
 
   const getProgress = (items: OrderItem[]) => {
     const totalReq = items.reduce((acc, curr) => acc + curr.quantity, 0);
-    const totalScan = items.reduce((acc, curr) => acc + curr.scannedQuantity, 0);
+    const totalScan = items.reduce((acc, curr) => acc + Math.min(curr.scannedQuantity, curr.quantity), 0);
     const pct = totalReq === 0 ? 0 : Math.round((totalScan / totalReq) * 100);
-    return { scan: totalScan, req: totalReq, pending: totalReq - totalScan, pct };
+    return { scan: totalScan, req: totalReq, pending: Math.max(totalReq - totalScan, 0), pct };
   };
 
   const prog = getProgress(order.items);
@@ -76,30 +81,43 @@ export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) =
                 {statusObj.label}
               </span>
             </div>
-            <div className="text-[13px] font-medium text-slate-500 flex items-center gap-2">
-              <span>Người tạo: <span className="text-slate-700 font-bold">{creatorName}</span></span>
-              <span className="text-slate-300">|</span>
-              <span>Ngày tạo: {dateStr}</span>
+            <div className="text-[13px] font-medium text-slate-500 flex flex-wrap items-center gap-3 mt-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-[6px] border border-slate-100">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <span>{isInbound ? 'Kho nhập' : 'Nơi xuất đến'}: <span className="text-slate-700 font-bold">{order.location?.name || 'Chưa gán'}</span></span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-[6px] border border-slate-100">
+                <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span>Manager: <span className="text-slate-700 font-bold">{creatorName}</span></span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <span>•</span>
+                <span>{dateStr}</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Actions Box */}
         <div className="flex items-center gap-3">
-          <button
-            title="Chỉnh sửa phiểu"
-            onClick={() => onEdit(order.id)}
-            className="p-2.5 text-slate-400 hover:text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-[12px] transition-colors shadow-sm"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            title="Xóa phiểu"
-            onClick={() => onDelete(order.id)}
-            className="p-2.5 text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 rounded-[12px] transition-colors shadow-sm"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {canModify && (
+            <>
+              <button
+                title="Chỉnh sửa phiểu"
+                onClick={() => onEdit(order.id)}
+                className="p-2.5 text-slate-400 hover:text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-[12px] transition-colors shadow-sm"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                title="Xóa phiểu"
+                onClick={() => onDelete(order.id)}
+                className="p-2.5 text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 rounded-[12px] transition-colors shadow-sm"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
           <button
             onClick={() => onView(order.id)}
             className={`px-5 py-2.5 text-sm font-bold rounded-[12px] shadow-sm transition-colors ${order.status === 'PENDING'
@@ -107,7 +125,7 @@ export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) =
               : 'bg-white border border-slate-200 text-[#04147B] hover:bg-slate-50'
               }`}
           >
-            {order.status === 'PENDING' ? 'Bắt Đầu Quét' : 'Xem Chi Tiết'}
+            {order.status === 'PENDING' ? 'Chi Tiết' : 'Xem Chi Tiết'}
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Request } 
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
+import { AssignSessionProductDto } from './dto/assign-session-product.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { PolicyDecorator } from '../casl/decorators/check-policies.decorator';
@@ -21,8 +22,8 @@ export class SessionsController {
   @Get()
   @PolicyDecorator.check((ability) => ability.can('read', 'Session'))
   @ResponseMessageDecorator.withMessage('Lấy danh sách phiên quét thành công')
-  findAll(@Query() query: QuerySessionsDto) {
-    return this.sessionsService.findAll(query);
+  findAll(@Query() query: QuerySessionsDto, @Request() req: AuthenticatedRequest) {
+    return this.sessionsService.findAll(query, req.user);
   }
 
   /** POST /api/sessions — Tạo phiên quét mới */
@@ -47,10 +48,9 @@ export class SessionsController {
   @Patch(':id/assign-product')
   @PolicyDecorator.check((ability) => ability.can('update', 'Session'))
   @ResponseMessageDecorator.withMessage('Gán sản phẩm cho phiên quét hàng loạt thành công')
-  async assignProduct(@Param('id') id: string, @Body('productId') productId: string, @Request() req: AuthenticatedRequest) {
-    const result = await this.sessionsService.assignProductToSession(id, productId, req.user.id);
+  async assignProduct(@Param('id') id: string, @Body() dto: AssignSessionProductDto, @Request() req: AuthenticatedRequest) {
+    const result = await this.sessionsService.assignProductToSession(id, dto.productId, req.user.id, dto.strategy);
     this.eventsGateway.emitTagsUpdated();
     return result;
   }
 }
-

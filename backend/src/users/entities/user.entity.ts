@@ -30,6 +30,10 @@ export class UserEntity extends BaseEntity {
   @Type(() => AuditUserEntity)
   deletedBy?: AuditUserEntity | null;
 
+  // @ts-ignore
+  @Expose({ name: 'deleted_at' })
+  deletedAt: Date | null = null;
+
   constructor(partial: Partial<UserEntity>) {
     super(partial);
     Object.assign(this, partial);

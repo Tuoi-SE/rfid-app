@@ -39,6 +39,13 @@ export class UsersController {
     return this.usersService.findAll(query);
   }
 
+  /** GET /api/users/dashboard-stats — Lấy thống kê cho dashboard */
+  @Get('dashboard-stats')
+  @ResponseMessageDecorator.withMessage('Lấy thống kê thành công')
+  getDashboardStats() {
+    return this.usersService.getDashboardStats();
+  }
+
   /** GET /api/users/:id — Chi tiết 1 user */
   @Get(':id')
   @ResponseMessageDecorator.withMessage('Lấy thông tin người dùng thành công')

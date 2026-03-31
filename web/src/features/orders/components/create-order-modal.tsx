@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '@/lib/http/client';
 import { X, Plus, Trash2, Loader2, ClipboardList, Search, ChevronDown } from 'lucide-react';
 import { OrderItemForm } from '../types';
 import { createOrder } from '../api/create-order';
+import { useAuth } from '@/providers/AuthProvider';
 
 interface Product {
   id: string;
@@ -11,6 +12,37 @@ interface Product {
   sku: string;
   category: { name: string };
 }
+
+interface LocationOption {
+  id: string;
+  code: string;
+  name: string;
+  type:
+    | 'ADMIN'
+    | 'WORKSHOP'
+    | 'WORKSHOP_WAREHOUSE'
+    | 'WAREHOUSE'
+    | 'HOTEL'
+    | 'RESORT'
+    | 'SPA'
+    | 'CUSTOMER';
+  children?: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type:
+      | 'ADMIN'
+      | 'WORKSHOP'
+      | 'WORKSHOP_WAREHOUSE'
+      | 'WAREHOUSE'
+      | 'HOTEL'
+      | 'RESORT'
+      | 'SPA'
+      | 'CUSTOMER';
+  }>;
+}
+
+type OutboundDestinationKind = 'WAREHOUSE' | 'WORKSHOP' | 'CUSTOMER';
 
 // Custom Searchable Select Component
 const ProductSearchSelect = ({
@@ -98,7 +130,11 @@ const ProductSearchSelect = ({
 };
 
 export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) => {
+  const { user } = useAuth();
   const [type, setType] = useState<'INBOUND' | 'OUTBOUND'>('INBOUND');
+  const [inboundLocationId, setInboundLocationId] = useState('');
+  const [outboundDestinationKind, setOutboundDestinationKind] = useState<OutboundDestinationKind>('WAREHOUSE');
+  const [outboundLocationId, setOutboundLocationId] = useState('');
   const [items, setItems] = useState<OrderItemForm[]>([{ productId: '', quantity: 1 }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -108,8 +144,94 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
     queryFn: () => httpClient('/products?limit=1000'),
   });
 
+  const { data: locationsData } = useQuery<any>({
+    queryKey: ['locations', 'order-destinations'],
+    queryFn: () => httpClient('/locations?limit=1000'),
+  });
+
   const rawData = productsData?.data ?? productsData;
   const products: Product[] = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.items) ? rawData.items : [];
+  const rawLocations = locationsData?.data ?? locationsData;
+  const locations: LocationOption[] = Array.isArray(rawLocations)
+    ? rawLocations
+    : Array.isArray(rawLocations?.items)
+      ? rawLocations.items
+      : [];
+
+  const ownInboundLocation = useMemo(
+    () =>
+      locations.find(
+        (location) => !!user?.locationId && location.id === user.locationId,
+      ),
+    [locations, user?.locationId],
+  );
+
+  const inboundLocations = useMemo(() => {
+    const inboundAllowedTypes = new Set(['WORKSHOP', 'WORKSHOP_WAREHOUSE', 'WAREHOUSE']);
+    const byId = new Map<string, LocationOption>();
+
+    const addLocation = (location?: Pick<LocationOption, 'id' | 'code' | 'name' | 'type'>) => {
+      if (!location || !inboundAllowedTypes.has(location.type)) return;
+      byId.set(location.id, { ...location });
+    };
+
+    addLocation(ownInboundLocation);
+    ownInboundLocation?.children?.forEach((child) => addLocation(child));
+    locations
+      .filter((location) => location.type === 'WAREHOUSE')
+      .forEach((location) => addLocation(location));
+
+    if (byId.size === 0) {
+      locations
+        .filter((location) => inboundAllowedTypes.has(location.type))
+        .forEach((location) => addLocation(location));
+    }
+
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [locations, ownInboundLocation]);
+
+  const outboundLocations = useMemo(() => {
+    const workshopOwnerId = user?.locationId;
+    return locations
+      .filter((location) => {
+        if (outboundDestinationKind === 'WAREHOUSE') {
+          return location.type === 'WAREHOUSE';
+        }
+        if (outboundDestinationKind === 'WORKSHOP') {
+          return (
+            location.type === 'WORKSHOP' &&
+            (!workshopOwnerId || location.id !== workshopOwnerId)
+          );
+        }
+        return (
+          location.type === 'HOTEL' ||
+          location.type === 'RESORT' ||
+          location.type === 'SPA' ||
+          location.type === 'CUSTOMER'
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [locations, outboundDestinationKind, user?.locationId]);
+
+  useEffect(() => {
+    if (type !== 'INBOUND') return;
+    if (!inboundLocations.some((location) => location.id === inboundLocationId)) {
+      const preferredOwnLocationId = ownInboundLocation?.id;
+      const fallbackLocationId =
+        (preferredOwnLocationId &&
+          inboundLocations.some((location) => location.id === preferredOwnLocationId)
+          ? preferredOwnLocationId
+          : inboundLocations[0]?.id) || '';
+      setInboundLocationId(fallbackLocationId);
+    }
+  }, [type, inboundLocations, inboundLocationId, ownInboundLocation?.id]);
+
+  useEffect(() => {
+    if (type !== 'OUTBOUND') return;
+    if (!outboundLocations.some((location) => location.id === outboundLocationId)) {
+      setOutboundLocationId('');
+    }
+  }, [type, outboundLocationId, outboundLocations]);
 
   const handleAddItem = () => {
     setItems([...items, { productId: '', quantity: 1 }]);
@@ -142,9 +264,24 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
       return;
     }
 
+    if (type === 'INBOUND' && !inboundLocationId) {
+      setError('Vui lòng chọn nơi nhập kho cho phiếu nhập kho.');
+      return;
+    }
+
+    if (type === 'OUTBOUND' && !outboundLocationId) {
+      setError('Vui lòng chọn nơi xuất đến cho phiếu xuất kho.');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      await createOrder({ type, items });
+      await createOrder({
+        type,
+        items,
+        ...(type === 'INBOUND' ? { locationId: inboundLocationId } : {}),
+        ...(type === 'OUTBOUND' ? { locationId: outboundLocationId } : {}),
+      });
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi tạo phiếu.');
@@ -221,6 +358,107 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                 </label>
               </div>
             </div>
+
+            {type === 'INBOUND' && (
+              <div className="bg-[#04147B]/[0.03] border border-[#04147B]/10 rounded-[16px] p-5 space-y-4">
+                <div>
+                  <label className="block text-[14px] font-bold text-[#04147B] mb-3 uppercase tracking-wider">
+                    Nơi Nhập Kho
+                  </label>
+                  <p className="text-[13px] text-slate-600 font-medium">
+                    Manager có thể nhập vào kho của mình hoặc kho tổng.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                    Chọn kho nhập
+                  </label>
+                  <select
+                    value={inboundLocationId}
+                    onChange={(e) => setInboundLocationId(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-[12px] px-4 py-3 text-[14px] font-semibold text-slate-700 focus:outline-none focus:border-[#04147B] focus:ring-2 focus:ring-[#04147B]/20 transition-all"
+                  >
+                    <option value="">--- Chọn kho nhập ---</option>
+                    {inboundLocations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        [{location.code}] {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  {inboundLocations.length === 0 && (
+                    <p className="mt-2 text-[12px] text-slate-500">
+                      Không có địa điểm phù hợp cho nhóm nhập kho này.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {type === 'OUTBOUND' && (
+              <div className="bg-emerald-50/40 border border-emerald-100 rounded-[16px] p-5 space-y-4">
+                <div>
+                  <label className="block text-[14px] font-bold text-emerald-700 mb-3 uppercase tracking-wider">
+                    Nơi Xuất Đến
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setOutboundDestinationKind('WAREHOUSE')}
+                      className={`px-4 py-3 rounded-[12px] border text-[13px] font-bold transition-colors ${outboundDestinationKind === 'WAREHOUSE'
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
+                        : 'border-emerald-200 bg-white text-slate-600 hover:bg-emerald-50'
+                        }`}
+                    >
+                      Kho tổng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOutboundDestinationKind('WORKSHOP')}
+                      className={`px-4 py-3 rounded-[12px] border text-[13px] font-bold transition-colors ${outboundDestinationKind === 'WORKSHOP'
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
+                        : 'border-emerald-200 bg-white text-slate-600 hover:bg-emerald-50'
+                        }`}
+                    >
+                      Kho xưởng khác
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOutboundDestinationKind('CUSTOMER')}
+                      className={`px-4 py-3 rounded-[12px] border text-[13px] font-bold transition-colors ${outboundDestinationKind === 'CUSTOMER'
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
+                        : 'border-emerald-200 bg-white text-slate-600 hover:bg-emerald-50'
+                        }`}
+                    >
+                      Khách hàng
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                    Chọn địa điểm cụ thể
+                  </label>
+                  <select
+                    value={outboundLocationId}
+                    onChange={(e) => setOutboundLocationId(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-[12px] px-4 py-3 text-[14px] font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  >
+                    <option value="">--- Chọn địa điểm đích ---</option>
+                    {outboundLocations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        [{location.code}] {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  {outboundLocations.length === 0 && (
+                    <p className="mt-2 text-[12px] text-slate-500">
+                      Không có địa điểm phù hợp cho nhóm đích này.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* REPEATER ITEM LIST */}
             <div className="pt-2">

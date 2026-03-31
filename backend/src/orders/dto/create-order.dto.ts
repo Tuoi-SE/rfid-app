@@ -19,7 +19,12 @@ export class CreateOrderDto {
   @IsEnum(OrderType)
   type: OrderType;
 
-  @ApiProperty({ example: 'loc-uuid-123', description: 'ID Vị trí tạo order', required: false })
+  @ApiProperty({
+    example: 'loc-uuid-123',
+    description:
+      'ID vị trí liên quan đến order. INBOUND: nơi nhập kho. OUTBOUND: nơi xuất đến.',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   locationId?: string;

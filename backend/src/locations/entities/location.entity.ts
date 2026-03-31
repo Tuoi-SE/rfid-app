@@ -24,6 +24,8 @@ export class LocationEntity extends BaseEntity {
   @Type(() => UserEntity)
   updatedBy?: UserEntity | null;
 
+  children?: LocationEntity[];
+
   @Expose({ name: 'deleted_by' })
   @Type(() => UserEntity)
   deletedBy?: UserEntity | null;

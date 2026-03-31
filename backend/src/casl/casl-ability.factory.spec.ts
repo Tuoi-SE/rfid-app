@@ -45,10 +45,18 @@ describe('CaslAbilityFactory', () => {
       expect(ability.can('manage', 'Scan')).toBe(true);
     });
 
-    it('should NOT allow create/update/delete on Product, Order, User', () => {
+    it('should allow update/delete Order but not Product/User mutations', () => {
       expect(ability.can('create', 'Product')).toBe(false);
-      expect(ability.can('update', 'Order')).toBe(false);
+      expect(ability.can('update', 'Order')).toBe(true);
+      expect(ability.can('delete', 'Order')).toBe(true);
       expect(ability.can('delete', 'User')).toBe(false);
+    });
+
+    it('should accept legacy MANAGER role string', () => {
+      const legacyAbility = factory.createForUser({ id: 'mgr-legacy', role: 'MANAGER' });
+      expect(legacyAbility.can('read', 'Order')).toBe(true);
+      expect(legacyAbility.can('update', 'Order')).toBe(true);
+      expect(legacyAbility.can('delete', 'Order')).toBe(true);
     });
   });
 

@@ -28,6 +28,8 @@ export class OrderEntity extends BaseEntity {
   @Type(() => OrderItemEntity)
   items?: OrderItemEntity[];
 
+  location?: any;
+
   @Expose({ name: 'created_by' })
   @Type(() => UserEntity)
   createdBy?: UserEntity | null;

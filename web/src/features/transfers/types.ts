@@ -28,7 +28,7 @@ export interface TransferData {
   destination?: TransferLocation;
   
   createdById: string;
-  createdBy?: { username: string };
+  createdBy?: { id: string; username: string; role?: string };
   
   items: TransferItem[];
   

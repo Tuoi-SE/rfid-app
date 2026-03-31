@@ -9,7 +9,10 @@ export interface User {
     name: string;
     type: string;
   } | null;
-  createdAt: string;
+  created_at?: string;
+  createdAt?: string;
+  deleted_at?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface UserFormData {

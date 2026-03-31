@@ -1,20 +1,44 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { Download, RefreshCw, Plus } from 'lucide-react';
 import { ActivityLogsToolbar } from './activity-logs-toolbar';
 import { ActivityLogsTable } from './activity-logs-table';
 import { SecurityAlertWidget } from './security-alert-widget';
 import { useActivityLogs } from '../hooks/use-activity-logs';
+import { useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export const ActivityLogsPageClient = () => {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useActivityLogs(page, 25);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = useSearchParams();
+  const { data, isLoading } = useActivityLogs(page, 25, searchQuery);
   
   const payload = (data as any)?.data || data;
   const logs = Array.isArray(payload) ? payload : (payload?.items || []);
-  const totalItems = payload?.pagination?.totalItems || logs.length || 0;
+
+  useEffect(() => {
+    const urlSearch = searchParams.get('search');
+    if (urlSearch && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+      setPage(1);
+    }
+  }, [searchParams, searchQuery]);
+
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery.trim()) return logs;
+    const normalized = searchQuery.toLowerCase();
+    return logs.filter((log: any) =>
+      log.action?.toLowerCase().includes(normalized) ||
+      log.entity?.toLowerCase().includes(normalized) ||
+      log.user?.username?.toLowerCase().includes(normalized) ||
+      log.ipAddress?.toLowerCase().includes(normalized),
+    );
+  }, [logs, searchQuery]);
+
+  const totalItems = payload?.pagination?.totalItems || filteredLogs.length || 0;
 
   return (
     <div className="relative pb-24">
@@ -35,10 +59,17 @@ export const ActivityLogsPageClient = () => {
         }
       />
 
-      <ActivityLogsToolbar totalEvents={totalItems} />
+      <ActivityLogsToolbar
+        totalEvents={totalItems}
+        searchValue={searchQuery}
+        onSearchChange={(value) => {
+          setSearchQuery(value);
+          setPage(1);
+        }}
+      />
       
       <ActivityLogsTable 
-        data={logs} 
+        data={filteredLogs} 
         isLoading={isLoading} 
         page={page} 
         totalItems={totalItems} 
@@ -51,7 +82,7 @@ export const ActivityLogsPageClient = () => {
       <button 
         className="fixed bottom-8 right-8 w-14 h-14 bg-[#04147B] rounded-full text-white shadow-xl hover:bg-blue-900 transition-all flex justify-center items-center hover:scale-105 hover:-translate-y-1 active:scale-95 z-50 focus:outline-none focus:ring-4 focus:ring-blue-100"
         title="Tạo cảnh báo tự động"
-        onClick={() => alert('Tính năng Tạo cảnh báo giám sát (Alert Rule) đang được phát triển...')}
+        onClick={() => toast('Tính năng Tạo cảnh báo giám sát (Alert Rule) đang được phát triển...', { icon: '🚧' })}
       >
         <Plus className="w-6 h-6" />
       </button>

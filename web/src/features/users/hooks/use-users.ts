@@ -5,6 +5,8 @@ interface UseUsersParams {
   search?: string;
   page?: number;
   limit?: number;
+  only_deleted?: boolean;
+  include_deleted?: boolean;
 }
 
 export const useUsers = (params?: UseUsersParams) => {

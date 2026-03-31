@@ -1,16 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { TableActions } from '@/components/TableActions';
 import { useTransfers } from '../hooks/use-transfers';
 import { TransferStatCards } from './transfer-stat-cards';
 import { TransferTable } from './transfer-table';
 import { useAuth } from '@/providers/AuthProvider';
+import { useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export const TransfersMain = () => {
   const { user } = useAuth();
   const isManager = user?.role === 'WAREHOUSE_MANAGER';
+  const searchParams = useSearchParams();
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   const { data, isLoading, error } = useTransfers('limit=100');
   
@@ -20,11 +27,52 @@ export const TransfersMain = () => {
     ? responseData.data 
     : Array.isArray(responseData) ? responseData : [];
 
+  useEffect(() => {
+    const urlSearch = searchParams.get('search');
+    if (urlSearch && urlSearch !== searchKeyword) {
+      setSearchKeyword(urlSearch);
+    }
+  }, [searchParams, searchKeyword]);
+
+  const filteredTransfers = useMemo(() => {
+    let result = transfers;
+    if (filterStatus) result = result.filter((t: any) => t.status === filterStatus);
+    if (filterType) result = result.filter((t: any) => t.type === filterType);
+
+    if (searchKeyword.trim()) {
+      const normalized = searchKeyword.toLowerCase();
+      result = result.filter((transfer: any) =>
+        transfer.code?.toLowerCase().includes(normalized) ||
+        transfer.type?.toLowerCase().includes(normalized) ||
+        transfer.status?.toLowerCase().includes(normalized) ||
+        transfer.source?.name?.toLowerCase().includes(normalized) ||
+        transfer.destination?.name?.toLowerCase().includes(normalized) ||
+        transfer.createdBy?.username?.toLowerCase().includes(normalized),
+      );
+    }
+    return result;
+  }, [transfers, searchKeyword, filterStatus, filterType]);
+
+  const exportExcel = () => {
+    const exportData = filteredTransfers.map((t: any) => ({
+      'Mã Lệnh': t.code,
+      'Loại': t.type,
+      'Nơi Xuất': t.source?.name,
+      'Nơi Nhập': t.destination?.name,
+      'Trạng Thái': t.status,
+      'Số Lượng EPC': t.items?.length || 0,
+      'Người Tạo': t.createdBy?.username || t.createdBy?.email || ''
+    }));
+    import('@/utils/export-excel').then(mod => {
+      mod.exportToExcel(exportData, 'Danh_Sach_Dieu_Chuyen');
+    });
+  };
+
   const metrics = {
-    pending: transfers.filter((t: any) => t.status === 'PENDING').length,
-    completed: transfers.filter((t: any) => t.status === 'COMPLETED').length,
-    cancelled: transfers.filter((t: any) => t.status === 'CANCELLED').length,
-    totalTagsInTransit: transfers
+    pending: filteredTransfers.filter((t: any) => t.status === 'PENDING').length,
+    completed: filteredTransfers.filter((t: any) => t.status === 'COMPLETED').length,
+    cancelled: filteredTransfers.filter((t: any) => t.status === 'CANCELLED').length,
+    totalTagsInTransit: filteredTransfers
       .filter((t: any) => t.status === 'PENDING')
       .reduce((acc: number, t: any) => acc + (t.items?.length || 0), 0),
   };
@@ -57,7 +105,39 @@ export const TransfersMain = () => {
       ) : (
         <>
           <TransferStatCards metrics={metrics} />
-          <TransferTable transfers={transfers} />
+          <TableActions
+            searchValue={searchKeyword}
+            onSearchChange={setSearchKeyword}
+            searchPlaceholder="Tìm mã lệnh, trạng thái..."
+            showExport={true}
+            onExport={exportExcel}
+            filters={[
+              {
+                key: 'status',
+                label: 'Tất cả trạng thái',
+                value: filterStatus,
+                onChange: setFilterStatus,
+                options: [
+                  { label: 'PENDING', value: 'PENDING' },
+                  { label: 'COMPLETED', value: 'COMPLETED' },
+                  { label: 'CANCELLED', value: 'CANCELLED' }
+                ]
+              },
+              {
+                key: 'type',
+                label: 'Tất cả loại hình',
+                value: filterType,
+                onChange: setFilterType,
+                options: [
+                  { label: 'ADMIN_TO_WORKSHOP', value: 'ADMIN_TO_WORKSHOP' },
+                  { label: 'WORKSHOP_TO_ADMIN', value: 'WORKSHOP_TO_ADMIN' },
+                  { label: 'WORKSHOP_TO_WORKSHOP', value: 'WORKSHOP_TO_WORKSHOP' }
+                ]
+              }
+            ]}
+            statusText={`Hiển thị ${filteredTransfers.length} kết quả`}
+          />
+          <TransferTable transfers={filteredTransfers} />
         </>
       )}
     </div>

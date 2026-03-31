@@ -1,5 +1,4 @@
 import React from 'react';
-import { PackageCheck, ArrowUpRight, Truck, AlertCircle, HelpCircle } from 'lucide-react';
 
 export interface InventoryStat {
   id: string;
@@ -17,6 +16,9 @@ interface InventoryStatCardsProps {
 }
 
 export const InventoryStatCards = ({ stats }: InventoryStatCardsProps) => {
+  const xlGridColsClass =
+    stats.length >= 7 ? 'xl:grid-cols-7' : stats.length >= 6 ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
+
   const getColorStyles = (scheme: string) => {
     switch (scheme) {
       case 'green':
@@ -49,7 +51,7 @@ export const InventoryStatCards = ({ stats }: InventoryStatCardsProps) => {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 xl:gap-4 2xl:gap-6 mb-4 xl:mb-6 2xl:mb-8">
+    <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${xlGridColsClass} gap-3 xl:gap-4 2xl:gap-6 mb-4 xl:mb-6 2xl:mb-8`}>
       {stats.map((stat) => {
         const styles = getColorStyles(stat.colorScheme);
         const Icon = stat.icon;

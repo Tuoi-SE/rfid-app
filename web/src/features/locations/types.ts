@@ -1,4 +1,5 @@
-export type LocationType = 'ADMIN' | 'WORKSHOP' | 'WAREHOUSE' | 'HOTEL' | 'RESORT' | 'SPA' | 'CUSTOMER';
+export type LocationType = 'ADMIN' | 'WORKSHOP' | 'WORKSHOP_WAREHOUSE' | 'WAREHOUSE' | 'HOTEL' | 'RESORT' | 'SPA' | 'CUSTOMER';
+
 
 export interface LocationOperator {
   id: string;
@@ -15,6 +16,7 @@ export interface LocationData {
   createdAt: string;
   updatedAt: string;
   created_by?: LocationOperator | null;
+  children?: LocationData[];
 }
 
 export interface LocationFormData {

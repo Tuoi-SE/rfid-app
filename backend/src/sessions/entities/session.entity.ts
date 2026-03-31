@@ -43,6 +43,12 @@ export class SessionEntity extends BaseEntity {
   @Expose()
   hasUnassignedTags?: boolean;
 
+  @Expose()
+  hasAssignedTags?: boolean;
+
+  @Expose()
+  hasTransferredTags?: boolean;
+
   constructor(partial: Partial<SessionEntity>) {
     super(partial);
     Object.assign(this, partial);

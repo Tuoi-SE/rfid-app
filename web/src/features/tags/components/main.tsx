@@ -15,39 +15,59 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { TagsTable } from './tags-table';
 import { useAuth } from '@/providers/AuthProvider';
+import toast from 'react-hot-toast';
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'IN_STOCK':
+    case 'IN_WORKSHOP':
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-emerald-50 text-emerald-600">
-          IN_STOCK
+          TRONG XƯỞNG
+        </span>
+      );
+    case 'IN_WAREHOUSE':
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-blue-50 text-blue-600">
+          TRONG KHO
         </span>
       );
     case 'IN_TRANSIT':
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-amber-50 text-amber-600">
-          IN_TRANSIT
+          ĐANG LUÂN CHUYỂN
+        </span>
+      );
+    case 'COMPLETED':
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-indigo-50 text-indigo-600">
+          HOÀN THÀNH / BÁN
         </span>
       );
     case 'MISSING':
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-rose-50 text-rose-600">
-          MISSING
+          THẤT LẠC
         </span>
       );
-    case 'OUT_OF_STOCK':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-slate-100 text-slate-500">
-          OUT_OF_STOCK
-        </span>
-      );
+    case 'UNASSIGNED':
     default:
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-emerald-50 text-emerald-600">
-          IN_STOCK
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest bg-slate-100 text-slate-500">
+          CHƯA GÁN
         </span>
       );
+  }
+};
+
+const translateStatus = (status: string | undefined): string => {
+  switch (status?.toUpperCase()) {
+    case 'IN_WORKSHOP': return 'Trong xưởng';
+    case 'IN_WAREHOUSE': return 'Trong kho';
+    case 'IN_TRANSIT': return 'Đang vận/luân chuyển';
+    case 'COMPLETED': return 'Hoàn thành/Xuất bán';
+    case 'MISSING': return 'Thất lạc';
+    case 'UNASSIGNED': return 'Chưa gán định danh';
+    default: return 'Chưa gán';
   }
 };
 
@@ -58,7 +78,10 @@ export const TagsMain = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState({});
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isAddTagOpen, setIsAddTagOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
   const [editTagData, setEditTagData] = useState<TagData | null>(null);
   const [timelineEpc, setTimelineEpc] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
@@ -71,11 +94,31 @@ export const TagsMain = () => {
   }, [rawData]);
 
   const totalTags = tags.length;
-  const inStock = tags.filter((t) => t.status === 'IN_STOCK').length;
+  const inStock = tags.filter((t) => t.status === 'IN_WAREHOUSE' || t.status === 'IN_WORKSHOP').length;
   const missing = tags.filter((t) => t.status === 'MISSING').length;
   const active24h = tags.filter((t) => t.lastSeenAt && new Date(t.lastSeenAt).getTime() > Date.now() - 24 * 60 * 60 * 1000).length;
 
   const { deleteMutation } = useTagMutations();
+
+  const uniqueLocations = useMemo(() => {
+    const locs = tags.map(t => t.location).filter(Boolean) as string[];
+    return Array.from(new Set(locs)).map(l => ({ label: l, value: l }));
+  }, [tags]);
+
+  const filteredTags = useMemo(() => {
+    return tags.filter(t => {
+      if (filterStatus && t.status?.toUpperCase() !== filterStatus.toUpperCase()) return false;
+      if (filterLocation && t.location !== filterLocation) return false;
+      return true;
+    });
+  }, [tags, filterStatus, filterLocation]);
+
+  const handleExport = () => {
+    // We export the filteredTags, applying the global search filter if needed.
+    // However, react-table already has the final filtered, sorted data!
+    // Getting data from table.getRowModel().rows gives us exactly what the user sees (search + filter applied).
+    // Let's do that below.
+  };
 
   const columns = useMemo<ColumnDef<TagData>[]>(() => [
     {
@@ -108,7 +151,8 @@ export const TagsMain = () => {
       cell: (info) => <span className="font-medium text-slate-600 text-[13px] max-w-xs block truncate pr-4">{String(info.row.original.product?.name || info.row.original.name || 'Không xác định')}</span>
     },
     {
-      accessorKey: 'status',
+      id: 'status',
+      accessorFn: (row) => translateStatus(row.status),
       header: 'TRẠNG THÁI',
       cell: (info) => getStatusBadge(info.row.original.status)
     },
@@ -122,11 +166,17 @@ export const TagsMain = () => {
       header: 'LẦN QUÉT CUỐI',
       cell: (info) => {
         const val = info.getValue() as string;
-        // Mocking some cool text like "Vừa xong", "2 ngày trước" for visuals
         if (!val) return <span className="text-[13px] text-slate-500">—</span>;
 
-        // Quick visual mock matching figma
-        const text = Math.random() > 0.7 ? "Vừa xong" : (Math.random() > 0.5 ? "30 phút trước" : new Date(val).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' }));
+        const timestamp = new Date(val).getTime();
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        
+        let text = '';
+        if (seconds < 60) text = 'Vừa xong';
+        else if (seconds < 3600) text = `${Math.floor(seconds / 60)} phút trước`;
+        else if (seconds < 86400) text = `${Math.floor(seconds / 3600)} giờ trước`;
+        else text = new Date(val).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' });
+
         return <span className="text-[13px] text-slate-500">{text}</span>;
       }
     },
@@ -164,7 +214,7 @@ export const TagsMain = () => {
   ], [deleteMutation, isAdmin]);
 
   const table = useReactTable({
-    data: tags,
+    data: filteredTags,
     columns,
     state: { globalFilter, rowSelection, sorting },
     enableRowSelection: true,
@@ -183,6 +233,21 @@ export const TagsMain = () => {
 
   const selectedRows = table.getSelectedRowModel().flatRows;
   const selectedEpcs = selectedRows.map(r => r.original.epc);
+
+  const exportExcel = () => {
+    const rowsToExport = table.getFilteredRowModel().rows.map(row => row.original);
+    const exportData = rowsToExport.map(t => ({
+      'Mã EPC': t.epc,
+      'Sản Phẩm': t.product?.name || t.name || 'Không xác định',
+      'Kho': t.location || 'Không xác định',
+      'Category': t.product?.category?.name || t.category || 'Không xác định',
+      'Trạng Thái': translateStatus(t.status),
+      'Quét Cuối': t.lastSeenAt ? new Date(t.lastSeenAt).toLocaleString('vi-VN') : '',
+    }));
+    import('@/utils/export-excel').then(mod => {
+      mod.exportToExcel(exportData, 'Danh_Sach_Tags');
+    });
+  };
 
   if (isLoading) return <div className="flex justify-center items-center h-[70vh]"><Loader2 className="w-8 h-8 animate-spin text-[#04147B]" /></div>;
 
@@ -222,10 +287,32 @@ export const TagsMain = () => {
         searchValue={globalFilter ?? ''}
         onSearchChange={setGlobalFilter}
         searchPlaceholder="Tìm kiếm thẻ EPC, danh mục..."
-        showExport={false}
-        showFilter={true}
-        onFilter={() => alert('Bộ lọc nâng cao sẽ ra mắt trong update tới!')}
-        statusText={`Đang hiển thị ${tags.length} thẻ RFID`}
+        showExport={true}
+        onExport={exportExcel}
+        filters={[
+          {
+            key: 'status',
+            label: 'Tất cả trạng thái',
+            value: filterStatus,
+            onChange: setFilterStatus,
+            options: [
+              { label: 'Trong xưởng', value: 'IN_WORKSHOP' },
+              { label: 'Trong kho', value: 'IN_WAREHOUSE' },
+              { label: 'Đang luân chuyển', value: 'IN_TRANSIT' },
+              { label: 'Hoàn thành / Đã bán', value: 'COMPLETED' },
+              { label: 'Thất lạc', value: 'MISSING' },
+              { label: 'Chưa gán định danh', value: 'UNASSIGNED' }
+            ]
+          },
+          {
+            key: 'location',
+            label: 'Tất cả vị trí kho',
+            value: filterLocation,
+            onChange: setFilterLocation,
+            options: uniqueLocations
+          }
+        ]}
+        statusText={`Đang hiển thị ${table.getFilteredRowModel().rows.length} thẻ RFID`}
       />
 
       {/* MAIN DATA TABLE */}
@@ -296,21 +383,29 @@ export const TagsMain = () => {
           {
             label: 'Kiểm kê kho',
             icon: Search,
-            onClick: () => alert('Tính năng đối chiếu trong kho sẽ ra mắt sau.')
+            onClick: () => toast('Tính năng đối chiếu trong kho sẽ ra mắt sau.', { icon: '🚧' })
           },
           {
             label: 'Xóa hàng loạt',
             icon: Trash2,
             variant: 'danger',
-            onClick: () => {
-              if (confirm(`Bạn có chắc muốn xóa ${selectedEpcs.length} thẻ không?`)) {
-                 // Mocking bulk delete logic using array loop to avoid changing current hook for now
-                 selectedEpcs.forEach(epc => deleteMutation.mutate(epc));
-                 setRowSelection({});
-              }
-            }
+            onClick: () => setIsBulkDeleteOpen(true)
           }
         ]}
+      />
+
+      {/* CONFIRM BULK DELETE MODAL */}
+      <ConfirmDialog 
+        isOpen={isBulkDeleteOpen}
+        title="Xóa hàng loạt thẻ RFID"
+        description={`Bạn có chắc muốn xóa ${selectedEpcs.length} thẻ không?`}
+        confirmText="Xác nhận Xóa"
+        onConfirm={() => {
+          selectedEpcs.forEach(epc => deleteMutation.mutate(epc));
+          setRowSelection({});
+          setIsBulkDeleteOpen(false);
+        }}
+        onClose={() => setIsBulkDeleteOpen(false)}
       />
     </div>
   );

@@ -3,6 +3,8 @@ import { X, Loader2, Save } from 'lucide-react';
 import { httpClient } from '@/lib/http/client';
 import { TransferData } from '../types';
 
+import toast from 'react-hot-toast';
+
 interface EditTransferModalProps {
   transfer: TransferData;
   onClose: () => void;
@@ -33,8 +35,8 @@ export const EditTransferModal = ({ transfer, onClose, onSuccess }: EditTransfer
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!destinationId) return alert('Vui lòng chọn nơi nhận mới!');
-    if (destinationId === transfer.sourceId) return alert('Nơi xuất và nơi nhận không được trùng nhau!');
+    if (!destinationId) return toast.error('Vui lòng chọn nơi nhận mới!');
+    if (destinationId === transfer.sourceId) return toast.error('Nơi xuất và nơi nhận không được trùng nhau!');
 
     setIsSubmitting(true);
     try {
@@ -42,10 +44,10 @@ export const EditTransferModal = ({ transfer, onClose, onSuccess }: EditTransfer
         method: 'POST',
         body: JSON.stringify({ destinationId })
       });
-      alert(`Đã cập nhật nơi nhận thành công!`);
+      toast.success(`Đã cập nhật nơi nhận thành công!`);
       onSuccess();
     } catch (err: any) {
-      alert(`Lỗi: ${err.message}`);
+      toast.error(`Lỗi: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }

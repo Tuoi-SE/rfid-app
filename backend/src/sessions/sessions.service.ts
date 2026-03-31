@@ -3,11 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
 import { EventsGateway } from '../events/events.gateway';
-import { Prisma, TagStatus } from '.prisma/client';
+import { Prisma, TagStatus, TransferStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { SessionEntity } from './entities/session.entity';
+import { AssignSessionStrategy } from './dto/assign-session-product.dto';
 
 @Injectable()
 export class SessionsService {
@@ -16,38 +17,107 @@ export class SessionsService {
     private events: EventsGateway
   ) {}
 
-  async findAll(query: QuerySessionsDto) {
+  async findAll(
+    query: QuerySessionsDto,
+    user?: { id: string; role: string },
+  ) {
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
+    const sessionWhere: Prisma.SessionWhereInput =
+      user && user.role !== 'ADMIN' ? { userId: user.id } : {};
 
-    const [data, total] = await Promise.all([
+    const scanWhere: Prisma.ScanWhereInput = {
+      tag: { deletedAt: null },
+      ...(user && user.role !== 'ADMIN'
+        ? { session: { is: { userId: user.id } } }
+        : {}),
+    };
+
+    const [data, total, distinctScannedTags] = await Promise.all([
       this.prisma.session.findMany({
+        where: sessionWhere,
         orderBy: { startedAt: 'desc' },
         skip,
         take: limit,
-        include: { 
+        include: {
           _count: { select: { scans: true } },
           user: { select: { id: true, username: true } },
           order: { select: { id: true, code: true, type: true } },
-          scans: {
-            where: { tag: { productId: null } },
-            take: 1,
-            select: { id: true }
-          }
         },
       }),
-      this.prisma.session.count(),
+      this.prisma.session.count({ where: sessionWhere }),
+      this.prisma.scan.findMany({
+        where: scanWhere,
+        distinct: ['tagEpc'],
+        select: { tagEpc: true },
+      }),
     ]);
 
-    const formattedData = data.map(item => plainToInstance(SessionEntity, { 
-      ...item, 
+    const distinctScannedTagCount = distinctScannedTags.length;
+
+    const sessionIds = data.map((item) => item.id);
+    const [unassignedSessions, assignedSessions, transferredSessions] = sessionIds.length
+      ? await Promise.all([
+          this.prisma.scan.findMany({
+            where: {
+              sessionId: { in: sessionIds },
+              tag: { productId: null },
+            },
+            select: { sessionId: true },
+            distinct: ['sessionId'],
+          }),
+          this.prisma.scan.findMany({
+            where: {
+              sessionId: { in: sessionIds },
+              tag: { productId: { not: null } },
+            },
+            select: { sessionId: true },
+            distinct: ['sessionId'],
+          }),
+          this.prisma.scan.findMany({
+            where: {
+              sessionId: { in: sessionIds },
+              tag: {
+                transferItems: {
+                  some: {
+                    transfer: {
+                      status: { in: [TransferStatus.PENDING, TransferStatus.COMPLETED] },
+                    },
+                  },
+                },
+              },
+            },
+            select: { sessionId: true },
+            distinct: ['sessionId'],
+          }),
+        ])
+      : [[], [], []];
+
+    const unassignedSessionIds = new Set(unassignedSessions.map((item) => item.sessionId));
+    const assignedSessionIds = new Set(assignedSessions.map((item) => item.sessionId));
+    const transferredSessionIds = new Set(transferredSessions.map((item) => item.sessionId));
+
+    const formattedData = data.map((item) => plainToInstance(SessionEntity, {
+      ...item,
       totalScans: item._count?.scans || 0,
-      hasUnassignedTags: item.scans && item.scans.length > 0
+      hasUnassignedTags: unassignedSessionIds.has(item.id),
+      hasAssignedTags: assignedSessionIds.has(item.id),
+      hasTransferredTags: transferredSessionIds.has(item.id),
     }));
-    return PaginationHelper.paginate(formattedData, total, page, limit);
+    return {
+      ...PaginationHelper.paginate(formattedData, total, page, limit),
+      metrics: {
+        distinctScannedTagCount,
+      },
+    };
   }
 
-  async assignProductToSession(sessionId: string, productId: string, userId: string) {
+  async assignProductToSession(
+    sessionId: string,
+    productId: string,
+    userId: string,
+    strategy?: AssignSessionStrategy,
+  ) {
     // Check if session exists and fetch associated scans
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
@@ -69,37 +139,123 @@ export class SessionsService {
       throw new BusinessException('Phiên quét trống, không có thẻ nào để gán.', 'SESSION_EMPTY', HttpStatus.BAD_REQUEST);
     }
 
-    const count = await this.prisma.$transaction(async (tx) => {
-      // Find tags that match these epcs to get their ids for events
-      const tagsToUpdate = await tx.tag.findMany({ where: { epc: { in: uniqueEpcs }, deletedAt: null } });
-      const tagIds = tagsToUpdate.map(t => t.id);
-
-      // Update tags to point to the new productId and update status
-      const updateResult = await tx.tag.updateMany({
-        where: { epc: { in: uniqueEpcs }, deletedAt: null },
-        data: {
-          productId: productId,
-          status: TagStatus.IN_WORKSHOP, // Default for manual assignment
-          updatedById: userId
-        }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const lockedTransfer = await tx.transferItem.findFirst({
+        where: {
+          tag: { epc: { in: uniqueEpcs } },
+          transfer: { status: { in: [TransferStatus.PENDING, TransferStatus.COMPLETED] } },
+        },
+        select: {
+          tag: { select: { epc: true } },
+          transfer: { select: { code: true, status: true } },
+        },
       });
 
-      // Create tag events for the bulk update
+      if (lockedTransfer) {
+        throw new BusinessException(
+          `Phiên đã có thẻ nằm trong phiếu điều chuyển ${lockedTransfer.transfer.code} (${lockedTransfer.transfer.status}), không thể cập nhật lại sản phẩm gán.`,
+          'SESSION_TRANSFER_LOCKED',
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      const tagsInSession = await tx.tag.findMany({
+        where: { epc: { in: uniqueEpcs }, deletedAt: null },
+        select: { id: true, epc: true, productId: true },
+      });
+
+      const assignedTags = tagsInSession.filter((tag) => !!tag.productId);
+      const unassignedTags = tagsInSession.filter((tag) => !tag.productId);
+      const hasMixedAssignment = assignedTags.length > 0 && unassignedTags.length > 0;
+
+      const effectiveStrategy: AssignSessionStrategy | null =
+        strategy || (hasMixedAssignment ? null : (unassignedTags.length > 0 ? 'UNASSIGNED_ONLY' : 'OVERWRITE_ALL'));
+
+      if (!effectiveStrategy) {
+        throw new BusinessException(
+          'Phiên có cả thẻ đã gán và chưa gán. Vui lòng chọn: chỉ gán thẻ chưa gán hoặc gán đè toàn bộ.',
+          'ASSIGN_STRATEGY_REQUIRED',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (effectiveStrategy === 'UNASSIGNED_ONLY' && unassignedTags.length === 0) {
+        throw new BusinessException(
+          'Phiên này không còn thẻ chưa gán để thực hiện chế độ "chỉ gán thẻ chưa gán".',
+          'NO_UNASSIGNED_TAGS',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (effectiveStrategy === 'OVERWRITE_ALL' && assignedTags.length > 0) {
+        const hasDifferentCurrentProduct = assignedTags.some((tag) => tag.productId !== productId);
+        if (!hasDifferentCurrentProduct) {
+          throw new BusinessException(
+            'Để đồng bộ toàn bộ thẻ, vui lòng chọn sản phẩm khác với sản phẩm đã gán hiện tại.',
+            'SAME_PRODUCT_OVERWRITE_NOT_ALLOWED',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      const targetEpcs =
+        effectiveStrategy === 'UNASSIGNED_ONLY'
+          ? unassignedTags.map((tag) => tag.epc)
+          : uniqueEpcs;
+
+      if (targetEpcs.length === 0) {
+        return {
+          count: 0,
+          strategy: effectiveStrategy,
+          totalInSession: uniqueEpcs.length,
+          assignedBefore: assignedTags.length,
+          unassignedBefore: unassignedTags.length,
+        };
+      }
+
+      const tagsToUpdate = await tx.tag.findMany({
+        where: { epc: { in: targetEpcs }, deletedAt: null },
+        select: { id: true },
+      });
+      const tagIds = tagsToUpdate.map((tag) => tag.id);
+
+      const updateResult = await tx.tag.updateMany({
+        where: { epc: { in: targetEpcs }, deletedAt: null },
+        data: {
+          productId: productId,
+          status: TagStatus.IN_WORKSHOP,
+          updatedById: userId,
+        },
+      });
+
       if (tagIds.length > 0) {
+        const description =
+          effectiveStrategy === 'UNASSIGNED_ONLY'
+            ? `Gán sản phẩm cho thẻ chưa gán: ${product.name} (Phiên: ${session.name})`
+            : `Gán đè toàn bộ thẻ sang sản phẩm: ${product.name} (Phiên: ${session.name})`;
+
         await tx.tagEvent.createMany({
-          data: tagIds.map(tagId => ({
+          data: tagIds.map((tagId) => ({
             tagId,
             type: 'ASSIGNED',
-            description: `Gán đè cho Sản phẩm: ${product.name} (Từ Phiên: ${session.name})`,
-            userId
-          }))
+            description,
+            userId,
+          })),
         });
       }
 
-      return updateResult.count;
+      return {
+        count: updateResult.count,
+        strategy: effectiveStrategy,
+        totalInSession: uniqueEpcs.length,
+        assignedBefore: assignedTags.length,
+        unassignedBefore: unassignedTags.length,
+      };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
-    return { count };
+    return result;
   }
 
   async create(dto: CreateSessionDto, userId?: string) {
@@ -137,6 +293,8 @@ export class SessionsService {
       // 2. Process Order Fulfillment if orderId presents
       let tagsToUpdateStatus: TagStatus | null = null;
       let targetLocationId: string | null = null;
+      let acceptedOrderEpcs = new Set<string>();
+      let overflowOrderEpcs = new Set<string>();
       
       if (order) {
         if (order.status === 'PENDING') {
@@ -144,29 +302,39 @@ export class SessionsService {
           order.status = 'IN_PROGRESS';
         }
         
-        // Group scanned tags by productId
-        const productCounts: Record<string, number> = {};
-        for (const t of scannedTagsInfo) {
-          if (t.productId) {
-            productCounts[t.productId] = (productCounts[t.productId] || 0) + 1;
-          }
+        // Group scanned tags by product and only accept up to order remaining quantity.
+        // Over-scanned tags in inbound flow will be kept at workshop level.
+        const scannedTagsByProduct = new Map<string, string[]>();
+        for (const tag of scannedTagsInfo) {
+          if (!tag.productId) continue;
+          const current = scannedTagsByProduct.get(tag.productId) || [];
+          current.push(tag.epc);
+          scannedTagsByProduct.set(tag.productId, current);
         }
 
         let allCompleted = true;
 
         for (const item of order.items) {
-          const scannedCount = productCounts[item.productId] || 0;
-          if (scannedCount > 0) {
-            const newScannedQty = item.scannedQuantity + scannedCount;
+          const remainingQty = Math.max(item.quantity - item.scannedQuantity, 0);
+          const epcsForProduct = scannedTagsByProduct.get(item.productId) || [];
+          const acceptedCount = Math.min(remainingQty, epcsForProduct.length);
+
+          if (acceptedCount > 0) {
+            const acceptedEpcs = epcsForProduct.splice(0, acceptedCount);
+            acceptedEpcs.forEach((epc) => acceptedOrderEpcs.add(epc));
+
+            const newScannedQty = item.scannedQuantity + acceptedCount;
             await tx.orderItem.update({
               where: { id: item.id },
               data: { scannedQuantity: newScannedQty }
             });
             if (newScannedQty < item.quantity) allCompleted = false;
-          } else {
-            if (item.scannedQuantity < item.quantity) allCompleted = false;
+          } else if (item.scannedQuantity < item.quantity) {
+            allCompleted = false;
           }
         }
+
+        overflowOrderEpcs = new Set(uniqueEpcs.filter((epc) => !acceptedOrderEpcs.has(epc)));
 
         if (allCompleted) {
           await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } });
@@ -174,14 +342,47 @@ export class SessionsService {
 
         // Determine tag status destination
         if (order.type === 'OUTBOUND') {
-          tagsToUpdateStatus = TagStatus.COMPLETED; // Xuất kho
-        } else if (order.type === 'INBOUND') {
-          if (order.location?.type === 'WORKSHOP') {
+          const destinationType = order.location?.type;
+
+          if (destinationType === 'WORKSHOP') {
             tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
+            targetLocationId = order.locationId;
+          } else if (
+            destinationType === 'WAREHOUSE' ||
+            destinationType === 'WORKSHOP_WAREHOUSE' ||
+            destinationType === 'ADMIN'
+          ) {
+            tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+            targetLocationId = order.locationId;
+          } else {
+            // Khách hàng / điểm tiêu thụ => xem là đã xuất hoàn tất
+            tagsToUpdateStatus = TagStatus.COMPLETED;
+            targetLocationId = order.locationId;
+          }
+        } else if (order.type === 'INBOUND') {
+          if (order.location?.type === 'WORKSHOP' && order.locationId) {
+            // Inbound vào xưởng sẽ ưu tiên nhập thẳng vào kho xưởng (location con WORKSHOP_WAREHOUSE)
+            const workshopWarehouse = await tx.location.findFirst({
+              where: {
+                parentId: order.locationId,
+                type: 'WORKSHOP_WAREHOUSE',
+                deletedAt: null,
+              },
+              select: { id: true },
+            });
+
+            if (workshopWarehouse) {
+              tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+              targetLocationId = workshopWarehouse.id;
+            } else {
+              // Fallback cho dữ liệu cũ chưa có kho xưởng con
+              tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
+              targetLocationId = order.locationId;
+            }
           } else {
             tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+            targetLocationId = order.locationId;
           }
-          targetLocationId = order.locationId;
         }
       }
 
@@ -206,15 +407,42 @@ export class SessionsService {
 
       // 4. Update all scanned tags (location, lastSeenAt, new status if needed)
       const now = new Date();
-      await tx.tag.updateMany({
-        where: { epc: { in: uniqueEpcs } },
-        data: {
-          location: dto.name,
-          lastSeenAt: now,
-          ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
-          ...(targetLocationId ? { locationId: targetLocationId } : {})
+      if (order) {
+        const acceptedOrderList = Array.from(acceptedOrderEpcs);
+        const overflowOrderList = Array.from(overflowOrderEpcs);
+
+        if (acceptedOrderList.length > 0) {
+          await tx.tag.updateMany({
+            where: { epc: { in: acceptedOrderList } },
+            data: {
+              location: dto.name,
+              lastSeenAt: now,
+              ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
+              ...(targetLocationId ? { locationId: targetLocationId } : {})
+            }
+          });
         }
-      });
+
+        if (overflowOrderList.length > 0) {
+          await tx.tag.updateMany({
+            where: { epc: { in: overflowOrderList } },
+            data: {
+              location: dto.name,
+              lastSeenAt: now,
+            }
+          });
+        }
+      } else {
+        await tx.tag.updateMany({
+          where: { epc: { in: uniqueEpcs } },
+          data: {
+            location: dto.name,
+            lastSeenAt: now,
+            ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
+            ...(targetLocationId ? { locationId: targetLocationId } : {})
+          }
+        });
+      }
 
       // 5. Create SCANNED / ORDERED TagEvents
       if (scannedTagsInfo.length > 0) {

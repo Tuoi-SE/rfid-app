@@ -6,6 +6,7 @@ import { useUserMutations } from './use-user-mutations';
 
 export function useUsersTableLogic(users: User[], mutations: ReturnType<typeof useUserMutations>) {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = useState(false);
 
   // Sorting
   const customSort = (a: User, b: User, config: SortConfig<User>) => {
@@ -36,21 +37,35 @@ export function useUsersTableLogic(users: User[], mutations: ReturnType<typeof u
     }
   };
 
+  const handleConfirmBulkRestore = async () => {
+    try {
+      await Promise.all(selectedIds.map(id => mutations.restoreMutation.mutateAsync(id)));
+      clearSelection();
+      setShowBulkRestoreConfirm(false);
+    } catch (e) {
+      console.error('Lỗi khi khôi phục nhiều:', e);
+    }
+  };
+
   return {
     state: {
       showBulkDeleteConfirm,
+      showBulkRestoreConfirm,
       sortedItems,
       sortConfig,
       selectedIds,
       isDeleting: mutations.deleteMutation.isPending,
+      isRestoring: mutations.restoreMutation.isPending,
     },
     actions: {
       setShowBulkDeleteConfirm,
+      setShowBulkRestoreConfirm,
       handleSort,
       handleToggleSelect,
       handleSelectAll,
       clearSelection,
       handleConfirmBulkDelete,
+      handleConfirmBulkRestore,
     }
   };
 }

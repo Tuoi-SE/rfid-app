@@ -129,6 +129,40 @@ export class InventoryService {
     const totalTags = await this.prisma.tag.count();
     const unassignedTags = await this.prisma.tag.count({ where: { productId: null } });
 
+    // 1.1 In-stock tags grouped by physical location type
+    // Helps FE separate "Kho Admin" vs "Kho Trung Tâm" vs "Xưởng"
+    const stockTagsByLocation = await this.prisma.tag.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: [TagStatus.IN_WAREHOUSE, TagStatus.IN_WORKSHOP] },
+        locationId: { not: null },
+      },
+      select: {
+        locationRel: {
+          select: { type: true },
+        },
+      },
+    });
+
+    const locationTypeCounts = stockTagsByLocation.reduce<Record<string, number>>((acc, row) => {
+      const locationType = row.locationRel?.type;
+      if (!locationType) return acc;
+      acc[locationType] = (acc[locationType] || 0) + 1;
+      return acc;
+    }, {});
+
+    const adminInStock = locationTypeCounts.ADMIN || 0;
+    const workshopInStock = locationTypeCounts.WORKSHOP || 0;
+    const workshopWarehouseInStock = locationTypeCounts.WORKSHOP_WAREHOUSE || 0;
+    const warehouseInStock = locationTypeCounts.WAREHOUSE || 0;
+    const totalTrackedInStock =
+      adminInStock +
+      workshopInStock +
+      workshopWarehouseInStock +
+      warehouseInStock;
+    const allInStockAtAdmin =
+      totalTrackedInStock > 0 && adminInStock === totalTrackedInStock;
+
     // 2. Per-product breakdown
     const products = await this.prisma.product.findMany({
       select: {
@@ -179,6 +213,173 @@ export class InventoryService {
       };
     });
 
+    // 4. Per-location breakdown (drill-down by workshop / workshop warehouse / warehouse)
+    const locationStatusCounts = await this.prisma.tag.groupBy({
+      by: ['locationId', 'status'],
+      where: {
+        deletedAt: null,
+        locationId: { not: null },
+      },
+      _count: { _all: true },
+    });
+
+    const locationProductCounts = await this.prisma.tag.groupBy({
+      by: ['locationId', 'productId'],
+      where: {
+        deletedAt: null,
+        locationId: { not: null },
+        productId: { not: null },
+      },
+      _count: { _all: true },
+    });
+
+    const locationIds = Array.from(
+      new Set(
+        locationStatusCounts
+          .map((row) => row.locationId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    );
+
+    const locations = locationIds.length
+      ? await this.prisma.location.findMany({
+          where: {
+            id: { in: locationIds },
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            parent: { select: { id: true, name: true, type: true } },
+          },
+        })
+      : [];
+
+    const locationById = new Map(locations.map((loc) => [loc.id, loc]));
+
+    const productIds = Array.from(
+      new Set(
+        locationProductCounts
+          .map((row) => row.productId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    );
+
+    const locationProducts = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            category: { select: { name: true } },
+          },
+        })
+      : [];
+    const productById = new Map(
+      locationProducts.map((product) => [product.id, product]),
+    );
+
+    const locationStatMap = new Map<
+      string,
+      {
+        id: string;
+        code: string;
+        name: string;
+        type: string;
+        parent?: { id: string; name: string; type: string } | null;
+        totalTags: number;
+        inStock: number;
+        inTransit: number;
+        missing: number;
+        completed: number;
+        unassigned: number;
+        productKinds: number;
+        topProducts: Array<{
+          id: string;
+          name: string;
+          sku: string;
+          category: string;
+          count: number;
+        }>;
+      }
+    >();
+
+    for (const row of locationStatusCounts) {
+      if (!row.locationId) continue;
+      const locationInfo = locationById.get(row.locationId);
+      if (!locationInfo) continue;
+
+      if (!locationStatMap.has(row.locationId)) {
+        locationStatMap.set(row.locationId, {
+          id: locationInfo.id,
+          code: locationInfo.code,
+          name: locationInfo.name,
+          type: locationInfo.type,
+          parent: locationInfo.parent
+            ? {
+                id: locationInfo.parent.id,
+                name: locationInfo.parent.name,
+                type: locationInfo.parent.type,
+              }
+            : null,
+          totalTags: 0,
+          inStock: 0,
+          inTransit: 0,
+          missing: 0,
+          completed: 0,
+          unassigned: 0,
+          productKinds: 0,
+          topProducts: [],
+        });
+      }
+
+      const item = locationStatMap.get(row.locationId)!;
+      const count = row._count._all || 0;
+      item.totalTags += count;
+
+      if (row.status === TagStatus.IN_WAREHOUSE || row.status === TagStatus.IN_WORKSHOP) {
+        item.inStock += count;
+      } else if (row.status === TagStatus.IN_TRANSIT) {
+        item.inTransit += count;
+      } else if (row.status === TagStatus.MISSING) {
+        item.missing += count;
+      } else if (row.status === TagStatus.COMPLETED) {
+        item.completed += count;
+      } else if (row.status === TagStatus.UNASSIGNED) {
+        item.unassigned += count;
+      }
+    }
+
+    for (const row of locationProductCounts) {
+      if (!row.locationId || !row.productId) continue;
+      const locationStat = locationStatMap.get(row.locationId);
+      const product = productById.get(row.productId);
+      if (!locationStat || !product) continue;
+
+      locationStat.topProducts.push({
+        id: product.id,
+        name: product.name,
+        sku: product.sku || 'N/A',
+        category: product.category?.name || '—',
+        count: row._count._all || 0,
+      });
+    }
+
+    const locationBreakdown = Array.from(locationStatMap.values())
+      .map((item) => {
+        const sortedProducts = [...item.topProducts].sort((a, b) => b.count - a.count);
+        return {
+          ...item,
+          productKinds: sortedProducts.length,
+          topProducts: sortedProducts.slice(0, 8),
+          remainingProductKinds: Math.max(sortedProducts.length - 8, 0),
+        };
+      })
+      .sort((a, b) => b.totalTags - a.totalTags);
+
     return {
       overview: {
         totalTags,
@@ -186,9 +387,18 @@ export class InventoryService {
         statuses: Object.fromEntries(
           statusCounts.map((s) => [s.status, s._count._all]),
         ),
+        locationTypeCounts,
+        flow: {
+          adminInStock,
+          workshopInStock,
+          workshopWarehouseInStock,
+          warehouseInStock,
+          allInStockAtAdmin,
+        },
       },
       productBreakdown,
       categoryBreakdown,
+      locationBreakdown,
     };
   }
 

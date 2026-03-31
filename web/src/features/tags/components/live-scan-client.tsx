@@ -5,6 +5,7 @@ import { httpClient } from '@/lib/http/client';
 import { io } from 'socket.io-client';
 import { Search, Loader2, Save, Wifi, Activity, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface ScannedTag {
   epc: string;
@@ -113,12 +114,12 @@ mutationFn: async () => {
 },
 onSuccess: () => {
   queryClient.invalidateQueries({ queryKey: ['tags'] });
-  alert('Lưu các thẻ thành công!');
+  toast.success('Lưu các thẻ thành công!');
   // Xóa các thẻ đã lưu thành công ra khỏi mành hình
   setScannedTags(prev => prev.filter(t => !t.name || t.name.trim() === ''));
 },
 onError: (error: any) => {
-  alert(`Lỗi khi lưu: ${error.message}`);
+  toast.error(`Lỗi khi lưu: ${error.message}`);
 }
 });
 

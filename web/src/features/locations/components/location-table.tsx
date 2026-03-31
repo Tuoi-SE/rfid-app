@@ -22,6 +22,7 @@ interface LocationTableProps {
 const getTypeBadge = (type: LocationType) => {
   switch (type) {
     case 'WORKSHOP': return <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700">XƯỞNG MAY</span>;
+    case 'WORKSHOP_WAREHOUSE': return <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-600">KHO XƯỞNG</span>;
     case 'WAREHOUSE': return <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600">KHO TỔNG</span>;
     case 'HOTEL': return <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600">KHÁCH SẠN</span>;
     case 'SPA': return <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-600">SPA</span>;
@@ -40,8 +41,9 @@ export const LocationTable: React.FC<LocationTableProps> = ({
   isAdmin = false
 }) => {
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-[20px] border border-slate-100 shadow-sm mb-4 xl:mb-6">
+    <div className="w-full flex-1 flex flex-col">
+      <div className="w-full bg-white rounded-[20px] border border-slate-100 shadow-sm mb-4 xl:mb-6 overflow-hidden">
+        <div className="overflow-x-auto pb-4">
         <table className="w-full text-sm min-w-[820px]">
           <thead className="sticky top-0 z-10 bg-white shadow-sm border-b border-slate-100">
             <tr>
@@ -73,7 +75,8 @@ export const LocationTable: React.FC<LocationTableProps> = ({
               locations.map((loc) => {
                 const isSelected = selectedIds.includes(loc.id);
                 return (
-                  <tr key={loc.id} className={`hover:bg-slate-50/50 transition-colors group ${isSelected ? 'bg-[#04147B]/5' : ''}`}>
+                  <React.Fragment key={loc.id}>
+                    <tr className={`hover:bg-slate-50/50 transition-colors group border-b border-slate-50 ${isSelected ? 'bg-[#04147B]/5' : ''}`}>
                     {isAdmin && (
                       <td className="px-5 py-4 text-center">
                         <input 
@@ -116,11 +119,38 @@ export const LocationTable: React.FC<LocationTableProps> = ({
                       </td>
                     )}
                   </tr>
+                  {/* Nested Children (WORKSHOP_WAREHOUSE or similar) */}
+                  {loc.children && loc.children.length > 0 && loc.children.map(child => (
+                    <tr key={child.id} className="bg-slate-50/50 border-b border-slate-100/50 hover:bg-slate-100/50 transition-colors">
+                      {isAdmin && <td className="px-5 py-3"></td>}
+                      <td className="px-5 py-3 pl-12">
+                        <div className="flex items-start gap-2.5">
+                          <span className="text-slate-300 font-mono text-lg leading-none mt-0.5">↳</span>
+                          <div>
+                            <div className="font-semibold text-slate-700 text-[13px]">{child.name}</div>
+                            {child.address && <div className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[260px]">{child.address}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="inline-block bg-white border border-slate-200 text-slate-500 font-mono font-medium text-[10px] px-2 py-0.5 rounded-lg opacity-80">
+                          {child.code}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 opacity-90">
+                        {getTypeBadge(child.type)}
+                      </td>
+                      <td className="px-5 py-3"></td>
+                      {isAdmin && <td className="px-5 py-3"></td>}
+                    </tr>
+                  ))}
+                  </React.Fragment>
                 );
               })
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,31 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, Search, AlertCircle, PackagePlus, Box, Check } from 'lucide-react';
 import { SessionData } from '../types';
 import { useProducts } from '@/features/products/hooks/use-products';
 import { useAssignSessionProduct } from '../hooks/use-assign-session-product';
+import { useSessionDetail } from '../hooks/use-sessions';
+import { AssignSessionStrategy } from '../api/assign-session-product';
+import toast from 'react-hot-toast';
+
+interface ProductOption {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: { name?: string } | null;
+}
+
+interface SessionDetailScan {
+  tag?: {
+    productId?: string | null;
+    product?: { id?: string | null } | null;
+  } | null;
+}
+
+interface SessionDetailPayload {
+  scans?: SessionDetail[];
+}
+
+type SessionDetail = SessionDetailScan;
 
 interface AssignProductModalProps {
   session: SessionData;
@@ -13,31 +36,105 @@ interface AssignProductModalProps {
 export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProductModalProps) => {
   const [search, setSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedStrategy, setSelectedStrategy] = useState<AssignSessionStrategy | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Lấy danh sách sản phẩm
   const { data, isLoading } = useProducts(search ? `limit=50&search=${search}` : 'limit=50');
-  const products = data?.data?.items || data || [];
-  
+  const { data: detailData, isLoading: isDetailLoading } = useSessionDetail(session.id);
+  const rawProducts = (data as { data?: { items?: unknown } } | undefined)?.data?.items || data || [];
+  const products: ProductOption[] = Array.isArray(rawProducts) ? (rawProducts as ProductOption[]) : [];
+
+  const sessionDetail = useMemo<SessionDetailPayload>(() => {
+    const dataWithWrapper = detailData as { data?: unknown } | undefined;
+    const payload = dataWithWrapper?.data ?? detailData;
+    if (payload && typeof payload === 'object') {
+      return payload as SessionDetailPayload;
+    }
+    return {};
+  }, [detailData]);
+
   const { mutateAsync: assignSessionProduct } = useAssignSessionProduct();
+
+  const assignmentSummary = useMemo(() => {
+    const scans = Array.isArray(sessionDetail.scans) ? sessionDetail.scans : [];
+    const totalInSession = scans.length || session.totalTags || 0;
+    const assignedScans = scans.filter((scan) => Boolean(scan?.tag?.productId || scan?.tag?.product?.id));
+    const assignedCount = assignedScans.length;
+    const unassignedCount = Math.max(totalInSession - assignedCount, 0);
+    const assignedProductIds = Array.from(
+      new Set(
+        assignedScans
+          .map((scan) => scan?.tag?.productId || scan?.tag?.product?.id)
+          .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    );
+
+    return {
+      totalInSession,
+      assignedCount,
+      unassignedCount,
+      assignedProductIds,
+      hasMixed: assignedCount > 0 && unassignedCount > 0,
+    };
+  }, [sessionDetail, session.totalTags]);
+
+  const effectiveStrategy: AssignSessionStrategy | null = assignmentSummary.hasMixed
+    ? selectedStrategy
+    : assignmentSummary.unassignedCount > 0
+      ? 'UNASSIGNED_ONLY'
+      : 'OVERWRITE_ALL';
+
+  const isOverwriteSameProduct =
+    effectiveStrategy === 'OVERWRITE_ALL' &&
+    !!selectedProductId &&
+    assignmentSummary.assignedProductIds.length > 0 &&
+    !assignmentSummary.assignedProductIds.some((id) => id !== selectedProductId);
 
   const handleAssign = async () => {
     if (!selectedProductId) return;
+    if (!effectiveStrategy) {
+      toast.error('Vui lòng chọn cách đồng bộ: chỉ gán thẻ chưa gán hoặc gán đè toàn bộ.');
+      return;
+    }
+    if (isOverwriteSameProduct) {
+      toast.error('Đồng bộ toàn bộ yêu cầu chọn sản phẩm khác với sản phẩm đang gán hiện tại.');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      const res = await assignSessionProduct({ sessionId: session.id, productId: selectedProductId });
-      alert(`Đã gán thành công ${res.data?.count || session.totalTags} thẻ vào sản phẩm!`);
+      const res = await assignSessionProduct({
+        sessionId: session.id,
+        productId: selectedProductId,
+        strategy: effectiveStrategy,
+      });
+      const payload = (res as { data?: { count?: number } }).data ?? {};
+      const affectedCount = payload?.count || session.totalTags;
+      const successText =
+        effectiveStrategy === 'UNASSIGNED_ONLY'
+          ? `Đã gán thành công ${affectedCount} thẻ chưa gán trong phiên.`
+          : `Đã đồng bộ thành công toàn bộ ${affectedCount} thẻ theo sản phẩm mới.`;
+      toast.success(successText);
       onSuccess?.();
-    } catch (err: any) {
-      alert(`Lỗi: ${err?.response?.data?.message || err.message || 'Không thể gán sản phẩm'}`);
+    } catch (err: unknown) {
+      const fallbackMessage = 'Không thể gán sản phẩm';
+      const message =
+        err instanceof Error
+          ? err.message
+          : (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+              ? (err as { message: string }).message
+              : fallbackMessage);
+
+      toast.error(`Lỗi: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-3 sm:p-4 overflow-y-auto">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
@@ -45,7 +142,7 @@ export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProduc
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative my-4 sm:my-6 bg-white rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col min-h-0 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
@@ -81,8 +178,52 @@ export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProduc
           </div>
         </div>
 
+        <div className="px-6 pb-1">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-slate-600">
+            <span className="font-semibold text-slate-800">Tổng thẻ trong phiên:</span> {assignmentSummary.totalInSession}
+            <span className="mx-2 text-slate-300">•</span>
+            <span className="font-semibold text-slate-800">Đã gán:</span> {assignmentSummary.assignedCount}
+            <span className="mx-2 text-slate-300">•</span>
+            <span className="font-semibold text-slate-800">Chưa gán:</span> {assignmentSummary.unassignedCount}
+          </div>
+        </div>
+
+        {assignmentSummary.hasMixed && (
+          <div className="px-6 py-3">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900 mb-3">
+                Phiên này có cả thẻ đã gán và chưa gán. Bạn phải chọn một cách xử lý:
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStrategy('UNASSIGNED_ONLY')}
+                  className={`text-left rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    selectedStrategy === 'UNASSIGNED_ONLY'
+                      ? 'border-[#04147B] bg-indigo-50 text-[#04147B] font-semibold'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Chỉ gán {assignmentSummary.unassignedCount} thẻ chưa gán
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStrategy('OVERWRITE_ALL')}
+                  className={`text-left rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    selectedStrategy === 'OVERWRITE_ALL'
+                      ? 'border-[#04147B] bg-indigo-50 text-[#04147B] font-semibold'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Đồng bộ toàn bộ {assignmentSummary.totalInSession} thẻ sang sản phẩm khác
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Product List */}
-        <div className="flex-1 overflow-y-auto px-6 py-2 min-h-[300px]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-2">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
               <div className="w-8 h-8 border-3 border-slate-200 border-t-[#04147B] rounded-full animate-spin" />
@@ -90,7 +231,7 @@ export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProduc
             </div>
           ) : products.length > 0 ? (
             <div className="grid grid-cols-1 gap-3">
-              {products.map((product: any) => (
+              {products.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => setSelectedProductId(product.id)}
@@ -140,8 +281,16 @@ export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProduc
                 <AlertCircle className="w-5 h-5 text-amber-600" />
               </div>
               <div className="text-sm text-amber-800 leading-relaxed font-medium pt-1">
-                Toàn bộ <b className="text-amber-900">{session.totalTags.toLocaleString()} thẻ</b> quét trong phiên này sẽ được gán đè cho sản phẩm đã chọn. Các thẻ đã gán trước đó cũng sẽ bị ghi đè dữ liệu.
+                {effectiveStrategy === 'UNASSIGNED_ONLY'
+                  ? <>Chỉ <b className="text-amber-900">{assignmentSummary.unassignedCount.toLocaleString()} thẻ chưa gán</b> sẽ được cập nhật theo sản phẩm đã chọn.</>
+                  : <>Toàn bộ <b className="text-amber-900">{assignmentSummary.totalInSession.toLocaleString()} thẻ</b> trong phiên sẽ đồng bộ sang sản phẩm đã chọn.</>}
               </div>
+            </div>
+          )}
+
+          {isOverwriteSameProduct && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              Chế độ đồng bộ toàn bộ yêu cầu chọn sản phẩm khác với sản phẩm hiện đang gán cho các thẻ đã có dữ liệu.
             </div>
           )}
 
@@ -155,7 +304,7 @@ export const AssignProductModal = ({ session, onClose, onSuccess }: AssignProduc
             </button>
             <button
               onClick={handleAssign}
-              disabled={!selectedProductId || isSubmitting}
+              disabled={!selectedProductId || isSubmitting || isDetailLoading || !effectiveStrategy || isOverwriteSameProduct}
               className="px-8 py-3 rounded-xl font-bold text-white bg-[#04147B] hover:bg-[#04147B]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#04147B]/20 flex items-center gap-2"
             >
               {isSubmitting ? (

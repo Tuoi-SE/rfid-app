@@ -49,6 +49,9 @@ export function InventoryScanScreen() {
   const [newName, setNewName] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [lastScanAt, setLastScanAt] = useState<number | null>(null);
 
   useEffect(() => {
     // Chỉ stop scan khi thoát màn hình, không tự động start
@@ -64,6 +67,7 @@ export function InventoryScanScreen() {
         .map((t) => ({ epc: t.epc, rssi: t.rssi }));
 
       if (mappedTags.length > 0) {
+        setLastScanAt(Date.now());
         inventoryApi.pushLiveScan(mappedTags).catch(() => {});
       }
     }
@@ -79,7 +83,15 @@ export function InventoryScanScreen() {
   const handleNewSession = () => {
     Alert.alert("Phiên mới", "Xóa tất cả tag đã quét và bắt đầu phiên mới?", [
       { text: "Hủy", style: "cancel" },
-      { text: "Xóa & bắt đầu", style: "destructive", onPress: clearAll },
+      {
+        text: "Xóa & bắt đầu",
+        style: "destructive",
+        onPress: () => {
+          clearAll();
+          setLastSyncedAt(null);
+          setLastScanAt(null);
+        },
+      },
     ]);
   };
 
@@ -108,6 +120,14 @@ export function InventoryScanScreen() {
       return;
     }
 
+    if (hasPendingSync) {
+      Alert.alert(
+        "Cần đồng bộ trước khi lưu",
+        "Bạn phải bấm nút \"Đồng bộ\" để đồng bộ dữ liệu trước khi lưu phiên quét.",
+      );
+      return;
+    }
+
     Alert.alert(
       "Lưu phiên kiểm kê",
       `Bạn có chắc muốn kết thúc phiên và đẩy ${mappedTags.length} thẻ lên hệ thống?`,
@@ -131,7 +151,14 @@ export function InventoryScanScreen() {
               Alert.alert(
                 "Thành công",
                 "Đã lưu phiên kiểm kê và đồng bộ lên server.",
-                [{ text: "OK", onPress: () => clearAll() }],
+                [{
+                  text: "OK",
+                  onPress: () => {
+                    clearAll();
+                    setLastSyncedAt(null);
+                    setLastScanAt(null);
+                  },
+                }],
               );
             } catch (e: any) {
               Alert.alert(
@@ -148,6 +175,7 @@ export function InventoryScanScreen() {
   };
 
   const syncTags = async () => {
+    setIsSyncing(true);
     try {
       const serverNames = await inventoryApi.pullTags();
       const serverEpcs = Object.keys(serverNames);
@@ -164,6 +192,7 @@ export function InventoryScanScreen() {
       console.log(`[Sync] Server: ${serverEpcs.length} | Scanned: ${scannedEpcs.length} | Matched: ${matched.length}`);
       
       updateServerNames(serverNames);
+      setLastSyncedAt(Date.now());
 
       const matchInfo = scannedEpcs.length > 0 
         ? `\n${matched.length}/${scannedEpcs.length} thẻ đã quét được nhận diện.`
@@ -180,6 +209,8 @@ export function InventoryScanScreen() {
         e.message ||
           "Đã có lỗi kết nối lên máy chủ. Vui lòng kiểm tra lại mạng hoặc thử lại sau.",
       );
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -192,6 +223,9 @@ export function InventoryScanScreen() {
   };
 
   const presentCount = displayList.filter((t) => t.isPresent).length;
+  const hasPendingSync =
+    presentCount > 0 &&
+    (!lastSyncedAt || (lastScanAt !== null && lastSyncedAt < lastScanAt));
 
   const handleToggleScan = () => {
     if (isScanning) {
@@ -225,8 +259,19 @@ export function InventoryScanScreen() {
               {status === "connected" ? "READER ONLINE" : "DISCONNECTED"}
             </Text>
           </View>
-          <TouchableOpacity style={styles.utilBtn} onPress={syncTags}>
-            <RefreshCw size={18} color="#64748B" />
+          <TouchableOpacity
+            style={[styles.syncBtn, hasPendingSync && styles.syncBtnWarning]}
+            onPress={syncTags}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={hasPendingSync ? "#B45309" : "#64748B"} />
+            ) : (
+              <RefreshCw size={16} color={hasPendingSync ? "#B45309" : "#64748B"} />
+            )}
+            <Text style={[styles.syncBtnText, hasPendingSync && styles.syncBtnTextWarning]}>
+              {isSyncing ? "Đang đồng bộ" : "Đồng bộ"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -282,15 +327,17 @@ export function InventoryScanScreen() {
                 <TouchableOpacity
                   onPress={handleEndSession}
                   style={styles.clearBtn}
-                  disabled={isSaving}
+                  disabled={isSaving || isSyncing || hasPendingSync}
                 >
                   {isSaving ? (
                     <ActivityIndicator size="small" color="#4F46E5" />
+                  ) : hasPendingSync ? (
+                    <RefreshCw color="#F59E0B" size={16} />
                   ) : (
                     <Save color="#4F46E5" size={16} />
                   )}
                   <Text style={[styles.clearText, { color: "#4F46E5" }]}>
-                    {isSaving ? "Đang lưu..." : "Lưu phiên"}
+                    {isSaving ? "Đang lưu..." : hasPendingSync ? "Cần đồng bộ" : "Lưu phiên"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -453,15 +500,30 @@ const styles = StyleSheet.create({
     color: "#64748B",
     letterSpacing: 0.5,
   },
-  utilBtn: {
-    width: 36,
+  syncBtn: {
     height: 36,
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
+    paddingHorizontal: 10,
     justifyContent: "center",
     alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
     borderWidth: 1,
     borderColor: "#F1F5F9",
+  },
+  syncBtnWarning: {
+    backgroundColor: "#FFF7ED",
+    borderColor: "#FED7AA",
+  },
+  syncBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748B",
+    letterSpacing: 0.2,
+  },
+  syncBtnTextWarning: {
+    color: "#B45309",
   },
 
   heroBox: { paddingHorizontal: 20, paddingBottom: 20 },

@@ -61,7 +61,19 @@ export const CategoriesMain = () => {
         searchPlaceholder="Tìm danh mục..."
         searchValue={search}
         onSearchChange={setSearch}
-        statusText={`Hiển thị ${categories.length} / ${categories.length} kết quả`}
+        showExport={true}
+        onExport={() => {
+          const exportData = state.sortedItems.map((c: any) => ({
+            'ID Danh Mục': c.id?.slice(-8).toUpperCase() || '',
+            'Tên Danh Mục': c.name,
+            'Mô tả': c.description || '',
+            'Ngày Tạo': new Date(c.createdAt).toLocaleDateString('vi-VN')
+          }));
+          import('@/utils/export-excel').then(mod => {
+            mod.exportToExcel(exportData, 'Danh_Sach_Danh_Muc');
+          });
+        }}
+        statusText={`Hiển thị ${state.sortedItems.length} / ${state.totalItems} kết quả`}
       />
 
       {isLoading ? (

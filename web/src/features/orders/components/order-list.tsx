@@ -8,6 +8,7 @@ import { OrderDetailsModal } from './order-details-modal';
 import { deleteOrder } from '../api/delete-order';
 
 import { useAuth } from '@/providers/AuthProvider';
+import toast from 'react-hot-toast';
 
 interface OrderListProps {
   orders: Order[];
@@ -33,7 +34,7 @@ export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: Ord
       onRefresh();
     } catch (error: any) {
       console.error('Failed to delete order', error);
-      alert(error.message || 'Không thể thực hiện. Vui lòng thử lại sau.');
+      toast.error(error.message || 'Không thể thực hiện. Vui lòng thử lại sau.');
     } finally {
       setIsDeleting(false);
     }

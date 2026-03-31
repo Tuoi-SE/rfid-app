@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/lib/http/client';
 import * as XLSX from 'xlsx';
 import { UploadCloud, Loader2, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ImportPageClient = () => {
 const queryClient = useQueryClient();
@@ -42,12 +43,12 @@ mutationFn: async () => {
 },
 onSuccess: () => {
   queryClient.invalidateQueries({ queryKey: ['tags'] });
-  alert('Import dữ liệu thành công!');
+  toast.success('Import dữ liệu thành công!');
   setFile(null);
   setPreview([]);
 },
 onError: (error: any) => {
-  alert(`Import thất bại: ${error.message}`);
+  toast.error(`Import thất bại: ${error.message}`);
 }
 });
 

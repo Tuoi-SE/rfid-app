@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useOrders } from '../hooks/use-orders';
 import { Order } from '../types';
@@ -7,15 +7,24 @@ import { CreateOrderModal } from './create-order-modal';
 import { PageHeader } from '@/components/PageHeader';
 import { OrderList } from './order-list';
 import { useAuth } from '@/providers/AuthProvider';
+import { useSearchParams } from 'next/navigation';
 
 export const OrdersPageClient = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
 
   const { user } = useAuth();
   const isManager = user?.role === 'WAREHOUSE_MANAGER';
 
   const { data: ordersData, isLoading, refetch } = useOrders(search);
+
+  useEffect(() => {
+    const urlSearch = searchParams.get('search');
+    if (urlSearch && urlSearch !== search) {
+      setSearch(urlSearch);
+    }
+  }, [searchParams, search]);
 
   const rawData = (ordersData as any)?.data ?? ordersData;
   const orders: Order[] = Array.isArray(rawData)

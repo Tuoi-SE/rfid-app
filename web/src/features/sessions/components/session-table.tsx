@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,10 +11,10 @@ import {
   SortingState,
 } from '@tanstack/react-table';
 import { 
-  ChevronLeft, 
-  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
   Check,
-  MoreHorizontal,
   Download,
   Trash2,
   PackagePlus, 
@@ -25,9 +25,10 @@ import { SessionData } from '../types';
 import { Pagination } from '@/components/Pagination';
 import { AssignProductModal } from './assign-product-modal';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { httpClient } from '@/lib/http/client';
 import { CreateTransferModal } from '@/features/transfers/components/create-transfer-modal';
+import { useAuth } from '@/providers/AuthProvider';
+import { useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 
 interface SessionTableProps {
   data: SessionData[];
@@ -36,66 +37,44 @@ interface SessionTableProps {
 }
 
 export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTableProps) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdmin = user?.role === 'ADMIN';
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [assigningSession, setAssigningSession] = useState<SessionData | null>(null);
   const [transferringSession, setTransferringSession] = useState<SessionData | null>(null);
-  const [transferredSessionIds, setTransferredSessionIds] = useState<string[]>([]);
+  const [bulkTransferSessions, setBulkTransferSessions] = useState<SessionData[] | null>(null);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('rfid_transferred_sessions');
-      if (stored) {
-        setTransferredSessionIds(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error('Failed to parse transferred sessions from local storage', e);
-    }
-  }, []);
-
-  const handleTransferSuccess = (sessionId: string) => {
-    setTransferredSessionIds(prev => {
-      const updated = [...prev, sessionId];
-      try {
-        localStorage.setItem('rfid_transferred_sessions', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+  const handleTransferSuccess = async () => {
     setTransferringSession(null);
+    setBulkTransferSessions(null);
+    setRowSelection({});
+    await queryClient.invalidateQueries({ queryKey: ['sessions'] });
   };
+
+  const isSessionTransferred = (session: SessionData) => session.hasTransferredTags === true;
+
   const columns: ColumnDef<SessionData>[] = [
     {
       id: 'select',
       header: ({ table }) => (
-        <label className="flex items-center justify-center cursor-pointer p-2">
-          <div className="relative flex items-center justify-center">
-            <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={table.getIsAllPageRowsSelected()}
-              onChange={table.getToggleAllPageRowsSelectedHandler()}
-              aria-label="Select all"
-            />
-            <div className="w-5 h-5 border-2 border-slate-300 rounded-[6px] bg-white transition-all peer-checked:bg-[#04147B] peer-checked:border-[#04147B]" />
-            <Check className="w-3.5 h-3.5 text-white absolute inset-0 m-auto opacity-0 scale-50 transition-all peer-checked:opacity-100 peer-checked:scale-100 pointer-events-none" strokeWidth={3} />
-          </div>
-        </label>
+        <input
+          type="checkbox"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all"
+          className="w-4 h-4 rounded border-slate-200 text-[#04147B] focus:ring-[#04147B]/20 cursor-pointer"
+        />
       ),
       cell: ({ row }) => (
-        <label className="flex items-center justify-center cursor-pointer p-2">
-          <div className="relative flex items-center justify-center">
-            <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={row.getIsSelected()}
-              onChange={row.getToggleSelectedHandler()}
-              aria-label="Select row"
-            />
-            <div className="w-5 h-5 border-2 border-slate-300 rounded-[6px] bg-white transition-all peer-checked:bg-[#04147B] peer-checked:border-[#04147B]" />
-            <Check className="w-3.5 h-3.5 text-white absolute inset-0 m-auto opacity-0 scale-50 transition-all peer-checked:opacity-100 peer-checked:scale-100 pointer-events-none" strokeWidth={3} />
-          </div>
-        </label>
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+          className="w-4 h-4 rounded border-slate-200 text-[#04147B] focus:ring-[#04147B]/20 cursor-pointer"
+        />
       ),
       enableSorting: false,
     },
@@ -103,11 +82,17 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       accessorKey: 'name',
       header: ({ column }) => (
         <button
-          className="flex items-center gap-2 hover:text-slate-700 transition-colors uppercase text-[11px] font-bold tracking-widest text-slate-400"
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           TÊN PHIÊN
-          <ArrowUpDown className="w-3.5 h-3.5" />
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
         </button>
       ),
       cell: ({ row }) => (
@@ -117,11 +102,22 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       ),
     },
     {
+      accessorFn: (row) => (row.endedAt ? 1 : 0),
       id: 'status',
-      header: () => (
-        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           TRẠNG THÁI
-        </div>
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </button>
       ),
       cell: ({ row }) => {
         const isCompleted = !!row.original.endedAt;
@@ -142,11 +138,22 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       },
     },
     {
-      accessorKey: 'user',
-      header: () => (
-        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+      id: 'user',
+      accessorFn: (row) => row.user?.username || '',
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           NGƯỜI QUÉT
-        </div>
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </button>
       ),
       cell: ({ row }) => {
         const user = row.original.user;
@@ -168,11 +175,17 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       accessorKey: 'totalTags',
       header: ({ column }) => (
         <button
-          className="flex items-center gap-2 hover:text-slate-700 transition-colors uppercase text-[11px] font-bold tracking-widest text-slate-400"
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           SỐ LƯỢNG THẺ
-          <ArrowUpDown className="w-3.5 h-3.5" />
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
         </button>
       ),
       cell: ({ row }) => (
@@ -182,11 +195,22 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       ),
     },
     {
+      accessorFn: (row) => new Date(row.endedAt || row.startedAt).getTime(),
       id: 'timeRange',
-      header: () => (
-        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           THỜI GIAN
-        </div>
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </button>
       ),
       cell: ({ row }) => {
         const start = new Date(row.original.startedAt);
@@ -208,15 +232,38 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       },
     },
     {
+      accessorFn: (row) => {
+        const hasUnassigned = row.hasUnassignedTags !== false;
+        const hasAssigned = row.hasAssignedTags === true;
+        const isFullyUnassigned = hasUnassigned && !hasAssigned;
+        const isTransferred = isSessionTransferred(row);
+        if (isTransferred) return 3;
+        if (isFullyUnassigned) return 1;
+        if (hasUnassigned && hasAssigned) return 1.5;
+        return 2;
+      },
       id: 'workflow',
-      header: () => (
-        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           TIẾN ĐỘ CHUỖI CUNG ỨNG
-        </div>
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </button>
       ),
       cell: ({ row }) => {
         const hasUnassigned = row.original.hasUnassignedTags !== false;
-        const isTransferred = transferredSessionIds.includes(row.original.id);
+        const hasAssigned = row.original.hasAssignedTags === true;
+        const isFullyUnassigned = hasUnassigned && !hasAssigned;
+        const isMixed = hasUnassigned && hasAssigned;
+        const isTransferred = isSessionTransferred(row.original);
         
         if (isTransferred) {
            return (
@@ -225,7 +272,14 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
                3. Đã điều chuyển
              </div>
            );
-        } else if (hasUnassigned) {
+        } else if (isMixed) {
+           return (
+             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-amber-50 text-amber-700 font-bold text-xs ring-1 ring-inset ring-amber-500/20">
+               <PackagePlus className="w-3.5 h-3.5" />
+               1.5 Gán SP dở dang
+             </div>
+           );
+        } else if (isFullyUnassigned) {
            return (
              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-slate-100 text-slate-600 font-bold text-xs">
                <PackagePlus className="w-3.5 h-3.5" />
@@ -243,11 +297,22 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       }
     },
     {
+      accessorFn: (row) => row.order?.code || '',
       id: 'orderRef',
-      header: () => (
-        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1.5 hover:text-slate-700 transition-colors uppercase text-[11px] font-black tracking-widest text-slate-500 group"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
           ĐƠN HÀNG
-        </div>
+          {column.getIsSorted() === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : column.getIsSorted() === 'desc' ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#04147B]" />
+          ) : (
+            <ChevronsUpDown className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+        </button>
       ),
       cell: ({ row }) => {
         const order = row.original.order;
@@ -262,17 +327,40 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
     },
     {
       id: 'actions',
+      header: () => (
+        <div className="uppercase text-[11px] font-black tracking-widest text-slate-500 text-right">
+          THAO TÁC
+        </div>
+      ),
       cell: ({ row }) => {
-        const isCompleted = !!row.original.endedAt;
-        const canAssign = row.original.hasUnassignedTags !== false;
+        const hasUnassigned = row.original.hasUnassignedTags !== false;
+        const hasAssigned = row.original.hasAssignedTags === true;
+        const isFullyUnassigned = hasUnassigned && !hasAssigned;
+        const isTransferred = isSessionTransferred(row.original);
+        const canAssign = isAdmin || hasUnassigned;
+        const canTransfer = !isFullyUnassigned;
+
+        if (isTransferred) {
+          return (
+            <div className="flex items-center gap-1 justify-end min-w-[100px] opacity-50 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => onViewDetails?.(row.original.id)}
+                className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Xem Chi Tiết Dữ liệu Phiên"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
+            </div>
+          );
+        }
 
         return (
-          <div className="flex items-center gap-1 justify-end min-w-[100px]">
+          <div className="flex items-center gap-1 justify-end min-w-[100px] opacity-50 group-hover:opacity-100 transition-opacity">
             {canAssign ? (
               <button 
                 onClick={() => setAssigningSession(row.original)}
-                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-[10px] transition-colors"
-                title="Bước 1: Gán SP Hàng Loạt"
+                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                title={isAdmin ? "ADMIN: Gán hoặc gán lại sản phẩm cho toàn bộ thẻ trong phiên" : "Bước 1: Gán SP Hàng Loạt"}
               >
                 <PackagePlus className="w-5 h-5" />
               </button>
@@ -285,20 +373,18 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
               </div>
             )}
 
-            {!canAssign ? (
-               transferredSessionIds.includes(row.original.id) ? null : (
-                 <button 
-                   onClick={() => setTransferringSession(row.original)}
-                   className="p-2 text-slate-400 hover:text-[#04147B] hover:bg-indigo-50 rounded-[10px] transition-colors"
-                   title="Bước 2: Giao xuống Xưởng"
-                 >
-                   <Truck className="w-5 h-5" />
-                 </button>
-               )
+            {canTransfer ? (
+               <button 
+                 onClick={() => setTransferringSession(row.original)}
+                 className="p-2 text-slate-400 hover:text-[#04147B] hover:bg-indigo-50 rounded-lg transition-colors"
+                 title="Bước 2: Giao xuống Xưởng"
+               >
+                 <Truck className="w-5 h-5" />
+               </button>
             ) : (
               <div 
                 className="p-2 text-slate-200 cursor-not-allowed rounded-[10px]"
-                title="Bạn phải hoàn thành gán sản phẩm trước khi giao xưởng"
+                title="Phiên chưa có thẻ nào được gán sản phẩm"
               >
                 <Truck className="w-5 h-5 opacity-40" />
               </div>
@@ -308,7 +394,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
 
             <button 
               onClick={() => onViewDetails?.(row.original.id)}
-              className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-[10px] transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
               title="Xem Chi Tiết Dữ liệu Phiên"
             >
               <FileText className="w-5 h-5" />
@@ -347,29 +433,35 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
 
   return (
     <>
-      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden mb-4 xl:mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b border-slate-100/50">
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-[20px] border border-slate-100 shadow-sm mb-4 xl:mb-6">
+          <table className="w-full text-sm min-w-[1100px]">
+            <thead className="sticky top-0 z-10 bg-white shadow-sm border-b border-slate-100">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-slate-100/50">
+              <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="px-6 py-4 text-left first:pl-6 last:pr-6 whitespace-nowrap bg-slate-50/50 first:rounded-tl-[24px] last:rounded-tr-[24px]">
+                  <th
+                    key={header.id}
+                    className={`px-5 py-4 text-left whitespace-nowrap ${header.column.id === 'select' ? 'w-12 text-center' : ''}`}
+                  >
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
             ))}
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-50">
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <tr 
                   key={row.id} 
-                  className={`group border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors ${row.getIsSelected() ? 'bg-indigo-50/30' : ''}`}
+                  className={`group hover:bg-slate-50/50 transition-colors ${row.getIsSelected() ? 'bg-[#04147B]/5' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                     <td key={cell.id} className="px-6 py-4 whitespace-nowrap align-middle">
+                     <td
+                      key={cell.id}
+                      className={`px-5 py-4 whitespace-nowrap align-middle ${cell.column.id === 'select' ? 'text-center' : ''}`}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -388,7 +480,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       </div>
 
       {/* Pagination component */}
-      <div className="px-6 py-4">
+      <div>
         <Pagination
           currentPage={table.getState().pagination.pageIndex + 1}
           totalPages={table.getPageCount()}
@@ -404,15 +496,41 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
         onClearSelection={() => table.resetRowSelection()}
         actions={[
           {
+            label: 'Gộp phiên điều chuyển',
+            icon: Truck,
+            onClick: () => {
+              const selectedSessions = table.getSelectedRowModel().rows.map((row) => row.original);
+              const transferableSessions = selectedSessions.filter((session) => {
+                const hasUnassigned = session.hasUnassignedTags !== false;
+                const hasAssigned = session.hasAssignedTags === true;
+                const isFullyUnassigned = hasUnassigned && !hasAssigned;
+                const isTransferred = isSessionTransferred(session);
+                return !isFullyUnassigned && !isTransferred;
+              });
+
+              if (transferableSessions.length === 0) {
+                toast.error('Không có phiên nào đủ điều kiện để điều chuyển. Phiên phải gán sản phẩm xong và chưa điều chuyển.');
+                return;
+              }
+
+              if (transferableSessions.length < selectedSessions.length) {
+                const skippedCount = selectedSessions.length - transferableSessions.length;
+                toast.error(`Có ${skippedCount} phiên bị bỏ qua vì chưa đủ điều kiện điều chuyển.`);
+              }
+
+              setBulkTransferSessions(transferableSessions);
+            },
+          },
+          {
             label: 'Xuất dữ liệu',
             icon: Download,
-            onClick: () => alert(`Tính năng xuất dữ liệu cho ${table.getSelectedRowModel().rows.length} phiên đang được phát triển...`)
+            onClick: () => toast(`Tính năng xuất dữ liệu cho ${table.getSelectedRowModel().rows.length} phiên đang được phát triển...`, { icon: '🚧' })
           },
           {
             label: 'Xoá phiên quét',
             icon: Trash2,
             variant: 'danger',
-            onClick: () => alert(`Tính năng xoá hàng loạt đang chờ cấp quyền Admin...`)
+            onClick: () => toast(`Tính năng xoá hàng loạt đang chờ cấp quyền Admin...`, { icon: '🚧' })
           }
         ]}
       />
@@ -427,12 +545,19 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
 
       {transferringSession && (
         <CreateTransferModal
-          session={transferringSession}
+          sessions={[transferringSession]}
           onClose={() => setTransferringSession(null)}
-          onSuccess={() => handleTransferSuccess(transferringSession.id)}
+          onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {bulkTransferSessions && (
+        <CreateTransferModal
+          sessions={bulkTransferSessions}
+          onClose={() => setBulkTransferSessions(null)}
+          onSuccess={handleTransferSuccess}
         />
       )}
     </>
   );
 };
-
