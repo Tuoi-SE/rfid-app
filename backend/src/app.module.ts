@@ -27,11 +27,18 @@ import { LoggerConfigModule } from '@common/config/logger.config';
 
 class AppModuleConfig {
   static async createCacheOptions(configService: ConfigService) {
+    const redisHost = configService.get<string>('REDIS_HOST');
+
+    // If Redis is not configured, use in-memory cache (works on free tier without Redis)
+    if (!redisHost) {
+      return { ttl: 60 * 1000 };
+    }
+
     return {
       store: ioRedisStore({
-        host: configService.get<string>('REDIS_HOST', 'localhost'),
+        host: redisHost,
         port: configService.get<number>('REDIS_PORT', 6379),
-        ttl: 60 * 1000, // 60 seconds default TTL
+        ttl: 60 * 1000,
       }),
     };
   }
