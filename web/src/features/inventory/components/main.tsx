@@ -6,7 +6,7 @@ import { TableActions } from '@/components/TableActions';
 import { InventoryStatCards, InventoryStat } from './inventory-stat-cards';
 import { InventoryCategoryAnalysis, CategoryStat } from './inventory-category-analysis';
 import { InventoryTable, InventoryProductStat } from './inventory-table';
-import { Loader2, PackageCheck, ArrowUpRight, Truck, AlertCircle, HelpCircle, Box, Package } from 'lucide-react';
+import { Loader2, PackageCheck, ArrowUpRight, AlertCircle, HelpCircle, Box, Package } from 'lucide-react';
 import { useStockSummary } from '../hooks/use-inventory';
 
 // Helpers to assign random icons/themes to dynamic categories for UI flair
@@ -15,6 +15,7 @@ const CATEGORY_ICONS = [Box, Package, PackageCheck];
 
 export const InventoryMain = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const { data, isLoading, error } = useStockSummary();
 
   const payload = (data as any)?.data || data;
@@ -85,7 +86,7 @@ export const InventoryMain = () => {
       value: (overview?.statuses?.IN_WAREHOUSE ?? 0).toLocaleString(),
       colorScheme: 'green',
       icon: PackageCheck,
-      trend: '+2%', // Mocked UI decorator
+      trend: '+2%',
       trendUp: true
     },
     {
@@ -112,8 +113,8 @@ export const InventoryMain = () => {
     },
   ];
 
-  // 2. Map Category Analysis (limitting to top 3 for UI consistency or showing all)
-  const categoryStats: CategoryStat[] = rawCategories.slice(0, 3).map((cat: any, index: number) => {
+  // 2. Map all Category Analysis
+  const allCategoryStats: CategoryStat[] = rawCategories.map((cat: any, index: number) => {
     const total = cat.total || 0;
     const inStock = cat.inStock || 0;
     const pct = total === 0 ? 0 : Math.round((inStock / total) * 100);
@@ -128,6 +129,9 @@ export const InventoryMain = () => {
     };
   });
 
+  const visibleCategories = showAllCategories ? allCategoryStats : allCategoryStats.slice(0, 3);
+  const hasMoreCategories = allCategoryStats.length > 3;
+
   return (
     <div className="space-y-4 xl:space-y-6 pb-8">
       <PageHeader
@@ -139,8 +143,12 @@ export const InventoryMain = () => {
       <InventoryStatCards stats={inventoryStats} />
 
       {/* Analytics Section */}
-      {categoryStats.length > 0 && (
-        <InventoryCategoryAnalysis categories={categoryStats} />
+      {visibleCategories.length > 0 && (
+        <InventoryCategoryAnalysis 
+          categories={visibleCategories}
+          onViewAll={hasMoreCategories ? () => setShowAllCategories(prev => !prev) : undefined}
+          showAllLabel={showAllCategories ? 'Thu gọn' : `Xem tất cả (${allCategoryStats.length})`}
+        />
       )}
 
       {/* Table Actions Toolbar (Global UI Style) */}

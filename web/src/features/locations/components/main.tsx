@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useLocationsTableLogic } from '../hooks/use-locations-table-logic';
 import { useAuth } from '@/providers/AuthProvider';
+import { Pagination } from '@/components/Pagination';
 
 export const LocationsMain = () => {
   const { user } = useAuth();
@@ -45,7 +46,7 @@ export const LocationsMain = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 flex-1 min-h-[700px] 2xl:min-h-0 -m-4 p-4 md:-m-5 md:p-5 lg:-m-6 lg:p-6 relative">
+    <div className="flex flex-col h-full bg-slate-50 flex-1 min-h-[700px] 2xl:min-h-0 -m-4 p-4 pb-28 md:-m-5 md:p-5 md:pb-28 lg:-m-6 lg:p-6 lg:pb-28 relative">
       <PageHeader
         title="Quản lý địa điểm"
         description="Theo dõi và quản lý mạng lưới kho xưởng, nhà máy cung ứng."
@@ -96,6 +97,17 @@ export const LocationsMain = () => {
         />
       )}
 
+      {!isLoading && !error && state.sortedItems.length > 0 && (
+        <Pagination
+          currentPage={state.currentPage}
+          totalPages={state.totalPages}
+          totalItems={state.totalItems}
+          pageSize={state.pageSize}
+          onPageChange={actions.setCurrentPage}
+          itemName="địa điểm"
+        />
+      )}
+
       {/* Form Dialog */}
       <LocationFormDialog
         editItem={state.editItem}
@@ -103,7 +115,11 @@ export const LocationsMain = () => {
         onClose={() => actions.setShowForm(false)}
         onSubmit={(formData: any) => {
           if (state.editItem) {
-            mutations.updateMutation.mutate({ id: state.editItem.id, data: formData }, { onSuccess: () => actions.setShowForm(false) });
+            const updatePayload = {
+              name: formData.name,
+              address: formData.address,
+            };
+            mutations.updateMutation.mutate({ id: state.editItem.id, data: updatePayload }, { onSuccess: () => actions.setShowForm(false) });
           } else {
             mutations.createMutation.mutate(formData, { onSuccess: () => actions.setShowForm(false) });
           }

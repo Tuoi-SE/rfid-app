@@ -93,12 +93,16 @@ export const LocationFormDialog = ({
               value={formData.type}
               onChange={e => setFormData({ ...formData, type: e.target.value as LocationType })}
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
+              disabled={!!editItem}
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white disabled:bg-slate-50 disabled:text-slate-500"
             >
               {LOCATION_TYPES.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
+            {editItem && (
+              <p className="mt-1 text-xs text-slate-500">Loại hình không thể thay đổi sau khi tạo.</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Địa chỉ</label>

@@ -9,6 +9,11 @@ import { UserFormDialog } from './user-form-dialog';
 import { DeleteUserDialog } from './delete-user-dialog';
 import { User } from '../types';
 import { PageHeader } from '@/components/PageHeader';
+import { TableActions } from '@/components/TableActions';
+import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useUsersTableLogic } from '../hooks/use-users-table-logic';
+import { Trash2 } from 'lucide-react';
 
 export const UsersPageClient = () => {
   const { user: currentUser } = useAuth();
@@ -25,6 +30,8 @@ export const UsersPageClient = () => {
   const pagination = (responseData as Record<string, unknown>)?.pagination as { page: number, total_pages: number, total: number, limit: number } | undefined;
 
   const { createMutation, updateMutation, deleteMutation } = useUserMutations();
+  
+  const { state, actions } = useUsersTableLogic(users, { createMutation, updateMutation, deleteMutation });
 
 const openCreate = () => {
 setEditItem(null);
@@ -39,6 +46,15 @@ setShowForm(true);
 const isSaving = createMutation.isPending || updateMutation.isPending;
 const formError = (createMutation.error || updateMutation.error)?.message;
 
+const bulkActions: BulkAction[] = [
+  {
+    label: 'Xoá đã chọn',
+    icon: Trash2,
+    variant: 'danger',
+    onClick: () => actions.setShowBulkDeleteConfirm(true)
+  }
+];
+
 if (currentUser && currentUser.role !== 'ADMIN') {
 return (
   <div className="flex flex-col items-center justify-center py-20 text-slate-500">
@@ -50,7 +66,7 @@ return (
 }
 
 return (
-<div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-4 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8 relative font-sans">
+<div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-4 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8 relative font-sans pb-28">
   <PageHeader 
     title="Quản lý thành viên"
     description="Quản lý quyền truy cập và phân quyền hệ thống RFID Pro."
@@ -107,59 +123,43 @@ return (
     </div>
   </div>
 
-  <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm flex flex-col mb-8 overflow-hidden">
-    {/* Table Header / Filters */}
-    <div className="flex items-center justify-between p-6 pb-4">
-      <div className="flex items-center gap-1 bg-[#F8FAFC] p-1.5 rounded-xl">
-        <button className="px-6 py-2 text-sm font-bold bg-[#EEF2FF] text-[#04147B] rounded-lg shadow-sm">Tất cả</button>
-        <button className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors rounded-lg">Admin</button>
-        <button className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors rounded-lg">Quản lý kho</button>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9 pr-4 py-2 bg-transparent text-sm outline-none w-32 focus:w-48 transition-all placeholder:text-slate-400 font-medium"
-          />
-        </div>
-        <button className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-bold px-3 py-2 transition-colors">
-          <Filter className="w-4 h-4" />
-          Bộ lọc
-        </button>
-      </div>
-    </div>
+  {/* Table Actions & Filters */}
+  <TableActions
+    searchPlaceholder="Tìm kiếm thành viên..."
+    searchValue={search}
+    onSearchChange={(val) => {
+      setSearch(val);
+      setPage(1);
+    }}
+    statusText={`Hiển thị ${users.length} người dùng`}
+  />
 
-    {/* Table Content */}
-    <div className="px-6 pb-6">
-      {isLoading ? (
-        <div className="text-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
-      ) : users.length === 0 ? (
-        <div className="text-center py-16">
-          <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-medium">Chưa có người dùng nào</p>
-        </div>
-      ) : (
-        <UsersTable 
-          users={users} 
-          currentUserId={currentUser?.id} 
-          onEdit={openEdit} 
-          onDelete={setDeleteId} 
-          currentPage={pagination?.page || 1}
-          totalPages={pagination?.total_pages || 1}
-          totalItems={pagination?.total || users.length}
-          pageSize={pagination?.limit || limit}
-          onPageChange={setPage}
-        />
-      )}
+  {/* Table Content */}
+  {isLoading ? (
+    <div className="text-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
+  ) : state.sortedItems.length === 0 ? (
+    <div className="text-center py-16 bg-white rounded-[20px] border border-slate-100 shadow-sm mt-4">
+      <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+      <p className="text-slate-500 font-medium">Chưa có người dùng nào</p>
     </div>
-  </div>
+  ) : (
+    <UsersTable 
+      users={state.sortedItems} 
+      currentUserId={currentUser?.id} 
+      selectedIds={state.selectedIds}
+      onToggleSelect={actions.handleToggleSelect}
+      onSelectAll={actions.handleSelectAll}
+      sortConfig={state.sortConfig}
+      onSort={actions.handleSort}
+      onEdit={openEdit} 
+      onDelete={setDeleteId} 
+      currentPage={pagination?.page || 1}
+      totalPages={pagination?.total_pages || 1}
+      totalItems={pagination?.total || users.length}
+      pageSize={pagination?.limit || limit}
+      onPageChange={setPage}
+    />
+  )}
 
   {/* Bottom Alert/Banner */}
   <div className="bg-white rounded-[20px] shadow-sm p-6 relative overflow-hidden flex items-center justify-between">
@@ -208,6 +208,24 @@ return (
       }
     }}
     isDeleting={deleteMutation.isPending}
+  />
+
+  <ConfirmDialog
+    isOpen={state.showBulkDeleteConfirm}
+    title="Xác nhận xoá nhiều"
+    description={`Bạn có chắc chắn muốn xoá ${state.selectedIds.length} thành viên đã chọn? Hành động này không thể hoàn tác.`}
+    confirmText={`Xoá ${state.selectedIds.length} thành viên`}
+    cancelText="Huỷ bỏ"
+    variant="danger"
+    isLoading={state.isDeleting}
+    onClose={() => actions.setShowBulkDeleteConfirm(false)}
+    onConfirm={actions.handleConfirmBulkDelete}
+  />
+
+  <BulkActionsBar
+    selectedCount={state.selectedIds.length}
+    onClearSelection={actions.clearSelection}
+    actions={bulkActions}
   />
 </div>
 );

@@ -21,15 +21,15 @@ export const UserFormDialog = ({
   error
 }: UserFormDialogProps) => {
 const { data: locationsData } = useLocations();
-const locations = (locationsData as any)?.data || locationsData || [];
+const responseData = (locationsData as Record<string, unknown>)?.data ?? locationsData;
+const locations: any[] = Array.isArray(responseData) ? responseData : ((responseData as Record<string, unknown>)?.items as any[] || []);
 
-const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF', locationId: '' });
+const [formData, setFormData] = useState<UserFormData>({ username: '', password: '', role: 'STAFF', locationId: '' });
 
 useEffect(() => {
 if (isOpen) {
   setFormData({
     username: editItem?.username || '',
-    email: editItem?.email || '',
     password: '',
     role: editItem?.role || 'STAFF',
     locationId: editItem?.locationId || '',
@@ -69,15 +69,6 @@ return (
           onChange={e => setFormData({ ...formData, username: e.target.value })}
           required
           autoFocus
-          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-        <input
-          type="email"
-          value={formData.email}
-          onChange={e => setFormData({ ...formData, email: e.target.value })}
           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
         />
       </div>

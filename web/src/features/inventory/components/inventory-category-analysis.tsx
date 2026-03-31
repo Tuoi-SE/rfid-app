@@ -14,9 +14,10 @@ export interface CategoryStat {
 interface InventoryCategoryAnalysisProps {
   categories: CategoryStat[];
   onViewAll?: () => void;
+  showAllLabel?: string;
 }
 
-export const InventoryCategoryAnalysis = ({ categories, onViewAll }: InventoryCategoryAnalysisProps) => {
+export const InventoryCategoryAnalysis = ({ categories, onViewAll, showAllLabel }: InventoryCategoryAnalysisProps) => {
   const getThemeStyles = (theme: string) => {
     switch (theme) {
       case 'indigo':
@@ -45,12 +46,14 @@ export const InventoryCategoryAnalysis = ({ categories, onViewAll }: InventoryCa
     <div className="w-full">
       <div className="flex items-center justify-between mb-2 xl:mb-3 2xl:mb-4 px-1">
         <h2 className="text-[14px] xl:text-[16px] 2xl:text-[18px] font-bold text-slate-800 tracking-tight">Phân tích Danh mục</h2>
-        <button 
-          onClick={onViewAll}
-          className="text-[11px] xl:text-[12px] 2xl:text-[13px] font-bold text-[#04147B] hover:text-[#030e57] hover:underline underline-offset-4 decoration-2"
-        >
-          Xem tất cả
-        </button>
+        {onViewAll && (
+          <button 
+            onClick={onViewAll}
+            className="text-[11px] xl:text-[12px] 2xl:text-[13px] font-bold text-[#04147B] hover:text-[#030e57] hover:underline underline-offset-4 decoration-2 transition-colors"
+          >
+            {showAllLabel || 'Xem tất cả'}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 xl:gap-4 2xl:gap-6">

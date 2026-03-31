@@ -14,14 +14,19 @@ export function useReaderConnection() {
 
     clearDevices();
     setStatus('scanning');
+    let scanError: Error | null = null;
 
     await bleReaderService.scanDevices(
       (device) => addDevice(device as any),
       (error) => {
         setStatus('error');
-        throw error;
+        scanError = error;
       }
     );
+
+    if (scanError) {
+      throw scanError;
+    }
 
     setStatus('disconnected');
   };

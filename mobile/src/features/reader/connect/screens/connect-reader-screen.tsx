@@ -4,7 +4,6 @@ import {
   StyleSheet, ActivityIndicator, Alert, Linking, Platform, SafeAreaView
 } from 'react-native';
 import { Bluetooth, Settings as SettingsIcon, RefreshCw, Cpu, Battery, Signal, ChevronRight, CheckCircle2, XCircle, Check } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
 import { useReaderConnection } from '../../ble/hooks/use-reader-connection';
 import { useReaderStore } from '../../ble/store/reader.store';
 
@@ -210,7 +209,7 @@ export function ConnectReaderScreen({ navigation }: any) {
       {/* Success Modal Overlay */}
       {showSuccess && (
         <View style={styles.overlay}>
-          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+          <View style={styles.overlayBackdrop} />
           <View style={styles.successCard}>
             {/* Top Badge Decoration */}
             <View style={styles.badgeDecoration}>
@@ -437,6 +436,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
+  overlayBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
   successCard: {
     width: 320,
     paddingVertical: 40,
@@ -446,7 +449,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
-    // Glassmorphism effect via BlurView and these shadow/colors
+    // Soft frosted-like card without native BlurView dependency
     shadowColor: '#5CD88F',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
@@ -494,4 +497,3 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   }
 });
-

@@ -27,7 +27,7 @@ export const EditTagModal = ({ epc, initialName, initialCategory, initialLocatio
   const [location, setLocation] = useState(initialLocation || '');
   const [locationId, setLocationId] = useState(initialLocationId || '');
   const [status, setStatus] = useState(initialStatus || 'UNASSIGNED');
-  
+
   const [search, setSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
@@ -43,14 +43,14 @@ export const EditTagModal = ({ epc, initialName, initialCategory, initialLocatio
 
   const handleUpdate = () => {
     updateMutation.mutate(
-      { 
-        epc, 
-        data: { 
-          productId: selectedProductId || undefined, 
+      {
+        epc,
+        data: {
+          productId: selectedProductId || undefined,
           location: location.trim() || undefined,
           locationId: locationId || undefined,
           status: status !== initialStatus ? (status as any) : undefined
-        } 
+        }
       },
       { onSuccess: onClose }
     );
@@ -61,7 +61,7 @@ export const EditTagModal = ({ epc, initialName, initialCategory, initialLocatio
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-slate-100 flex-shrink-0">
+        <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
           <h2 className="text-lg font-bold text-slate-800">Cập nhật Thẻ RFID</h2>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded bg-slate-50">
             <X className="w-5 h-5" />
@@ -80,22 +80,22 @@ export const EditTagModal = ({ epc, initialName, initialCategory, initialLocatio
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái gốc</label>
-               <div className="px-3 py-2 h-[38px] flex items-center bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 font-medium">
-                 {TAG_STATUSES.find(s => s.value === initialStatus)?.label || initialStatus}
-               </div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái gốc</label>
+              <div className="px-3 py-2 h-[38px] flex items-center bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 font-medium">
+                {TAG_STATUSES.find(s => s.value === initialStatus)?.label || initialStatus}
+              </div>
             </div>
             <div>
-               <label className="block text-sm font-medium text-indigo-700 mb-1">Cập nhật Trạng thái</label>
-               <select
-                 value={status}
-                 onChange={e => setStatus(e.target.value)}
-                 className="w-full px-3 py-2 h-[38px] border border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium bg-indigo-50/50"
-               >
-                 {TAG_STATUSES.map(s => (
-                   <option key={s.value} value={s.value}>{s.label}</option>
-                 ))}
-               </select>
+              <label className="block text-sm font-medium text-indigo-700 mb-1">Cập nhật Trạng thái</label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+                className="w-full px-3 py-2 h-[38px] border border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium bg-indigo-50/50"
+              >
+                {TAG_STATUSES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -138,31 +138,31 @@ export const EditTagModal = ({ epc, initialName, initialCategory, initialLocatio
           </div>
 
           <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-3">
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Vị trí Điểm (Location)</label>
-                <select
-                  value={locationId}
-                  onChange={e => setLocationId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
-                >
-                  <option value="">Không xác định</option>
-                  {!isLoadingLocations && sysLocations.map((loc: any) => (
-                    <option key={loc.id} value={loc.id}>{loc.name} ({loc.type})</option>
-                  ))}
-                </select>
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú Vị trí</label>
-                <input
-                  value={location} onChange={e => setLocation(e.target.value)}
-                  placeholder="Kệ A1..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
-                />
-             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Vị trí Điểm (Location)</label>
+              <select
+                value={locationId}
+                onChange={e => setLocationId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+              >
+                <option value="">Không xác định</option>
+                {!isLoadingLocations && sysLocations.map((loc: any) => (
+                  <option key={loc.id} value={loc.id}>{loc.name} ({loc.type})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Ghi chú Vị trí</label>
+              <input
+                value={location} onChange={e => setLocation(e.target.value)}
+                placeholder="Kệ A1..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors">Hủy bỏ</button>
           <button
             onClick={handleUpdate}

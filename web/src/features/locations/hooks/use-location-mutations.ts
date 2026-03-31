@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createLocation } from '../api/create-location';
 import { updateLocation } from '../api/update-location';
 import { deleteLocation } from '../api/delete-location';
-import { LocationFormData } from '../types';
+import { LocationFormData, UpdateLocationData } from '../types';
 
 export const useLocationMutations = () => {
   const queryClient = useQueryClient();
@@ -15,7 +15,7 @@ export const useLocationMutations = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<LocationFormData> }) => updateLocation(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateLocationData }) => updateLocation(id, data),
     onSuccess: invalidate,
   });
 

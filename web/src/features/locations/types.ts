@@ -23,3 +23,8 @@ export interface LocationFormData {
   type: LocationType;
   address?: string;
 }
+
+export interface UpdateLocationData {
+  name?: string;
+  address?: string;
+}
