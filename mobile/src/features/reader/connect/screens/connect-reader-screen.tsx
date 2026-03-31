@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, Linking, Platform, SafeAreaView
+  StyleSheet, ActivityIndicator, Alert, Linking, Platform, SafeAreaView,
+  Animated
 } from 'react-native';
 import { Bluetooth, Settings as SettingsIcon, RefreshCw, Cpu, Battery, Signal, ChevronRight, CheckCircle2, XCircle, Check } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { useReaderConnection } from '../../ble/hooks/use-reader-connection';
 import { useReaderStore } from '../../ble/store/reader.store';
 
@@ -15,6 +17,26 @@ export function ConnectReaderScreen({ navigation }: any) {
   const [isScanningForDevices, setIsScanningForDevices] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
+  
+  // Animation for success toast
+  const slideAnim = useRef(new Animated.Value(200)).current;
+
+  useEffect(() => {
+    if (showSuccess) {
+      Animated.spring(slideAnim, {
+        toValue: -100, // Move up by 100px from the bottom
+        useNativeDriver: true,
+        friction: 8,
+        tension: 40,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 200,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showSuccess]);
   
   const { scanDevices, connectToDevice } = useReaderConnection();
   const { foundDevices, connectedDevice } = useReaderStore();
@@ -206,25 +228,23 @@ export function ConnectReaderScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Success Modal Overlay */}
-      {showSuccess && (
-        <View style={styles.overlay}>
-          <View style={styles.overlayBackdrop} />
-          <View style={styles.successCard}>
-            {/* Top Badge Decoration */}
-            <View style={styles.badgeDecoration}>
-              <View style={styles.badgeInner}>
-                <Check color="#FFFFFF" size={24} strokeWidth={3} />
-              </View>
-            </View>
-
-            <Text style={styles.successTitle}>Success</Text>
-            <Text style={styles.successSubtitle}>
-              Hệ thống đang xử lý kết nối.{"\n"}Vui lòng đợi trong giây lát.
+      <Animated.View style={[styles.successToast, { transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.toastEmoji}>
+            <Check color="#FFFFFF" size={16} strokeWidth={4} />
+          </View>
+          <View style={styles.toastContent}>
+            <Text style={styles.toastTitle}>Kết nối thành công</Text>
+            <Text style={styles.toastSubtitle}>
+              {connectedDevice?.name || 'Reader'} đã sẵn sàng hoạt động
             </Text>
           </View>
-        </View>
-      )}
+          <TouchableOpacity 
+            style={styles.closeBtn} 
+            onPress={() => setShowSuccess(false)}
+          >
+            <XCircle color="#94A3B8" size={20} />
+          </TouchableOpacity>
+        </Animated.View>
     </SafeAreaView>
 
   );
@@ -429,71 +449,51 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
 
-  // Success Modal Styles
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  overlayBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  successCard: {
-    width: 320,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    // Soft frosted-like card without native BlurView dependency
-    shadowColor: '#5CD88F',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 0, 
-    elevation: 10,
-  },
-  successTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    textAlign: 'center',
-    letterSpacing: -1,
-  },
-  successSubtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  badgeDecoration: {
+  // Success Toast Styles
+  successToast: {
     position: 'absolute',
-    top: -46,
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: 'rgba(92, 216, 143, 0.15)',
+    bottom: 0,
+    left: 20,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    paddingRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
     borderWidth: 1,
-    borderColor: 'rgba(92, 216, 143, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    borderColor: '#E1E8ED',
   },
-  badgeInner: {
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    backgroundColor: '#5CD88F',
+  toastEmoji: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    marginRight: 12,
+  },
+  toastContent: {
+    flex: 1,
+  },
+  toastTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  toastSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  closeBtn: {
+    padding: 8,
   }
 });
+
