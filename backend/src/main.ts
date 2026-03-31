@@ -16,7 +16,7 @@ class ApplicationBootstrap {
     const corsOrigins = config.get('CORS_ORIGINS', 'http://localhost:3001');
 
     app.enableCors({
-      origin: corsOrigins.split(',').map((o: string) => o.trim()),
+      origin: corsOrigins === '*' ? true : corsOrigins.split(',').map((o: string) => o.trim()),
       credentials: true,
     });
 
