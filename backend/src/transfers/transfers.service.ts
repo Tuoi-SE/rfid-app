@@ -14,7 +14,7 @@ export class TransfersService {
     private events: EventsGateway,
   ) {}
 
-  async create(dto: CreateTransferDto, userId: string) {
+  async create(dto: CreateTransferDto, user: { id: string; role: string; locationId?: string }) {
     // Validate source location based on transfer type (per D-12)
     const source = await this.prisma.location.findUnique({ where: { id: dto.sourceId } });
     if (!source) throw new NotFoundException('Không tìm thấy vị trí nguồn');
@@ -102,7 +102,7 @@ export class TransfersService {
         status: isWarehouseToCustomer ? TransferStatus.COMPLETED : TransferStatus.PENDING,
         sourceId: dto.sourceId,
         destinationId: dto.destinationId,
-        createdById: userId,
+        createdById: user.id,
         completedAt: isWarehouseToCustomer ? new Date() : null,  // D-20: set completedAt immediately
         items: {
           create: dto.tagIds.map(tagId => ({
@@ -127,21 +127,30 @@ export class TransfersService {
         where: { id: { in: dto.tagIds } },
         data: {
           locationId: dto.destinationId,
-          status: TagStatus.OUT_OF_STOCK,
+          status: TagStatus.COMPLETED,
         },
       });
       this.events.server.emit('transferUpdate', transfer);
       return transfer;
     }
 
+    // UPDATE: Set tag status to IN_TRANSIT and locationId to null
+    await this.prisma.tag.updateMany({
+      where: { id: { in: dto.tagIds } },
+      data: {
+        status: TagStatus.IN_TRANSIT,
+        locationId: null, 
+      },
+    });
+
     this.events.server.emit('transferUpdate', transfer);
     return transfer;
   }
 
-  async confirm(transferId: string, dto: ConfirmTransferDto, userId: string) {
+  async confirm(transferId: string, dto: ConfirmTransferDto, user: { id: string; role: string; locationId?: string }) {
     const transfer = await this.prisma.transfer.findUnique({
       where: { id: transferId },
-      include: { items: true, destination: true },
+      include: { items: { include: { tag: true } }, destination: true },
     });
 
     if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
@@ -149,40 +158,59 @@ export class TransfersService {
       throw new BadRequestException('Transfer không ở trạng thái PENDING');
     }
 
-    // D-14: Check scanned count before COMPLETED - all tags must be scanned
-    const scannedCount = transfer.items.filter(item => item.scannedAt !== null).length;
-    if (scannedCount < transfer.items.length) {
-      throw new BadRequestException(
-        `Đã quét ${scannedCount}/${transfer.items.length} tag. Phải quét đủ số lượng mới được xác nhận.`
-      );
-    }
-
-    // Validate user role is WAREHOUSE_MANAGER (per D-08)
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== Role.WAREHOUSE_MANAGER) {
-      throw new ForbiddenException('Chỉ Warehouse Manager mới có thể xác nhận transfer');
-    }
-
-    // D-19: Update all tags: locationId = destination
-    // For WAREHOUSE_TO_CUSTOMER: status = OUT_OF_STOCK (đã xuất cho customer)
-    // For other transfers: status = IN_STOCK
+    // Identify scanned tags vs missing tags
+    let scannedTagIds: string[] = [];
+    let missingTagIds: string[] = [];
     const isWarehouseToCustomer = transfer.type === 'WAREHOUSE_TO_CUSTOMER';
-    await this.prisma.tag.updateMany({
-      where: { id: { in: transfer.items.map(item => item.tagId) } },
-      data: {
-        locationId: transfer.destinationId,
-        status: isWarehouseToCustomer ? TagStatus.OUT_OF_STOCK : TagStatus.IN_STOCK,
-      },
-    });
 
-    // Mark items as scanned
-    await this.prisma.transferItem.updateMany({
-      where: { transferId },
-      data: {
-        scannedAt: new Date(),
-        condition: 'GOOD',
-      },
-    });
+    if (dto.scans && dto.scans.length > 0) {
+      const scannedEpcs = dto.scans.map(s => s.epc);
+      const scannedItems = transfer.items.filter(item => scannedEpcs.includes(item.tag.epc));
+      const missingItems = transfer.items.filter(item => !scannedEpcs.includes(item.tag.epc));
+      
+      scannedTagIds = scannedItems.map(i => i.tagId);
+      missingTagIds = missingItems.map(i => i.tagId);
+    } else {
+      // Auto-receive everything if no specific scans provided (manual confirm bypass)
+      scannedTagIds = transfer.items.map(i => i.tagId);
+      missingTagIds = [];
+    }
+
+    // Determine target location status
+    const targetStatus = isWarehouseToCustomer ? TagStatus.COMPLETED : 
+                         transfer.destination.type === 'WORKSHOP' ? TagStatus.IN_WORKSHOP : 
+                         transfer.destination.type === 'WAREHOUSE' ? TagStatus.IN_WAREHOUSE : 
+                         TagStatus.IN_TRANSIT;
+
+    if (scannedTagIds.length > 0) {
+      // Update scanned tags: locationId = destination, status = appropriate target
+      await this.prisma.tag.updateMany({
+        where: { id: { in: scannedTagIds } },
+        data: {
+          locationId: transfer.destinationId,
+          status: targetStatus,
+        },
+      });
+
+      // Mark items as scanned
+      await this.prisma.transferItem.updateMany({
+        where: { transferId, tagId: { in: scannedTagIds } },
+        data: {
+          scannedAt: new Date(),
+          condition: 'GOOD',
+        },
+      });
+    }
+
+    if (missingTagIds.length > 0) {
+      // Tags missing from the transfer scan
+      await this.prisma.tag.updateMany({
+        where: { id: { in: missingTagIds } },
+        data: {
+          status: TagStatus.MISSING,
+        },
+      });
+    }
 
     // Complete transfer
     const completedTransfer = await this.prisma.transfer.update({
@@ -203,7 +231,7 @@ export class TransfersService {
     return completedTransfer;
   }
 
-  async findAll(query: QueryTransfersDto) {
+  async findAll(query: QueryTransfersDto, user: { id: string; role: string; locationId?: string }) {
     const { page = 1, limit = 20, status, type, sourceId, destinationId } = query;
     const skip = (page - 1) * limit;
 
@@ -212,6 +240,17 @@ export class TransfersService {
     if (type) where.type = type;
     if (sourceId) where.sourceId = sourceId;
     if (destinationId) where.destinationId = destinationId;
+
+    if (user.role === 'WAREHOUSE_MANAGER') {
+      if (user.locationId) {
+        where.OR = [
+          { sourceId: user.locationId },
+          { destinationId: user.locationId }
+        ];
+      } else {
+        where.id = 'NO_LOCATION_ASSIGNED';
+      }
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.transfer.findMany({
@@ -232,7 +271,7 @@ export class TransfersService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: { id: string; role: string; locationId?: string }) {
     const transfer = await this.prisma.transfer.findUnique({
       where: { id },
       include: {
@@ -243,17 +282,46 @@ export class TransfersService {
       },
     });
     if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+
+    if (user.role === 'WAREHOUSE_MANAGER' && user.locationId) {
+      if (transfer.sourceId !== user.locationId && transfer.destinationId !== user.locationId) {
+        throw new ForbiddenException('Không có quyền truy cập phiếu luân chuyển này');
+      }
+    }
+
     return transfer;
   }
 
-  async cancel(id: string, userId: string) {
-    const transfer = await this.prisma.transfer.findUnique({ where: { id } });
+  async cancel(id: string, user: { id: string; role: string; locationId?: string }) {
+    const transfer = await this.prisma.transfer.findUnique({ 
+      where: { id },
+      include: { source: true, items: true }
+    });
     if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
     if (transfer.status !== TransferStatus.PENDING) {
       throw new BadRequestException('Chỉ transfer PENDING mới có thể hủy');
     }
 
-    return this.prisma.transfer.update({
+    if (user.role === 'WAREHOUSE_MANAGER' && user.locationId) {
+      if (transfer.sourceId !== user.locationId) {
+        throw new ForbiddenException('Bạn không có quyền hủy phiếu này');
+      }
+    }
+
+    // REVERT Tag statuses and locations back to source location
+    const targetStatus = transfer.source?.type === 'WORKSHOP' ? TagStatus.IN_WORKSHOP : TagStatus.IN_WAREHOUSE;
+    
+    if (transfer.items.length > 0) {
+      await this.prisma.tag.updateMany({
+        where: { id: { in: transfer.items.map(i => i.tagId) } },
+        data: {
+          status: targetStatus,
+          locationId: transfer.sourceId,
+        }
+      });
+    }
+
+    const cancelledTransfer = await this.prisma.transfer.update({
       where: { id },
       data: { status: TransferStatus.CANCELLED },
       include: {
@@ -263,5 +331,45 @@ export class TransfersService {
         items: { include: { tag: true } },
       },
     });
+
+    this.events.server.emit('transferUpdate', cancelledTransfer);
+    return cancelledTransfer;
+  }
+
+  async updateDestination(id: string, destinationId: string, user: { id: string; role: string; locationId?: string }) {
+    const transfer = await this.prisma.transfer.findUnique({
+      where: { id },
+      include: { source: true }
+    });
+    
+    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (transfer.status !== TransferStatus.PENDING) {
+      throw new BadRequestException('Chỉ transfer ở trạng thái PENDING mới có thể chỉnh sửa xưởng nhận.');
+    }
+
+    const newDest = await this.prisma.location.findUnique({ where: { id: destinationId } });
+    if (!newDest) throw new NotFoundException('Vị trí đích mới không tồn tại');
+
+    if (transfer.type === 'ADMIN_TO_WORKSHOP' && newDest.type !== LocationType.WORKSHOP) {
+      throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+    } else if (transfer.type === 'WORKSHOP_TO_WAREHOUSE' && newDest.type !== LocationType.WAREHOUSE) {
+      throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+    } else if (transfer.type === 'WAREHOUSE_TO_CUSTOMER' && !['HOTEL', 'RESORT', 'SPA', 'CUSTOMER'].includes(newDest.type)) {
+      throw new BadRequestException('Vị trí đích phải là khách hàng (HOTEL, RESORT, SPA)');
+    }
+
+    const updatedTransfer = await this.prisma.transfer.update({
+      where: { id },
+      data: { destinationId },
+      include: {
+        source: true,
+        destination: true,
+        createdBy: { select: { username: true } },
+        items: { include: { tag: true } },
+      },
+    });
+
+    this.events.server.emit('transferUpdate', updatedTransfer);
+    return updatedTransfer;
   }
 }

@@ -6,10 +6,14 @@ import { Order } from '../types';
 import { CreateOrderModal } from './create-order-modal';
 import { PageHeader } from '@/components/PageHeader';
 import { OrderList } from './order-list';
+import { useAuth } from '@/providers/AuthProvider';
 
 export const OrdersPageClient = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  const { user } = useAuth();
+  const isManager = user?.role === 'WAREHOUSE_MANAGER';
 
   const { data: ordersData, isLoading, refetch } = useOrders(search);
 
@@ -32,13 +36,16 @@ export const OrdersPageClient = () => {
         title="Phiếu Giao Dịch Kho"
         description="Quản lý các lệnh yêu cầu Nhập/Xuất kho cho App Mobile"
         actions={
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 bg-[#04147B] text-white px-5 py-2.5 rounded-[12px] font-bold text-[15px] shadow-sm hover:bg-[#030e57] transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Tạo Phiếu Mới
-          </button>
+          isManager ? (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 bg-[#04147B] text-white px-5 py-2.5 rounded-[12px] font-bold text-[15px] shadow-sm hover:bg-[#030e57] transition-all"
+              title="Tạo phiếu giao dịch kho"
+            >
+              <Plus className="w-5 h-5" />
+              Tạo Phiếu Mới
+            </button>
+          ) : undefined
         }
       />
 

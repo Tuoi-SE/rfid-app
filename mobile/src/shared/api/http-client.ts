@@ -16,14 +16,19 @@ export const httpClient = async <T>(endpoint: string, options: FetchOptions = {}
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const url = new URL(`${API_URL}${endpoint}`);
+  // Avoid new URL() — Hermes/RN polyfill can be unreliable on physical devices
+  let fullUrl = `${API_URL}${endpoint}`;
   
   if (options.params) {
-    Object.keys(options.params).forEach(key => url.searchParams.append(key, options.params![key]));
+    const qs = Object.entries(options.params)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    fullUrl += `?${qs}`;
   }
 
   try {
-    const response = await fetch(url.toString(), {
+    console.log('[httpClient]', options.method || 'GET', fullUrl);
+    const response = await fetch(fullUrl, {
       ...options,
       headers,
     });

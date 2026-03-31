@@ -16,11 +16,12 @@ const SALT_ROUNDS = 10;
 /** Select fields cho audit user (chỉ lấy id + username) */
 const AUDIT_USER_SELECT = { id: true, username: true };
 
-/** Select fields chuẩn cho User response (loại trừ password, kèm audit relations) */
 const USER_SELECT = {
   id: true,
   username: true,
   role: true,
+  locationId: true,
+  location: { select: { id: true, code: true, name: true, type: true } },
   createdAt: true,
   updatedAt: true,
   deletedAt: true,
@@ -97,6 +98,7 @@ export class UsersService {
         username: dto.username,
         password: hashedPassword,
         role: (dto.role as Role) || Role.WAREHOUSE_MANAGER,
+        locationId: dto.locationId || undefined,
         createdById: operatorId || undefined,
         updatedById: operatorId || undefined,
       },
@@ -150,6 +152,7 @@ export class UsersService {
     if (operatorId) data.updatedById = operatorId;
     if (dto.username) data.username = dto.username;
     if (dto.role) data.role = dto.role;
+    if (dto.locationId !== undefined) data.locationId = dto.locationId;
     if (dto.password) data.password = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
     const user = await this.prisma.user.update({

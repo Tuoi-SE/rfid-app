@@ -4,6 +4,7 @@ export interface TagData {
   category?: string;
   status: string;
   location?: string;
+  locationId?: string;
   lastSeenAt?: string;
   product?: {
     name: string;

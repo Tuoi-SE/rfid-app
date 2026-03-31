@@ -6,7 +6,7 @@ import { CreateTagDto } from '@tags/dto/create-tag.dto';
 import { UpdateTagDto } from '@tags/dto/update-tag.dto';
 import { AssignTagsDto } from '@tags/dto/bulk-update.dto';
 import { QueryTagsDto } from '@tags/dto/query-tags.dto';
-import { Prisma } from '.prisma/client';
+import { Prisma, TagStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
@@ -217,7 +217,7 @@ export class TagsService {
         where: { id: { in: dto.tagIds }, deletedAt: null },
         data: {
           productId: dto.productId,
-          status: 'IN_STOCK',
+          status: TagStatus.IN_WORKSHOP,
           updatedById: userId || undefined,
         },
       });

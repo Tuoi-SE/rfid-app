@@ -78,7 +78,11 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-[12px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">Ngày tạo</p>
-              <p className="text-[14px] font-bold text-slate-700">{new Date(order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              <p className="text-[14px] font-bold text-slate-700">
+                {((order as any).created_at || order.createdAt)
+                  ? new Date((order as any).created_at || order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : '—'}
+              </p>
             </div>
             <div>
               <p className="text-[12px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">Tiến độ</p>

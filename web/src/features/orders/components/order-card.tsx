@@ -48,12 +48,13 @@ export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) =
   const typeBadgeColors = isInbound ? 'bg-indigo-50 text-[#04147B]' : 'bg-emerald-50 text-emerald-600';
 
   // Format Date
-  const dateStr = new Date(order.createdAt).toLocaleString('vi-VN', {
+  const rawDate = (order as any).created_at || order.createdAt;
+  const dateStr = rawDate ? new Date(rawDate).toLocaleString('vi-VN', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
-  });
+  }) : '—';
 
-  const creatorName = (order as any).createdBy?.username || (order as any).user?.username || '—';
+  const creatorName = (order as any).created_by?.username || (order as any).createdBy?.username || (order as any).user?.username || '—';
 
   return (
     <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 mb-6 group">

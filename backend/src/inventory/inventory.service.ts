@@ -21,7 +21,7 @@ export class InventoryService {
 
   async processOperation(dto: InventoryOperationDto, userId: string) {
     const targetStatus: TagStatus =
-      dto.action === InventoryAction.CHECK_IN ? 'IN_STOCK' : 'OUT_OF_STOCK';
+      dto.action === InventoryAction.CHECK_IN ? TagStatus.IN_WAREHOUSE : TagStatus.COMPLETED;
 
     // Find tags by ID or EPC
     const tags = await this.prisma.tag.findMany({
@@ -142,8 +142,8 @@ export class InventoryService {
     });
 
     const productBreakdown = products.map((p) => {
-      const inStock = p.tags.filter((t) => t.status === 'IN_STOCK').length;
-      const outOfStock = p.tags.filter((t) => t.status === 'OUT_OF_STOCK').length;
+      const inStock = p.tags.filter((t) => t.status === 'IN_WAREHOUSE' || t.status === 'IN_WORKSHOP').length;
+      const outOfStock = p.tags.filter((t) => t.status === 'COMPLETED').length;
       const inTransit = p.tags.filter((t) => t.status === 'IN_TRANSIT').length;
       const missing = p.tags.filter((t) => t.status === 'MISSING').length;
       return {
@@ -174,8 +174,8 @@ export class InventoryService {
       return {
         name: c.name,
         total: allTags.length,
-        inStock: allTags.filter((t) => t.status === 'IN_STOCK').length,
-        outOfStock: allTags.filter((t) => t.status === 'OUT_OF_STOCK').length,
+        inStock: allTags.filter((t) => t.status === 'IN_WAREHOUSE' || t.status === 'IN_WORKSHOP').length,
+        outOfStock: allTags.filter((t) => t.status === 'COMPLETED').length,
       };
     });
 
@@ -217,7 +217,7 @@ export class InventoryService {
    * BATCH-06: Idempotency via Prisma upsert - duplicates handled gracefully
    *
    * Real upsert behavior:
-   * - New EPC → creates tag with status IN_STOCK
+   * - New EPC → creates tag with status UNASSIGNED
    * - Existing EPC → updates lastSeenAt timestamp (records scan visibility event)
    */
   async processBulkScan(epcs: string[], userId: string = 'system'): Promise<{ created: number; updated: number }> {
@@ -250,7 +250,7 @@ export class InventoryService {
     for (let i = 0; i < toCreate.length; i += CHUNK_SIZE) {
       const chunk = toCreate.slice(i, i + CHUNK_SIZE);
       await this.prisma.tag.createMany({
-        data: chunk.map((epc) => ({ epc, status: 'IN_STOCK', lastSeenAt: now })),
+        data: chunk.map((epc) => ({ epc, status: TagStatus.UNASSIGNED, lastSeenAt: now })),
       });
       created += chunk.length;
     }

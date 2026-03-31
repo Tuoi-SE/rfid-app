@@ -67,11 +67,11 @@ return null;
   };
 
   return (
-    <>
-      <div className="bg-white rounded-[20px] border border-slate-100 shadow-sm overflow-hidden mb-6">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-[20px] border border-slate-100 shadow-sm mb-4 xl:mb-6">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
+          <thead className="sticky top-0 z-10 bg-white shadow-sm border-b border-slate-100">
+            <tr>
               <th className="px-5 py-4 w-12 text-center text-slate-300">
                 <input 
                   type="checkbox" 
@@ -134,7 +134,6 @@ return null;
         </table>
       </div>
 
-      {/* Pagination */}
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
@@ -143,6 +142,6 @@ return null;
         onPageChange={onPageChange}
         itemName="kết quả"
       />
-    </>
+    </div>
   );
 };

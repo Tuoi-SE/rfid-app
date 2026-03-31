@@ -14,8 +14,8 @@ import { useTagCacheStore } from '../../../inventory/store/tag-cache.store';
 
 export function ConnectReaderScreen({ navigation }: any) {
   const [isScanningForDevices, setIsScanningForDevices] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
   
   const { scanDevices, connectToDevice } = useReaderConnection();
   const { foundDevices, connectedDevice } = useReaderStore();
@@ -46,14 +46,12 @@ export function ConnectReaderScreen({ navigation }: any) {
   };
 
   const connectToSelectedDevice = async (deviceInfo: any) => {
-    setIsConnecting(true);
+    setConnectingDeviceId(deviceInfo.id);
     try {
-      try {
-        const nameMap = await inventoryApi.pullTags();
-        updateServerNames(nameMap);
-      } catch {
-        console.log("Offline mode - using local names if any");
-      }
+      // Tải tag names từ server song song (không chặn kết nối BLE)
+      inventoryApi.pullTags()
+        .then(nameMap => updateServerNames(nameMap))
+        .catch(() => console.log("Offline mode - using local names if any"));
 
       await connectToDevice(deviceInfo, (tag) => {
         addOrUpdateTag(tag.epc, tag.rssi);
@@ -75,19 +73,21 @@ export function ConnectReaderScreen({ navigation }: any) {
         ]
       );
     } finally {
-      setIsConnecting(false);
+      setConnectingDeviceId(null);
     }
   };
 
   const renderDeviceItem = ({ item }: { item: any }) => {
     const isRFID = (item.name || '').toLowerCase().match(/uhf|rfid|h103|reader|hand|^3$/);
     const isThisConnected = connectedDevice?.id === item.id;
+    const isThisConnecting = connectingDeviceId === item.id;
+    const isAnyConnecting = connectingDeviceId !== null;
 
     return (
       <TouchableOpacity
         style={[styles.deviceItem, isThisConnected && styles.deviceItemActive]}
         onPress={() => !isThisConnected && connectToSelectedDevice(item)}
-        disabled={isConnecting || isThisConnected}
+        disabled={isAnyConnecting || isThisConnected}
       >
         <View style={styles.deviceIconContainer}>
           <Cpu color={isRFID ? "#4F46E5" : "#64748B"} size={22} />
@@ -106,7 +106,7 @@ export function ConnectReaderScreen({ navigation }: any) {
           </View>
         ) : (
           <View style={styles.connectAction}>
-            {isConnecting ? (
+            {isThisConnecting ? (
               <ActivityIndicator size="small" color="#4F46E5" />
             ) : (
               <ChevronRight color="#CBD5E1" size={20} />
@@ -147,7 +147,7 @@ export function ConnectReaderScreen({ navigation }: any) {
             <TouchableOpacity 
               style={[styles.mainBtn, isScanningForDevices && styles.mainBtnDisabled]}
               onPress={startScan}
-              disabled={isScanningForDevices || isConnecting}
+              disabled={isScanningForDevices || connectingDeviceId !== null}
             >
               {isScanningForDevices ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />

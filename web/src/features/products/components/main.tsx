@@ -13,8 +13,12 @@ import { Product } from '../types';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useCategories } from '@/features/categories/hooks/use-categories';
+import { useAuth } from '@/providers/AuthProvider';
 
 export const ProductsMain = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useProducts(search ? `search=${search}&limit=1000` : 'limit=1000');
@@ -23,8 +27,6 @@ export const ProductsMain = () => {
 
   const responseData = (data as Record<string, unknown>)?.data ?? data;
   const products: Product[] = Array.isArray(responseData) ? responseData : ((responseData as Record<string, unknown>)?.items as Product[] || []);
-
-
 
   const mutations = useProductMutations();
   const { state, actions } = useProductsTableLogic(products, mutations);
@@ -39,18 +41,20 @@ export const ProductsMain = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-8 p-8 relative font-sans">
+    <div className="flex flex-col h-full bg-[#F4F7FB] flex-1 min-h-[700px] 2xl:min-h-0 -m-4 p-4 md:-m-5 md:p-5 lg:-m-6 lg:p-6 relative font-sans">
       <PageHeader
         title="Quản lý sản phẩm"
         description="Quản lý và theo dõi thông tin chi tiết của tất cả sản phẩm, hàng hoá được gắn thẻ RFID."
         actions={
-          <button
-            onClick={actions.openCreate}
-            className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md group border border-[#04147B]"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm Sản Phẩm
-          </button>
+          isAdmin ? (
+            <button
+              onClick={actions.openCreate}
+              className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md group border border-[#04147B]"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm Sản Phẩm
+            </button>
+          ) : undefined
         }
       />
 

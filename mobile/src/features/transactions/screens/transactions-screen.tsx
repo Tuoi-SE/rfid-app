@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
 import { 
   ClipboardList, 
@@ -11,15 +11,24 @@ import {
   Play, 
   Square, 
   Save, 
-  ChevronLeft 
+  ChevronLeft,
+  ScanLine
 } from 'lucide-react-native';
 import { useOrders } from '../hooks/use-orders';
 import { useTransactionPicking } from '../hooks/use-transaction-picking';
+import { useTagCacheStore } from '../../inventory/store/tag-cache.store';
+import { inventoryApi } from '../../inventory/api/sessions';
 import { Order } from '../types';
 
 export function TransactionsScreen() {
   const { orders, loading, refetch } = useOrders();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { updateServerNames } = useTagCacheStore();
+
+  useEffect(() => {
+    // Tự động đồng bộ tên thẻ Ngầm để bộ lọc thẻ đúng sản phẩm hoạt động
+    inventoryApi.pullTags().then(updateServerNames).catch(() => {});
+  }, []);
 
   const { isSaving, isScanning, toggleScan, submitSession, getValidTags } = useTransactionPicking(
     selectedOrder, 
@@ -94,22 +103,31 @@ export function TransactionsScreen() {
                     <Text style={styles.progressLabel}>{scannedItems}/{totalItems}</Text>
                   </View>
 
-                  <View style={styles.orderCardFooter}>
-                    <View style={styles.itemCountBox}>
-                      <Text style={styles.itemCountText}>{item.items.length} mặt hàng</Text>
-                    </View>
-                    <View style={styles.statusBox}>
-                      {isDone ? (
-                        <CheckCircle2 color="#10B981" size={16} />
-                      ) : (
-                        <Clock color="#F59E0B" size={16} />
+                    <View style={styles.orderCardFooter}>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.itemCountBox}>
+                          <Text style={styles.itemCountText}>{item.items.length} mặt hàng</Text>
+                        </View>
+                        <View style={[styles.statusBox, { marginTop: 6 }]}>
+                          {isDone ? (
+                            <CheckCircle2 color="#10B981" size={14} />
+                          ) : (
+                            <Clock color="#F59E0B" size={14} />
+                          )}
+                          <Text style={[styles.statusText, { color: isDone ? '#10B981' : '#F59E0B' }]}>
+                            {isDone ? 'Hoàn thành' : 'Đang xử lý'}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {!isDone && (
+                        <View style={styles.scanHintBtn}>
+                          <ScanLine color="#FFFFFF" size={16} />
+                          <Text style={styles.scanHintText}>QUÉT MÃ</Text>
+                        </View>
                       )}
-                      <Text style={[styles.statusText, { color: isDone ? '#10B981' : '#F59E0B' }]}>
-                        {isDone ? 'Hoàn thành' : 'Đang xử lý'}
-                      </Text>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
               );
             }}
             ListEmptyComponent={
@@ -359,6 +377,21 @@ const styles = StyleSheet.create({
   itemCountText: { fontSize: 11, color: '#64748B', fontWeight: '500' },
   statusBox: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusText: { fontSize: 12, fontWeight: '600' },
+
+  scanHintBtn: {
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  scanHintText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 
   emptyBox: { padding: 40, alignItems: 'center' },
   emptyText: { color: '#94A3B8', fontSize: 14 },

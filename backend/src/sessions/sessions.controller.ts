@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
@@ -42,4 +42,15 @@ export class SessionsController {
   findOne(@Param('id') id: string) {
     return this.sessionsService.findOne(id);
   }
+
+  /** PATCH /api/sessions/:id/assign-product — Gán sản phẩm cho phiên quét trực tiếp */
+  @Patch(':id/assign-product')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Session'))
+  @ResponseMessageDecorator.withMessage('Gán sản phẩm cho phiên quét hàng loạt thành công')
+  async assignProduct(@Param('id') id: string, @Body('productId') productId: string, @Request() req: AuthenticatedRequest) {
+    const result = await this.sessionsService.assignProductToSession(id, productId, req.user.id);
+    this.eventsGateway.emitTagsUpdated();
+    return result;
+  }
 }
+

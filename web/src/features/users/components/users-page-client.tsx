@@ -50,7 +50,7 @@ return (
 }
 
 return (
-<div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-8 p-8 relative font-sans">
+<div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-4 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8 relative font-sans">
   <PageHeader 
     title="Quản lý thành viên"
     description="Quản lý quyền truy cập và phân quyền hệ thống RFID Pro."

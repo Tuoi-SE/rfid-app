@@ -7,7 +7,6 @@ import { randomBytes } from 'crypto';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { OrderStatus, Prisma } from '.prisma/client';
-import { plainToInstance } from 'class-transformer';
 import { OrderEntity } from './entities/order.entity';
 
 @Injectable()
@@ -17,7 +16,7 @@ export class OrdersService {
     private events: EventsGateway,
   ) {}
 
-  async create(createOrderDto: CreateOrderDto, userId: string) {
+  async create(createOrderDto: CreateOrderDto, user: { id: string; role: string; locationId?: string }) {
     const code = `${createOrderDto.type === 'INBOUND' ? 'IN' : 'OUT'}-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -25,9 +24,10 @@ export class OrdersService {
         data: {
           code,
           type: createOrderDto.type,
+          locationId: user.role === 'WAREHOUSE_MANAGER' ? user.locationId : createOrderDto.locationId,
           status: OrderStatus.PENDING,
-          createdById: userId,
-          updatedById: userId,
+          createdById: user.id,
+          updatedById: user.id,
           items: {
             create: createOrderDto.items.map((item) => ({
               productId: item.productId,
@@ -45,13 +45,22 @@ export class OrdersService {
       return newOrder;
     });
 
-    this.events.server.emit('orderUpdate', plainToInstance(OrderEntity, order));
-    return plainToInstance(OrderEntity, order);
+    const entity = new OrderEntity(order as any);
+    this.events.server.emit('orderUpdate', entity);
+    return entity;
   }
 
-  async findAll(query: QueryOrdersDto) {
+  async findAll(query: QueryOrdersDto, user: { role: string; locationId?: string }) {
     const { page = 1, limit = 20, search, type, status } = query;
     const where: Prisma.OrderWhereInput = { deletedAt: null };
+
+    if (user.role === 'WAREHOUSE_MANAGER') {
+      if (user.locationId) {
+        where.locationId = user.locationId;
+      } else {
+        where.id = 'NO_LOCATION_ASSIGNED'; 
+      }
+    }
 
     if (search) {
       where.code = { contains: search, mode: 'insensitive' };
@@ -83,16 +92,16 @@ export class OrdersService {
     const formattedData = data.map((order) => {
       const targetItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
       const scannedItems = order.items.reduce((sum, item) => sum + item.scannedQuantity, 0);
-      return plainToInstance(OrderEntity, {
+      return new OrderEntity({
         ...order,
         progress: targetItems > 0 ? Math.round((scannedItems / targetItems) * 100) : 0,
-      });
+      } as any);
     });
 
     return PaginationHelper.paginate(formattedData, total, page, limit);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: { role: string; locationId?: string }) {
     const order = await this.prisma.order.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -105,18 +114,26 @@ export class OrdersService {
     
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
+    if (user.role === 'WAREHOUSE_MANAGER' && order.locationId !== user.locationId) {
+      throw new BusinessException('Không có quyền truy cập đơn hàng này', 'ORDER_FORBIDDEN', HttpStatus.FORBIDDEN);
+    }
+
     const targetItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
     const scannedItems = order.items.reduce((sum, item) => sum + item.scannedQuantity, 0);
     
-    return plainToInstance(OrderEntity, {
+    return new OrderEntity({
       ...order,
       progress: targetItems > 0 ? Math.round((scannedItems / targetItems) * 100) : 0,
-    });
+    } as any);
   }
 
-  async update(id: string, updateOrderDto: any, userId: string) {
+  async update(id: string, updateOrderDto: any, user: { id: string; role: string; locationId?: string }) {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
+
+    if (user.role === 'WAREHOUSE_MANAGER' && order.locationId !== user.locationId) {
+      throw new BusinessException('Không có quyền truy cập đơn hàng này', 'ORDER_FORBIDDEN', HttpStatus.FORBIDDEN);
+    }
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BusinessException(`Không thể sửa đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
@@ -132,7 +149,8 @@ export class OrdersService {
         where: { id },
         data: {
           ...(updateOrderDto.type ? { type: updateOrderDto.type } : {}),
-          updatedById: userId,
+          ...(updateOrderDto.locationId && user.role === 'ADMIN' ? { locationId: updateOrderDto.locationId } : {}),
+          updatedById: user.id,
           ...(updateOrderDto.items ? {
             items: {
               create: updateOrderDto.items.map((item: any) => ({
@@ -150,14 +168,18 @@ export class OrdersService {
       return newOrder;
     });
 
-    const mapped = plainToInstance(OrderEntity, updated);
+    const mapped = new OrderEntity(updated as any);
     this.events.server.emit('orderUpdate', mapped);
     return mapped;
   }
 
-  async cancelOrder(id: string, userId: string) {
+  async cancelOrder(id: string, user: { id: string; role: string; locationId?: string }) {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
+
+    if (user.role === 'WAREHOUSE_MANAGER' && order.locationId !== user.locationId) {
+      throw new BusinessException('Không có quyền truy cập đơn hàng này', 'ORDER_FORBIDDEN', HttpStatus.FORBIDDEN);
+    }
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BusinessException(`Không thể hủy đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
@@ -165,24 +187,28 @@ export class OrdersService {
 
     const updated = await this.prisma.order.update({
       where: { id },
-      data: { status: OrderStatus.CANCELLED, updatedById: userId },
+      data: { status: OrderStatus.CANCELLED, updatedById: user.id },
     });
 
-    const mapped = plainToInstance(OrderEntity, updated);
+    const mapped = new OrderEntity(updated);
     this.events.server.emit('orderUpdate', mapped);
     return mapped;
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, user: { id: string; role: string; locationId?: string }) {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
+    if (user.role === 'WAREHOUSE_MANAGER' && order.locationId !== user.locationId) {
+      throw new BusinessException('Không có quyền truy cập đơn hàng này', 'ORDER_FORBIDDEN', HttpStatus.FORBIDDEN);
+    }
+
     const updated = await this.prisma.order.update({
       where: { id },
-      data: { deletedAt: new Date(), deletedById: userId },
+      data: { deletedAt: new Date(), deletedById: user.id },
     });
 
-    const mapped = plainToInstance(OrderEntity, updated);
+    const mapped = new OrderEntity(updated);
     this.events.server.emit('orderUpdate', mapped);
     return mapped;
   }

@@ -19,23 +19,23 @@ export class OrdersController {
   @PolicyDecorator.check((ability) => ability.can('create', 'Order'))
   @ResponseMessageDecorator.withMessage('Tạo đơn hàng thành công')
   create(@Body() createOrderDto: CreateOrderDto, @Req() req: AuthenticatedRequest) {
-    return this.ordersService.create(createOrderDto, req.user?.id);
+    return this.ordersService.create(createOrderDto, req.user as any);
   }
 
   /** GET /api/orders — Lấy danh sách đơn hàng (có phân trang) */
   @Get()
   @PolicyDecorator.check((ability) => ability.can('read', 'Order'))
   @ResponseMessageDecorator.withMessage('Lấy danh sách đơn hàng thành công')
-  findAll(@Query() query: QueryOrdersDto) {
-    return this.ordersService.findAll(query);
+  findAll(@Query() query: QueryOrdersDto, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.findAll(query, req.user as any);
   }
 
   /** GET /api/orders/:id — Xem chi tiết đơn hàng */
   @Get(':id')
   @PolicyDecorator.check((ability) => ability.can('read', 'Order'))
   @ResponseMessageDecorator.withMessage('Lấy chi tiết đơn hàng thành công')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.findOne(id, req.user as any);
   }
 
   /** PATCH /api/orders/:id — Cập nhật đơn hàng (ADMIN) */
@@ -43,7 +43,7 @@ export class OrdersController {
   @PolicyDecorator.check((ability) => ability.can('update', 'Order'))
   @ResponseMessageDecorator.withMessage('Cập nhật đơn hàng thành công')
   update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto, @Req() req: AuthenticatedRequest) {
-    return this.ordersService.update(id, updateOrderDto, req.user?.id);
+    return this.ordersService.update(id, updateOrderDto, req.user as any);
   }
 
   /** PATCH /api/orders/:id/cancel — Hủy đơn hàng (ADMIN) */
@@ -51,7 +51,7 @@ export class OrdersController {
   @PolicyDecorator.check((ability) => ability.can('update', 'Order'))
   @ResponseMessageDecorator.withMessage('Hủy đơn hàng thành công')
   cancelOrder(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.ordersService.cancelOrder(id, req.user?.id);
+    return this.ordersService.cancelOrder(id, req.user as any);
   }
 
   /** DELETE /api/orders/:id — Xóa đơn hàng (Soft Delete, ADMIN) */
@@ -59,6 +59,6 @@ export class OrdersController {
   @PolicyDecorator.check((ability) => ability.can('delete', 'Order'))
   @ResponseMessageDecorator.withMessage('Xóa đơn hàng thành công')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.ordersService.remove(id, req.user?.id);
+    return this.ordersService.remove(id, req.user as any);
   }
 }

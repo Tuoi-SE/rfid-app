@@ -5,4 +5,5 @@ export interface AuthResponse {
 export interface LoginCredentials {
   username: string;
   password: string;
+  deviceType?: string;
 }

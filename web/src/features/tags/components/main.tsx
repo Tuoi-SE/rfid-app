@@ -14,6 +14,7 @@ import { TableActions } from '@/components/TableActions';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { TagsTable } from './tags-table';
+import { useAuth } from '@/providers/AuthProvider';
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -51,6 +52,9 @@ const getStatusBadge = (status: string) => {
 };
 
 export const TagsMain = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState({});
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -138,20 +142,26 @@ export const TagsMain = () => {
           >
             <Clock className="w-4 h-4" />
           </button>
-          <button
-            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition-colors" title="Sửa"
-            onClick={() => setEditTagData(row.original)}
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors" title="Xóa"
-            onClick={() => setTagToDelete(row.original.epc)}
-          ><Trash2 className="w-4 h-4" /></button>
+          
+          {isAdmin && (
+            <button
+              className="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition-colors" title="Sửa"
+              onClick={() => setEditTagData(row.original)}
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors" title="Xóa"
+              onClick={() => setTagToDelete(row.original.epc)}
+            ><Trash2 className="w-4 h-4" /></button>
+          )}
         </div>
       )
     }
-  ], [deleteMutation]);
+  ], [deleteMutation, isAdmin]);
 
   const table = useReactTable({
     data: tags,
@@ -177,28 +187,30 @@ export const TagsMain = () => {
   if (isLoading) return <div className="flex justify-center items-center h-[70vh]"><Loader2 className="w-8 h-8 animate-spin text-[#04147B]" /></div>;
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7FB] min-h-screen -m-8 p-8 relative font-sans">
+    <div className="flex flex-col flex-1 h-full min-h-[700px] 2xl:min-h-0 bg-[#F4F7FB] -m-4 p-4 md:-m-5 md:p-5 lg:-m-6 lg:p-6 relative font-sans">
 
       {/* HEADER SECTION */}
       <PageHeader
         title="Quản lý Tags RFID"
         description="Danh sách hàng nghìn thẻ RFID trong hệ thống"
         actions={
-          <>
-            <button
-              disabled={tags.length === 0}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-[12px] font-bold text-sm shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-slate-400" />
-              Nhập dữ liệu Excel
-            </button>
-            <button
-              onClick={() => setIsAddTagOpen(true)}
-              className="flex items-center gap-2 bg-[#04147B] text-white px-5 py-2.5 rounded-[12px] font-bold text-sm shadow-sm hover:bg-[#030e57] transition-all"
-            >
-              Thêm Tag Mới
-            </button>
-          </>
+          isAdmin ? (
+            <>
+              <button
+                disabled={tags.length === 0}
+                className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-[12px] font-bold text-sm shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-slate-400" />
+                Nhập dữ liệu Excel
+              </button>
+              <button
+                onClick={() => setIsAddTagOpen(true)}
+                className="flex items-center gap-2 bg-[#04147B] text-white px-5 py-2.5 rounded-[12px] font-bold text-sm shadow-sm hover:bg-[#030e57] transition-all"
+              >
+                Thêm Tag Mới
+              </button>
+            </>
+          ) : undefined
         }
       />
 
@@ -237,6 +249,8 @@ export const TagsMain = () => {
           initialName={editTagData.product?.name || editTagData.name || ''}
           initialCategory={editTagData.product?.category?.name || editTagData.category || ''}
           initialLocation={editTagData.location || ''}
+          initialLocationId={editTagData.locationId || ''}
+          initialStatus={editTagData.status || 'UNASSIGNED'}
           onClose={() => setEditTagData(null)}
         />
       )}

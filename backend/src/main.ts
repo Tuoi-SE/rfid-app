@@ -42,7 +42,7 @@ class ApplicationBootstrap {
     app.enableShutdownHooks();
 
     const port = config.get('PORT', 3000);
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
     const logger = app.get(Logger);
     logger.log(`Server running on http://localhost:${port}`);
     logger.log(`Swagger docs at http://localhost:${port}/api/docs`);

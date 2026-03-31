@@ -28,7 +28,12 @@ export class SessionsService {
         include: { 
           _count: { select: { scans: true } },
           user: { select: { id: true, username: true } },
-          order: { select: { id: true, code: true, type: true } }
+          order: { select: { id: true, code: true, type: true } },
+          scans: {
+            where: { tag: { productId: null } },
+            take: 1,
+            select: { id: true }
+          }
         },
       }),
       this.prisma.session.count(),
@@ -36,9 +41,65 @@ export class SessionsService {
 
     const formattedData = data.map(item => plainToInstance(SessionEntity, { 
       ...item, 
-      totalScans: item._count?.scans || 0 
+      totalScans: item._count?.scans || 0,
+      hasUnassignedTags: item.scans && item.scans.length > 0
     }));
     return PaginationHelper.paginate(formattedData, total, page, limit);
+  }
+
+  async assignProductToSession(sessionId: string, productId: string, userId: string) {
+    // Check if session exists and fetch associated scans
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { scans: { select: { tagEpc: true } } }
+    });
+    
+    if (!session) {
+      throw new BusinessException('Không tìm thấy phiên quét', 'SESSION_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    // Check if product exists
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      throw new BusinessException('Không tìm thấy sản phẩm', 'PRODUCT_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    const uniqueEpcs = Array.from(new Set(session.scans.map(s => s.tagEpc)));
+    if (uniqueEpcs.length === 0) {
+      throw new BusinessException('Phiên quét trống, không có thẻ nào để gán.', 'SESSION_EMPTY', HttpStatus.BAD_REQUEST);
+    }
+
+    const count = await this.prisma.$transaction(async (tx) => {
+      // Find tags that match these epcs to get their ids for events
+      const tagsToUpdate = await tx.tag.findMany({ where: { epc: { in: uniqueEpcs }, deletedAt: null } });
+      const tagIds = tagsToUpdate.map(t => t.id);
+
+      // Update tags to point to the new productId and update status
+      const updateResult = await tx.tag.updateMany({
+        where: { epc: { in: uniqueEpcs }, deletedAt: null },
+        data: {
+          productId: productId,
+          status: TagStatus.IN_WORKSHOP, // Default for manual assignment
+          updatedById: userId
+        }
+      });
+
+      // Create tag events for the bulk update
+      if (tagIds.length > 0) {
+        await tx.tagEvent.createMany({
+          data: tagIds.map(tagId => ({
+            tagId,
+            type: 'ASSIGNED',
+            description: `Gán đè cho Sản phẩm: ${product.name} (Từ Phiên: ${session.name})`,
+            userId
+          }))
+        });
+      }
+
+      return updateResult.count;
+    });
+
+    return { count };
   }
 
   async create(dto: CreateSessionDto, userId?: string) {
@@ -51,7 +112,7 @@ export class SessionsService {
       if (dto.orderId) {
         order = await tx.order.findUnique({
           where: { id: dto.orderId },
-          include: { items: true }
+          include: { items: true, location: true }
         });
         if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
         if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
@@ -74,7 +135,8 @@ export class SessionsService {
       });
 
       // 2. Process Order Fulfillment if orderId presents
-      let tagsToUpdateStatus: TagStatus = 'IN_STOCK';
+      let tagsToUpdateStatus: TagStatus | null = null;
+      let targetLocationId: string | null = null;
       
       if (order) {
         if (order.status === 'PENDING') {
@@ -112,9 +174,14 @@ export class SessionsService {
 
         // Determine tag status destination
         if (order.type === 'OUTBOUND') {
-          tagsToUpdateStatus = 'OUT_OF_STOCK'; // Xuất kho
+          tagsToUpdateStatus = TagStatus.COMPLETED; // Xuất kho
         } else if (order.type === 'INBOUND') {
-          tagsToUpdateStatus = 'IN_STOCK'; // Nhập kho
+          if (order.location?.type === 'WORKSHOP') {
+            tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
+          } else {
+            tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+          }
+          targetLocationId = order.locationId;
         }
       }
 
@@ -144,7 +211,8 @@ export class SessionsService {
         data: {
           location: dto.name,
           lastSeenAt: now,
-          status: tagsToUpdateStatus 
+          ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
+          ...(targetLocationId ? { locationId: targetLocationId } : {})
         }
       });
 

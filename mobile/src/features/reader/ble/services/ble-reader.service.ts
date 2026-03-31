@@ -14,6 +14,24 @@ class BleReaderService {
   private rawBuffer: number[] = [];
   private onTagCallback: ((tag: RFIDTag) => void) | null = null;
 
+  // Dedup: chỉ phát EPC 1 lần mỗi 2 giây, bỏ qua lần quét lặp
+  private recentEPCs = new Map<string, number>();
+  private readonly DEDUP_MS = 2000;
+
+  private shouldEmitTag(epc: string): boolean {
+    const now = Date.now();
+    const lastSeen = this.recentEPCs.get(epc);
+    if (lastSeen && now - lastSeen < this.DEDUP_MS) return false;
+    this.recentEPCs.set(epc, now);
+    // Dọn dẹp entry cũ khi map quá lớn
+    if (this.recentEPCs.size > 500) {
+      for (const [key, time] of this.recentEPCs) {
+        if (now - time > this.DEDUP_MS) this.recentEPCs.delete(key);
+      }
+    }
+    return true;
+  }
+
   async requestPermissions(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
     const granted = await PermissionsAndroid.requestMultiple([
@@ -103,10 +121,19 @@ class BleReaderService {
       console.log('[BLE] Connecting to:', deviceId);
       manager.stopDeviceScan();
       await this.disconnect();
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 100));
 
-      this.device = await manager.connectToDevice(deviceId, { requestMTU: 512, timeout: 10000 });
+      this.device = await manager.connectToDevice(deviceId, { timeout: 5000 });
       console.log('[BLE] ✅ Connected!');
+
+      if (Platform.OS === 'android') {
+        try {
+          await this.device.requestMTU(512);
+          console.log('[BLE] MTU 512 requested');
+        } catch (mtuErr) {
+          console.log('[BLE] MTU request not supported/failed, proceeding anyway', mtuErr);
+        }
+      }
 
       await this.device.discoverAllServicesAndCharacteristics();
 
@@ -206,7 +233,7 @@ class BleReaderService {
            if (epcLen > 0 && 11 + epcLen <= totalLen - 2) {
              const epcBytes = this.rawBuffer.slice(11, 11 + epcLen);
              const epc = epcBytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-             onTagRead({ epc, rssi });
+             if (this.shouldEmitTag(epc)) onTagRead({ epc, rssi });
            }
         }
         this.rawBuffer = this.rawBuffer.slice(totalLen);
@@ -229,7 +256,7 @@ class BleReaderService {
           if (epcLen > 0 && epcLen <= 62) {
             const epcBytes = this.rawBuffer.slice(8, 8 + epcLen);
             const epc = epcBytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-            onTagRead({ epc, rssi });
+            if (this.shouldEmitTag(epc)) onTagRead({ epc, rssi });
           }
         }
         this.rawBuffer = this.rawBuffer.slice(totalLen);
@@ -256,6 +283,7 @@ class BleReaderService {
     if (this.isScanning) return;
     this.isScanning = true;
     this.rawBuffer = [];
+    this.recentEPCs.clear();
 
     const cmdBytes = Buffer.from(BLE_CONFIG.COMMANDS.START_INVENTORY);
     const base64Cmd = cmdBytes.toString('base64');

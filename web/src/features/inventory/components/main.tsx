@@ -74,26 +74,26 @@ export const InventoryMain = () => {
   const inventoryStats: InventoryStat[] = [
     {
       id: '1',
-      label: 'Trong kho',
-      value: (overview?.statuses?.IN_STOCK ?? 0).toLocaleString(),
-      colorScheme: 'green',
-      icon: PackageCheck,
-      trend: '+12%', // Mocked UI decorator since API doesn't have trend info
-      trendUp: true
+      label: 'Trong xưởng',
+      value: (overview?.statuses?.IN_WORKSHOP ?? 0).toLocaleString(),
+      colorScheme: 'indigo',
+      icon: Box,
     },
     {
       id: '2',
-      label: 'Đã xuất',
-      value: (overview?.statuses?.OUT_OF_STOCK ?? 0).toLocaleString(),
-      colorScheme: 'slate',
-      icon: ArrowUpRight
+      label: 'Trong kho',
+      value: (overview?.statuses?.IN_WAREHOUSE ?? 0).toLocaleString(),
+      colorScheme: 'green',
+      icon: PackageCheck,
+      trend: '+2%', // Mocked UI decorator
+      trendUp: true
     },
     {
       id: '3',
-      label: 'Đang vận chuyển',
-      value: (overview?.statuses?.IN_TRANSIT ?? 0).toLocaleString(),
-      colorScheme: 'indigo',
-      icon: Truck
+      label: 'Đã xuất',
+      value: (overview?.statuses?.COMPLETED ?? 0).toLocaleString(),
+      colorScheme: 'slate',
+      icon: ArrowUpRight
     },
     {
       id: '4',
@@ -106,7 +106,7 @@ export const InventoryMain = () => {
     {
       id: '5',
       label: 'Chưa gắn SP',
-      value: (overview?.unassignedTags ?? 0).toLocaleString(),
+      value: ((overview?.statuses?.UNASSIGNED ?? 0) + (overview?.unassignedTags ?? 0)).toLocaleString(),
       colorScheme: 'gray',
       icon: HelpCircle
     },
@@ -129,7 +129,7 @@ export const InventoryMain = () => {
   });
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-20">
+    <div className="space-y-4 xl:space-y-6 pb-8">
       <PageHeader
         title="Tồn kho Hệ thống"
         description="Phân tích tồn kho theo sản phẩm và danh mục thời gian thực."

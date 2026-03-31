@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Settings, ScanLine, Tag, LocateFixed, LogOut, ClipboardList } from 'lucide-react-native';
+import { Settings, ScanLine, Tag, LocateFixed, LogOut, ClipboardList, Truck } from 'lucide-react-native';
 import { TouchableOpacity, Alert, View, Text } from 'react-native';
 
 import { ConnectReaderScreen } from '../../features/reader/connect/screens/connect-reader-screen';
@@ -8,12 +8,13 @@ import { InventoryScanScreen } from '../../features/inventory/scan/screens/inven
 import { AssignTagsScreen } from '../../features/inventory/assign/screens/assign-tags-screen';
 import { FindTagScreen } from '../../features/inventory/find/screens/find-tag-screen';
 import { TransactionsScreen } from '../../features/transactions/screens/transactions-screen';
+import { TransfersScreen } from '../../features/transfers/screens/transfers-screen';
 import { useAuthStore } from '../../features/auth/store/auth.store';
 
 const Tab = createBottomTabNavigator();
 
 export function AppTabs() {
-  const { logout } = useAuthStore();
+  const { logout, role, username } = useAuthStore();
 
   const handleLogout = () => {
     Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
@@ -59,10 +60,20 @@ export function AppTabs() {
         name="GiaoDich"
         component={TransactionsScreen}
         options={{
-          tabBarLabel: 'Phiếu XNK',
+          tabBarLabel: 'O/I Lệnh',
           tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />
         }}
       />
+      {role !== 'ADMIN' && (
+        <Tab.Screen
+          name="DieuChuyen"
+          component={TransfersScreen}
+          options={{
+            tabBarLabel: 'Điều Chuyển',
+            tabBarIcon: ({ color, size }) => <Truck color={color} size={size} />
+          }}
+        />
+      )}
       <Tab.Screen
         name="QuetThe"
         component={InventoryScanScreen}
@@ -71,14 +82,16 @@ export function AppTabs() {
           tabBarIcon: ({ color, size }) => <ScanLine color={color} size={size} />
         }}
       />
-      <Tab.Screen
-        name="CapThe"
-        component={AssignTagsScreen}
-        options={{
-          tabBarLabel: 'Cấp Thẻ',
-          tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />
-        }}
-      />
+      {role === 'ADMIN' && (
+        <Tab.Screen
+          name="CapThe"
+          component={AssignTagsScreen}
+          options={{
+            tabBarLabel: 'Cấp Thẻ',
+            tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />
+          }}
+        />
+      )}
       <Tab.Screen
         name="TimThe"
         component={FindTagScreen}

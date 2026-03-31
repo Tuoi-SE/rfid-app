@@ -13,8 +13,12 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useCategoriesTableLogic } from '../hooks/use-categories-table-logic';
 import { Trash2 } from 'lucide-react';
+import { useAuth } from '@/providers/AuthProvider';
 
 export const CategoriesMain = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [search, setSearch] = useState('');
 
   const { data: categories = [], isLoading } = useCategories(search);
@@ -32,18 +36,20 @@ export const CategoriesMain = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 min-h-screen -m-8 p-8 relative">
+    <div className="flex flex-col h-full bg-slate-50 flex-1 min-h-[700px] 2xl:min-h-0 -m-4 p-4 md:-m-5 md:p-5 lg:-m-6 lg:p-6 relative">
       <PageHeader
         title="Quản lý danh mục"
         description="Quản lý và tổ chức các nhóm sản phẩm trong hệ thống RFID của Loom & Link Pro."
         actions={
-          <button
-            onClick={actions.openCreate}
-            className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm Danh Mục
-          </button>
+          isAdmin ? (
+            <button
+              onClick={actions.openCreate}
+              className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm Danh Mục
+            </button>
+          ) : undefined
         }
       />
 

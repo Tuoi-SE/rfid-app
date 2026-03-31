@@ -1,6 +1,7 @@
 import { X, Loader2 } from 'lucide-react';
 import { User, UserFormData } from '../types';
 import { useState, useEffect } from 'react';
+import { useLocations } from '@/features/locations/hooks/use-locations';
 
 interface UserFormDialogProps {
   editItem?: User | null;
@@ -19,7 +20,10 @@ export const UserFormDialog = ({
   isSaving,
   error
 }: UserFormDialogProps) => {
-const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF' });
+const { data: locationsData } = useLocations();
+const locations = (locationsData as any)?.data || locationsData || [];
+
+const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF', locationId: '' });
 
 useEffect(() => {
 if (isOpen) {
@@ -28,6 +32,7 @@ if (isOpen) {
     email: editItem?.email || '',
     password: '',
     role: editItem?.role || 'STAFF',
+    locationId: editItem?.locationId || '',
   });
 }
 }, [isOpen, editItem]);
@@ -39,6 +44,9 @@ e.preventDefault();
 const payload = { ...formData };
 if (editItem && !payload.password) {
   delete payload.password;
+}
+if (payload.role === 'ADMIN') {
+  payload.locationId = null;
 }
 onSubmit(payload);
 };
@@ -92,9 +100,29 @@ return (
           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
         >
           <option value="STAFF">Nhân viên (STAFF)</option>
+          <option value="WAREHOUSE_MANAGER">Quản lý Kho (MANAGER)</option>
           <option value="ADMIN">Quản trị (ADMIN)</option>
         </select>
       </div>
+      
+      {formData.role !== 'ADMIN' && (
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Trực thuộc (Kho/Xưởng) *</label>
+          <select
+            value={formData.locationId || ''}
+            onChange={e => setFormData({ ...formData, locationId: e.target.value })}
+            required
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 bg-white"
+          >
+            <option value="" disabled>-- Chọn nơi làm việc --</option>
+            {locations.map((loc: any) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.code} - {loc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {error && (
         <p className="text-red-500 text-sm">Lỗi: {error}</p>
       )}

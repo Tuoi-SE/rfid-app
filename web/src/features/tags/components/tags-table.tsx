@@ -24,11 +24,10 @@ export const TagsTable = ({ table, totalItems }: TagsTableProps) => {
   const totalPages = table.getPageCount();
 
   return (
-    <>
-      <div className="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden mb-4">
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-100">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-[20px] shadow-sm border border-slate-100 mb-4 xl:mb-6">
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
@@ -66,14 +65,10 @@ export const TagsTable = ({ table, totalItems }: TagsTableProps) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-400 font-medium">
-                    Không tìm thấy kết quả phù hợp với bộ lọc.
-                  </td>
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </table>
       </div>
 
       {table.getRowModel().rows.length > 0 && (
@@ -86,6 +81,6 @@ export const TagsTable = ({ table, totalItems }: TagsTableProps) => {
           itemName="tags"
         />
       )}
-    </>
+    </div>
   );
 };

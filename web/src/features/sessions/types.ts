@@ -18,4 +18,5 @@ export interface SessionData {
   totalScans?: number;
   user?: SessionOperator | null;
   order?: SessionOrder | null;
+  hasUnassignedTags?: boolean;
 }

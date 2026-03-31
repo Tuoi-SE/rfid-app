@@ -9,4 +9,8 @@ export class UpdateTagDto {
   @IsOptional()
   @IsEnum(TagStatus)
   status?: TagStatus;
+
+  @IsOptional()
+  @IsUUID()
+  locationId?: string | null;
 }

@@ -40,6 +40,9 @@ export class SessionEntity extends BaseEntity {
 
   totalScans?: number; // Added from count in service
 
+  @Expose()
+  hasUnassignedTags?: boolean;
+
   constructor(partial: Partial<SessionEntity>) {
     super(partial);
     Object.assign(this, partial);

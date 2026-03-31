@@ -22,7 +22,7 @@ export const DashboardMain = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 min-h-screen -m-8 p-8 relative">
+    <div className="flex flex-col h-full bg-slate-50 min-h-screen -m-4 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8 relative">
 
       {/* Header */}
       <PageHeader

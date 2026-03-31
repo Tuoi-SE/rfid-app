@@ -7,6 +7,8 @@ import { EditOrderModal } from './edit-order-modal';
 import { OrderDetailsModal } from './order-details-modal';
 import { deleteOrder } from '../api/delete-order';
 
+import { useAuth } from '@/providers/AuthProvider';
+
 interface OrderListProps {
   orders: Order[];
   isLoading: boolean;
@@ -15,6 +17,8 @@ interface OrderListProps {
 }
 
 export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: OrderListProps) => {
+  const { user } = useAuth();
+  const isManager = user?.role === 'WAREHOUSE_MANAGER';
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null);
@@ -52,10 +56,11 @@ export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: Ord
         </div>
         <p className="text-slate-500 font-bold text-lg mb-1">Chưa có giao dịch kho</p>
         <p className="text-slate-400 text-sm mb-6">Hãy tạo một phiếu nhập hoặc xuất để bắt đầu.</p>
-        {onCreateRequest && (
+        {isManager && onCreateRequest && (
           <button
             onClick={onCreateRequest}
             className="px-6 py-3 bg-amber-50 text-amber-700 font-bold text-sm rounded-xl hover:bg-amber-100 transition-colors"
+            title="Tạo phiếu giao dịch"
           >
             Tạo phiếu giao dịch
           </button>

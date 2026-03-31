@@ -19,31 +19,54 @@ interface ScanSessionState {
   loadFromStorage: () => Promise<void>;
 }
 
-export const useScanSessionStore = create<ScanSessionState>((set, get) => ({
-  scannedTags: {},
-  
-  addOrUpdateTag: (epc, rssi) => set(state => {
-    const existing = state.scannedTags[epc];
-    return {
-      scannedTags: {
-        ...state.scannedTags,
-        [epc]: existing ? {
+// === Option A: Batch buffer ===
+// Gom tag vào buffer ngoài store, flush vào Zustand mỗi 300ms
+// → UI chỉ re-render tối đa 3 lần/giây thay vì hàng trăm lần
+const FLUSH_INTERVAL = 300;
+let tagBuffer: Map<string, { epc: string; rssi: number }> = new Map();
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleFlush() {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    const batch = tagBuffer;
+    tagBuffer = new Map();
+    if (batch.size === 0) return;
+
+    useScanSessionStore.setState(state => {
+      const updated = { ...state.scannedTags };
+      const now = new Date();
+      for (const [epc, { rssi }] of batch) {
+        const existing = updated[epc];
+        updated[epc] = existing ? {
           ...existing,
           rssi,
           scanCount: existing.scanCount + 1,
-          lastScanTime: new Date(),
+          lastScanTime: now,
           isPresent: true,
         } : {
           epc,
           rssi,
           scanCount: 1,
-          firstScanTime: new Date(),
-          lastScanTime: new Date(),
+          firstScanTime: now,
+          lastScanTime: now,
           isPresent: true,
-        }
+        };
       }
-    };
-  }),
+      return { scannedTags: updated };
+    });
+  }, FLUSH_INTERVAL);
+}
+
+export const useScanSessionStore = create<ScanSessionState>((set, get) => ({
+  scannedTags: {},
+  
+  addOrUpdateTag: (epc, rssi) => {
+    // Ghi vào buffer thay vì cập nhật Zustand trực tiếp
+    tagBuffer.set(epc, { epc, rssi });
+    scheduleFlush();
+  },
 
   startNewSession: () => set(state => {
     const updated = Object.fromEntries(
@@ -52,7 +75,11 @@ export const useScanSessionStore = create<ScanSessionState>((set, get) => ({
     return { scannedTags: updated };
   }),
 
-  clearAll: () => set({ scannedTags: {} }),
+  clearAll: () => {
+    tagBuffer.clear();
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    set({ scannedTags: {} });
+  },
 
   saveToStorage: async () => {
     await AsyncStorage.setItem('rfid_session', JSON.stringify(get().scannedTags));

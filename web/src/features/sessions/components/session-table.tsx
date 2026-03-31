@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,11 +16,18 @@ import {
   Check,
   MoreHorizontal,
   Download,
-  Trash2
+  Trash2,
+  PackagePlus, 
+  FileText,
+  Truck
 } from 'lucide-react';
 import { SessionData } from '../types';
 import { Pagination } from '@/components/Pagination';
+import { AssignProductModal } from './assign-product-modal';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { httpClient } from '@/lib/http/client';
+import { CreateTransferModal } from '@/features/transfers/components/create-transfer-modal';
 
 interface SessionTableProps {
   data: SessionData[];
@@ -31,7 +38,32 @@ interface SessionTableProps {
 export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
+  const [assigningSession, setAssigningSession] = useState<SessionData | null>(null);
+  const [transferringSession, setTransferringSession] = useState<SessionData | null>(null);
+  const [transferredSessionIds, setTransferredSessionIds] = useState<string[]>([]);
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('rfid_transferred_sessions');
+      if (stored) {
+        setTransferredSessionIds(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to parse transferred sessions from local storage', e);
+    }
+  }, []);
+
+  const handleTransferSuccess = (sessionId: string) => {
+    setTransferredSessionIds(prev => {
+      const updated = [...prev, sessionId];
+      try {
+        localStorage.setItem('rfid_transferred_sessions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setTransferringSession(null);
+  };
   const columns: ColumnDef<SessionData>[] = [
     {
       id: 'select',
@@ -176,6 +208,41 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
       },
     },
     {
+      id: 'workflow',
+      header: () => (
+        <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
+          TIẾN ĐỘ CHUỖI CUNG ỨNG
+        </div>
+      ),
+      cell: ({ row }) => {
+        const hasUnassigned = row.original.hasUnassignedTags !== false;
+        const isTransferred = transferredSessionIds.includes(row.original.id);
+        
+        if (isTransferred) {
+           return (
+             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-emerald-50 text-emerald-700 font-bold text-xs ring-1 ring-inset ring-emerald-500/20 shadow-[0_1px_3px_rgb(16,185,129,0.1)]">
+               <Check className="w-3.5 h-3.5" />
+               3. Đã điều chuyển
+             </div>
+           );
+        } else if (hasUnassigned) {
+           return (
+             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-slate-100 text-slate-600 font-bold text-xs">
+               <PackagePlus className="w-3.5 h-3.5" />
+               1. Chờ gán SP
+             </div>
+           );
+        } else {
+           return (
+             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-indigo-50 text-[#04147B] font-bold text-xs ring-1 ring-inset ring-indigo-500/20">
+               <Truck className="w-3.5 h-3.5" />
+               2. Sẵn sàng luân chuyển
+             </div>
+           );
+        }
+      }
+    },
+    {
       id: 'orderRef',
       header: () => (
         <div className="uppercase text-[11px] font-bold tracking-widest text-slate-400">
@@ -195,14 +262,60 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
     },
     {
       id: 'actions',
-      cell: ({ row }) => (
-        <button 
-          onClick={() => onViewDetails?.(row.original.id)}
-          className="p-2 text-slate-400 hover:text-[#04147B] hover:bg-slate-50 rounded-lg transition-colors"
-        >
-          <MoreHorizontal className="w-5 h-5" />
-        </button>
-      ),
+      cell: ({ row }) => {
+        const isCompleted = !!row.original.endedAt;
+        const canAssign = row.original.hasUnassignedTags !== false;
+
+        return (
+          <div className="flex items-center gap-1 justify-end min-w-[100px]">
+            {canAssign ? (
+              <button 
+                onClick={() => setAssigningSession(row.original)}
+                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-[10px] transition-colors"
+                title="Bước 1: Gán SP Hàng Loạt"
+              >
+                <PackagePlus className="w-5 h-5" />
+              </button>
+            ) : (
+              <div 
+                className="p-2 text-slate-200 cursor-not-allowed rounded-[10px]"
+                title="Đã gán xong"
+              >
+                <PackagePlus className="w-5 h-5 opacity-40 hover:opacity-100" />
+              </div>
+            )}
+
+            {!canAssign ? (
+               transferredSessionIds.includes(row.original.id) ? null : (
+                 <button 
+                   onClick={() => setTransferringSession(row.original)}
+                   className="p-2 text-slate-400 hover:text-[#04147B] hover:bg-indigo-50 rounded-[10px] transition-colors"
+                   title="Bước 2: Giao xuống Xưởng"
+                 >
+                   <Truck className="w-5 h-5" />
+                 </button>
+               )
+            ) : (
+              <div 
+                className="p-2 text-slate-200 cursor-not-allowed rounded-[10px]"
+                title="Bạn phải hoàn thành gán sản phẩm trước khi giao xưởng"
+              >
+                <Truck className="w-5 h-5 opacity-40" />
+              </div>
+            )}
+
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <button 
+              onClick={() => onViewDetails?.(row.original.id)}
+              className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-[10px] transition-colors"
+              title="Xem Chi Tiết Dữ liệu Phiên"
+            >
+              <FileText className="w-5 h-5" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -233,10 +346,11 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
   }
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-slate-100">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
+    <>
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden mb-4 xl:mb-6">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-slate-100/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-slate-100/50">
                 {headerGroup.headers.map((header) => (
@@ -255,7 +369,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
                   className={`group border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors ${row.getIsSelected() ? 'bg-indigo-50/30' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap align-middle">
+                     <td key={cell.id} className="px-6 py-4 whitespace-nowrap align-middle">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -270,6 +384,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Pagination component */}
@@ -301,6 +416,23 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
           }
         ]}
       />
-    </div>
+
+      {assigningSession && (
+        <AssignProductModal
+          session={assigningSession}
+          onClose={() => setAssigningSession(null)}
+          onSuccess={() => setAssigningSession(null)}
+        />
+      )}
+
+      {transferringSession && (
+        <CreateTransferModal
+          session={transferringSession}
+          onClose={() => setTransferringSession(null)}
+          onSuccess={() => handleTransferSuccess(transferringSession.id)}
+        />
+      )}
+    </>
   );
 };
+

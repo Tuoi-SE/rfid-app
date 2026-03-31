@@ -9,7 +9,7 @@ import { Order } from '../types';
 export function useTransactionPicking(selectedOrder: Order | null, onComplete: () => void) {
   const [isSaving, setIsSaving] = useState(false);
   const { scannedTags, clearAll: clearScanSession } = useScanSessionStore();
-  const { getName } = useTagCacheStore();
+  const { serverNames } = useTagCacheStore();
   const { isScanning, startScan, stopScan } = useReaderScan();
 
   const toggleScan = async () => {
@@ -27,7 +27,7 @@ export function useTransactionPicking(selectedOrder: Order | null, onComplete: (
     
     return Object.values(scannedTags)
       .filter(t => t.isPresent)
-      .map(t => ({ ...t, displayName: getName(t.epc) }))
+      .map(t => ({ ...t, displayName: serverNames[t.epc] || 'Thẻ chưa có tên' }))
       .filter(t => validProductNames.includes(t.displayName));
   };
 

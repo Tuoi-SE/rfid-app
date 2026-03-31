@@ -1,4 +1,4 @@
-import { IsEnum, IsArray, ValidateNested, IsString, IsInt, Min } from 'class-validator';
+import { IsEnum, IsArray, ValidateNested, IsString, IsInt, Min, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
@@ -18,6 +18,11 @@ export class CreateOrderDto {
   @ApiProperty({ enum: OrderType, example: 'INBOUND', description: 'Loại đơn hàng' })
   @IsEnum(OrderType)
   type: OrderType;
+
+  @ApiProperty({ example: 'loc-uuid-123', description: 'ID Vị trí tạo order', required: false })
+  @IsOptional()
+  @IsString()
+  locationId?: string;
 
   @ApiProperty({ type: [OrderItemDto], description: 'Danh sách sản phẩm' })
   @IsArray()

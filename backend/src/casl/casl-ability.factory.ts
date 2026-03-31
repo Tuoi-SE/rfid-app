@@ -39,6 +39,8 @@ export class CaslAbilityFactory {
         can('read', 'Product');
         can('read', 'Tag');
         can('read', 'Order');
+        can('create', 'Order');
+
         can('read', 'Location');
         can('read', 'Inventory');
         can('read', 'ActivityLog');
@@ -57,6 +59,8 @@ export class CaslAbilityFactory {
         can('read', 'Product');
         can('read', 'Tag');
         can('read', 'Order');
+        can('create', 'Order');
+
         can('read', 'Location');
         can('read', 'Inventory');
         can('read', 'ActivityLog');

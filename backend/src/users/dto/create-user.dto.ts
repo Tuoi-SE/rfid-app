@@ -19,4 +19,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({ example: 'uuid', description: 'ID của cơ sở / kho / xưởng mà User này quản lý' })
+  @IsOptional()
+  @IsString()
+  locationId?: string;
 }

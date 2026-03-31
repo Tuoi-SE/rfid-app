@@ -9,10 +9,10 @@ import { RolesDecorator } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
 interface RequestWithUser {
-  user: { id: string };
+  user: { id: string; role: string; locationId?: string };
 }
 
-@Controller('transfers')
+@Controller('api/transfers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
@@ -20,28 +20,34 @@ export class TransfersController {
   @Post()
   @RolesDecorator.allow(Role.ADMIN)
   create(@Body() dto: CreateTransferDto, @Request() req: RequestWithUser) {
-    return this.transfersService.create(dto, req.user.id);
+    return this.transfersService.create(dto, req.user as any);
   }
 
   @Post(':id/confirm')
   @RolesDecorator.allow(Role.WAREHOUSE_MANAGER)
   confirm(@Param('id') id: string, @Body() dto: ConfirmTransferDto, @Request() req: RequestWithUser) {
-    return this.transfersService.confirm(id, dto, req.user.id);
+    return this.transfersService.confirm(id, dto, req.user as any);
   }
 
   @Post(':id/cancel')
   @RolesDecorator.allow(Role.ADMIN)
   cancel(@Param('id') id: string, @Request() req: RequestWithUser) {
-    return this.transfersService.cancel(id, req.user.id);
+    return this.transfersService.cancel(id, req.user as any);
+  }
+
+  @Post(':id/destination')
+  @RolesDecorator.allow(Role.ADMIN)
+  updateDestination(@Param('id') id: string, @Body('destinationId') destinationId: string, @Request() req: RequestWithUser) {
+    return this.transfersService.updateDestination(id, destinationId, req.user as any);
   }
 
   @Get()
-  findAll(@Query() query: QueryTransfersDto) {
-    return this.transfersService.findAll(query);
+  findAll(@Query() query: QueryTransfersDto, @Request() req: RequestWithUser) {
+    return this.transfersService.findAll(query, req.user as any);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.transfersService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
+    return this.transfersService.findOne(id, req.user as any);
   }
 }

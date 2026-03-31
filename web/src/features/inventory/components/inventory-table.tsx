@@ -188,12 +188,11 @@ export const InventoryTable = ({ data }: InventoryTableProps) => {
   const selectedCount = table.getSelectedRowModel().flatRows.length;
 
   return (
-    <>
-    <div className="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden mb-4">
-      {/* Tanstack Table Implementation (Mirrors TagsTable) */}
-      <div className="overflow-x-auto min-h-[400px]">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-100">
+    <div className="flex flex-col">
+      <div className="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden mb-4 xl:mb-6">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-100">
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
@@ -236,14 +235,14 @@ export const InventoryTable = ({ data }: InventoryTableProps) => {
             ) : (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">
-                  Trống.
+                  Không tìm thấy dữ liệu.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
-    </div>
 
     {/* Standard Shared Pagination Component */}
     {table.getRowModel().rows.length > 0 && (
@@ -275,6 +274,6 @@ export const InventoryTable = ({ data }: InventoryTableProps) => {
         }
       ]}
     />
-    </>
+    </div>
   );
 };

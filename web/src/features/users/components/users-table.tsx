@@ -36,7 +36,7 @@ export function UsersTable({
           <tr className="border-b border-slate-100">
             <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400 w-[25%]">Người dùng</th>
             <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Vai trò</th>
-            <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">ID Nhân viên</th>
+            <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Trực thuộc</th>
             <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Ngày tạo</th>
             <th className="text-left py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Trạng thái</th>
             <th className="text-right py-4 font-bold text-[10px] uppercase tracking-wider text-slate-400">Thao tác</th>
@@ -44,22 +44,15 @@ export function UsersTable({
         </thead>
         <tbody className="divide-y divide-slate-50">
           {users.map((u, i) => {
-            const mockDate = i === 0 ? "12/10/2023" : i === 1 ? "05/11/2023" : i === 2 ? "20/08/2023" : "14/01/2024";
-            const mockEpc = `EPC-8821-${String(i + 1).padStart(3, '0')}`;
-            
-            // Mock roles based on design, if role is ADMIN keep it, else random mock
-            let roleDisplay: string = u.role;
-            if (u.role !== 'ADMIN') {
-              roleDisplay = i % 2 === 0 ? 'WAREHOUSE_MANAGER' : 'OPERATOR';
-            }
+            const roleDisplay: string = u.role;
             const getRoleBadge = (role: string) => {
               if (role === 'ADMIN') return "bg-[#EEF2FF] text-[#04147B]";
               if (role === 'WAREHOUSE_MANAGER') return "bg-[#FFF8E6] text-[#B07300]";
               return "bg-[#EEF2FF] text-[#2454FF]";
             }
             
-            // Mock Disabled status for 3rd row to match design
-            const isDisabled = i === 2;
+            // Check if deactivated or deleted
+            const isDisabled = false;
 
             return (
               <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -83,15 +76,15 @@ export function UsersTable({
                     {roleDisplay}
                   </span>
                 </td>
-                <td className="py-4 text-left font-mono">
-                  <div className="flex flex-col text-[12px] font-medium text-slate-500 tracking-wide">
-                    <span>{mockEpc.slice(0,8)}</span>
-                    <span className="text-slate-400">{mockEpc.slice(8)}</span>
+                <td className="py-4 text-left">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-[13px] text-slate-700">{u.location?.name || '—'}</span>
+                    <span className="text-[11px] font-medium text-slate-400 mt-0.5">{u.location?.code || ''}</span>
                   </div>
                 </td>
                 <td className="py-4 text-left">
                   <span className="text-[13px] font-medium text-slate-500">
-                    {mockDate}
+                    {new Date(u.createdAt).toLocaleDateString('vi-VN')}
                   </span>
                 </td>
                 <td className="py-4 text-left">

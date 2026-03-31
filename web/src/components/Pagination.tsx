@@ -42,23 +42,23 @@ export function Pagination({
   };
 
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-2 pb-2">
-      <span className="text-[13px] font-medium text-slate-500">
+    <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2 pb-2">
+      <span className="text-[11px] font-medium text-slate-500">
         Hiển thị {startIndex}-{endIndex} trong số {totalItems} {itemName}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-100 text-slate-400 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className="text-xs">&lt;</span>
+          <span className="text-[10px]">&lt;</span>
         </button>
         
         {getPages().map((page, index) => {
           if (page === '...') {
             return (
-              <span key={`ellipsis-${index}`} className="w-8 h-8 flex items-center justify-center text-slate-400 font-bold text-xs">
+              <span key={`ellipsis-${index}`} className="w-7 h-7 flex items-center justify-center text-slate-400 font-bold text-[11px]">
                 ...
               </span>
             );
@@ -69,9 +69,9 @@ export function Pagination({
             <button
               key={`page-${page}`}
               onClick={() => onPageChange(page as number)}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs transition-colors ${
+              className={`w-7 h-7 flex items-center justify-center rounded-md font-bold text-[11px] transition-colors ${
                 isCurrent 
-                ? 'bg-[#04147B] text-white shadow-md hover:bg-[#04147B]/90' 
+                ? 'bg-[#04147B] text-white shadow-sm hover:bg-[#04147B]/90' 
                 : 'border border-slate-100 text-slate-600 bg-white hover:bg-slate-50'
               }`}
             >
@@ -83,9 +83,9 @@ export function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-100 text-slate-400 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className="text-xs">&gt;</span>
+          <span className="text-[10px]">&gt;</span>
         </button>
       </div>
     </div>

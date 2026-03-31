@@ -33,8 +33,8 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ResponseMessageDecorator.withMessage('Đăng nhập thành công')
-  login(@Request() req: AuthenticatedRequest, @Body() _dto: LoginDto) {
-    return this.authService.login(req.user);
+  login(@Request() req: AuthenticatedRequest, @Body() dto: LoginDto) {
+    return this.authService.login(req.user, dto.deviceType || 'WEB');
   }
 
   /**

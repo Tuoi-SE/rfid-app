@@ -14,9 +14,11 @@ enum Role {
 }
 
 enum TagStatus {
-  IN_STOCK
-  OUT_OF_STOCK
+  UNASSIGNED
+  IN_WORKSHOP
+  IN_WAREHOUSE
   IN_TRANSIT
+  COMPLETED
   MISSING
 }
 
@@ -74,6 +76,9 @@ model Location {
   tags      Tag[]
   transfersFrom Transfer[] @relation("TransferSource")
   transfersTo   Transfer[] @relation("TransferDestination")
+  orders        Order[]    @relation("OrderLocation")
+
+  users     User[]         @relation("UserLocation")
 
   @@index([type])
   @@index([code])
@@ -126,6 +131,9 @@ model User {
   updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
 
+  locationId    String?
+  location      Location?      @relation("UserLocation", fields: [locationId], references: [id])
+
   createdById   String?
   createdBy     User?          @relation("UserCreatedBy", fields: [createdById], references: [id])
   createdUsers  User[]         @relation("UserCreatedBy")
@@ -174,9 +182,10 @@ model RefreshToken {
   token     String   @unique
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  revoked   Boolean  @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  revoked    Boolean  @default(false)
+  deviceType String   @default("WEB")
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([token])
@@ -232,7 +241,7 @@ model Tag {
   epc       String    @unique
   productId String?
   product   Product?  @relation(fields: [productId], references: [id])
-  status    TagStatus @default(IN_STOCK)
+  status    TagStatus @default(UNASSIGNED)
   location    String?
   locationId  String?
   locationRel Location?  @relation(fields: [locationId], references: [id])
@@ -286,6 +295,9 @@ model Order {
   deletedById String?
   deletedBy   User?       @relation("OrderDeletedBy", fields: [deletedById], references: [id])
   
+  locationId  String?
+  location    Location?   @relation("OrderLocation", fields: [locationId], references: [id])
+
   deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -295,6 +307,7 @@ model Order {
   @@index([type])
   @@index([status])
   @@index([createdById])
+  @@index([locationId])
 }
 
 model OrderItem {

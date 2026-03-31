@@ -19,11 +19,12 @@ export function LoginScreen() {
 
     setLoading(true);
     try {
-      const response: any = await loginApi({ username, password });
+      const response: any = await loginApi({ username, password, deviceType: 'MOBILE' });
       const token = response.data?.access_token || response.access_token;
+      const role = response.data?.user?.role || response.user?.role || null;
       
       if (token) {
-        login(token, username);
+        login(token, username, role);
       } else {
         throw new Error('Không nhận được token từ server');
       }
