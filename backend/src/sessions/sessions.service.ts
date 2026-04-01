@@ -423,7 +423,31 @@ export class SessionsService {
       // 4. Update all scanned tags (location, lastSeenAt, new status if needed)
       const now = new Date();
       if (order) {
-        // Tất cả thẻ quét được đều được di chuyển vật lý theo order
+        const acceptedOrderList = Array.from(acceptedOrderEpcs);
+        const overflowOrderList = Array.from(overflowOrderEpcs);
+
+        if (acceptedOrderList.length > 0) {
+          await tx.tag.updateMany({
+            where: { epc: { in: acceptedOrderList } },
+            data: {
+              location: dto.name,
+              lastSeenAt: now,
+              ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
+              ...(targetLocationId ? { locationId: targetLocationId } : {})
+            }
+          });
+        }
+
+        if (overflowOrderList.length > 0) {
+          await tx.tag.updateMany({
+            where: { epc: { in: overflowOrderList } },
+            data: {
+              location: dto.name,
+              lastSeenAt: now,
+            }
+          });
+        }
+      } else {
         await tx.tag.updateMany({
           where: { epc: { in: uniqueEpcs } },
           data: {
@@ -431,14 +455,6 @@ export class SessionsService {
             lastSeenAt: now,
             ...(tagsToUpdateStatus ? { status: tagsToUpdateStatus } : {}),
             ...(targetLocationId ? { locationId: targetLocationId } : {})
-          }
-        });
-      } else {
-        await tx.tag.updateMany({
-          where: { epc: { in: uniqueEpcs } },
-          data: {
-            location: dto.name,
-            lastSeenAt: now,
           }
         });
       }
