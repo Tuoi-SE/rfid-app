@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
@@ -9,12 +9,15 @@ import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { SessionEntity } from './entities/session.entity';
 import { AssignSessionStrategy } from './dto/assign-session-product.dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class SessionsService {
   constructor(
     private prisma: PrismaService,
-    private events: EventsGateway
+    private events: EventsGateway,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async findAll(
@@ -254,6 +257,8 @@ export class SessionsService {
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
+
+    await this.cacheManager.del('inventory:summary');
 
     return result;
   }
@@ -501,6 +506,8 @@ export class SessionsService {
          this.events.server.emit('orderUpdate', updatedOrder);
        }
     }
+
+    await this.cacheManager.del('inventory:summary');
 
     return plainToInstance(SessionEntity, session);
   }
