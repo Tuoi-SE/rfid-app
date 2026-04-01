@@ -160,4 +160,55 @@ export class LocationsService {
 
     return { id, deletedAt: now };
   }
+
+  async syncWarehouses(userId?: string) {
+    const workshops = await this.prisma.location.findMany({
+      where: { type: 'WORKSHOP', deletedAt: null },
+      include: {
+        children: { where: { type: 'WORKSHOP_WAREHOUSE', deletedAt: null } }
+      }
+    });
+
+    let createdCount = 0;
+    for (const ws of workshops) {
+      if (ws.children.length === 0) {
+        const warehouseCode = `WH-${ws.code}`;
+        await this.prisma.location.create({
+          data: {
+            code: warehouseCode,
+            name: `Kho - ${ws.name}`,
+            type: 'WORKSHOP_WAREHOUSE',
+            address: ws.address,
+            parentId: ws.id,
+            createdById: userId || undefined,
+            updatedById: userId || undefined,
+          }
+        });
+        createdCount++;
+      }
+    }
+
+    // Move stuck tags (IN_WORKSHOP logically sitting at WORKSHOP without warehouse) into the new WORKSHOP_WAREHOUSE.
+    const stuckTags = await this.prisma.tag.findMany({
+      where: { status: 'IN_WORKSHOP', locationRel: { type: 'WORKSHOP' } },
+    });
+
+    let movedTagsCount = 0;
+    if (stuckTags.length > 0) {
+      for (const tag of stuckTags) {
+        const warehouse = await this.prisma.location.findFirst({
+          where: { parentId: tag.locationId, type: 'WORKSHOP_WAREHOUSE', deletedAt: null }
+        });
+        if (warehouse) {
+          await this.prisma.tag.update({
+            where: { id: tag.id },
+            data: { status: 'IN_WAREHOUSE', locationId: warehouse.id }
+          });
+          movedTagsCount++;
+        }
+      }
+    }
+
+    return { message: `Đã tạo ${createdCount} Kho Xưởng và giải cứu ${movedTagsCount} thẻ bị kẹt.` };
+  }
 }

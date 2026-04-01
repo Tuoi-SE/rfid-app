@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SignalHigh, Plus, Loader2, Trash2 } from 'lucide-react';
+import { SignalHigh, Plus, Loader2, Trash2, RefreshCcw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { httpClient } from '@/lib/http/client';
 import { PageHeader } from '@/components/PageHeader';
 import { TableActions } from '@/components/TableActions';
 import { useLocations } from '../hooks/use-locations';
@@ -20,9 +22,10 @@ export const LocationsMain = () => {
   const isAdmin = user?.role === 'ADMIN';
 
   const [search, setSearch] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Query with limit=100 to get enough items for the mockup without actual pagination
-  const { data, isLoading, error } = useLocations('limit=100');
+  const { data, isLoading, error, refetch } = useLocations('limit=100');
   
   const locations = data?.data?.items || (data?.data as any) || [];
   const mutations = useLocationMutations();
@@ -34,6 +37,19 @@ export const LocationsMain = () => {
     warehouses: locations.filter((l: any) => l.type === 'WAREHOUSE').length,
     hotels: locations.filter((l: any) => ['HOTEL', 'SPA', 'RESORT'].includes(l.type)).length,
     totalTags: locations.reduce((acc: number, l: any) => acc + (l.tags_count || 0), 0),
+  };
+
+  const handleSyncWarehouses = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await httpClient('/locations/sync-warehouses', { method: 'POST' });
+      toast.success(res.message || 'Đồng bộ Kho Xưởng thành công!');
+      void refetch();
+    } catch (err: any) {
+      toast.error(err.message || 'Có lỗi xảy ra khi đồng bộ.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const bulkActions: BulkAction[] = [
@@ -52,13 +68,24 @@ export const LocationsMain = () => {
         description="Theo dõi và quản lý mạng lưới kho xưởng, nhà máy cung ứng."
         actions={
           isAdmin ? (
-            <button
-              onClick={actions.openCreate}
-              className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md"
-            >
-              <Plus className="w-4 h-4" />
-              Thêm Địa Điểm
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSyncWarehouses}
+                className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-4 py-3 rounded-xl text-sm transition-all"
+                disabled={isSyncing}
+                title="Tự động khởi tạo Kho Xưởng cho toàn bộ nhà máy còn thiếu & gỡ thẻ kẹt"
+              >
+                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+                Đồng bộ Kho xưởng
+              </button>
+              <button
+                onClick={actions.openCreate}
+                className="flex items-center gap-2 bg-[#04147B] hover:bg-[#04147B]/90 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md"
+              >
+                <Plus className="w-4 h-4" />
+                Thêm Địa Điểm
+              </button>
+            </div>
           ) : undefined
         }
       />

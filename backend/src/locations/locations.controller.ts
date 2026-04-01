@@ -57,6 +57,14 @@ export class LocationsController {
     return this.locationsService.update(id, dto, req.user?.id);
   }
 
+  /** POST /api/locations/sync-warehouses — Đồng bộ tạo Kho Xưởng cho Xưởng (ADMIN) */
+  @Post('sync-warehouses')
+  @PolicyDecorator.check((ability) => ability.can('update', 'Location'))
+  @ResponseMessageDecorator.withMessage('Đồng bộ Kho Xưởng thành công')
+  syncWarehouses(@Req() req: AuthenticatedRequest) {
+    return this.locationsService.syncWarehouses(req.user?.id);
+  }
+
   /** DELETE /api/locations/:id — Xóa mềm vị trí (ADMIN) */
   @Delete(':id')
   @PolicyDecorator.check((ability) => ability.can('delete', 'Location'))
