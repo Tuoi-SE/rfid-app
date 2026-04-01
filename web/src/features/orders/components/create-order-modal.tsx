@@ -175,12 +175,18 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
       byId.set(location.id, { ...location });
     };
 
+    // Luôn ưu tiên Kho hiện tại của user (Manager/Staff)
     addLocation(ownInboundLocation);
     ownInboundLocation?.children?.forEach((child) => addLocation(child));
-    locations
-      .filter((location) => location.type === 'WAREHOUSE')
-      .forEach((location) => addLocation(location));
 
+    // CHỈ CÓ ADMIN mới được quyền thấy toàn bộ mọi Kho tổng để nhập hàng trực tiếp
+    if (user?.role === 'ADMIN') {
+      locations
+        .filter((location) => location.type === 'WAREHOUSE')
+        .forEach((location) => addLocation(location));
+    }
+
+    // Nếu không thuộc quyền quản lý kho cụ thể (vd: Admin chưa gán kho), lấy danh sách tất cả kho được phép
     if (byId.size === 0) {
       locations
         .filter((location) => inboundAllowedTypes.has(location.type))
@@ -188,7 +194,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
     }
 
     return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [locations, ownInboundLocation]);
+  }, [locations, ownInboundLocation, user?.role]);
 
   const outboundLocations = useMemo(() => {
     const workshopOwnerId = user?.locationId;
