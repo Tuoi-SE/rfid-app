@@ -18,6 +18,19 @@ interface LocationOption {
   code: string;
   name: string;
   type:
+  | 'ADMIN'
+  | 'WORKSHOP'
+  | 'WORKSHOP_WAREHOUSE'
+  | 'WAREHOUSE'
+  | 'HOTEL'
+  | 'RESORT'
+  | 'SPA'
+  | 'CUSTOMER';
+  children?: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type:
     | 'ADMIN'
     | 'WORKSHOP'
     | 'WORKSHOP_WAREHOUSE'
@@ -26,19 +39,6 @@ interface LocationOption {
     | 'RESORT'
     | 'SPA'
     | 'CUSTOMER';
-  children?: Array<{
-    id: string;
-    code: string;
-    name: string;
-    type:
-      | 'ADMIN'
-      | 'WORKSHOP'
-      | 'WORKSHOP_WAREHOUSE'
-      | 'WAREHOUSE'
-      | 'HOTEL'
-      | 'RESORT'
-      | 'SPA'
-      | 'CUSTOMER';
   }>;
 }
 
@@ -372,7 +372,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
                     Nơi Nhập Kho
                   </label>
                   <p className="text-[13px] text-slate-600 font-medium">
-                    Manager có thể nhập vào kho của mình hoặc kho tổng.
+                    Manager nhập vào kho xưởng của mình.
                   </p>
                 </div>
 
