@@ -276,7 +276,7 @@ export const CreateTransferModal = ({ sessions, onClose, onSuccess }: CreateTran
     let type: TransferType = 'ADMIN_TO_WORKSHOP';
     if (sourceLocation?.type === 'ADMIN' && destLocation?.type === 'WORKSHOP') {
       type = 'ADMIN_TO_WORKSHOP';
-    } else if (sourceLocation?.type === 'WORKSHOP' && destLocation?.type === 'WAREHOUSE') {
+    } else if (sourceLocation?.type === 'WORKSHOP_WAREHOUSE' && destLocation?.type === 'WAREHOUSE') {
       type = 'WORKSHOP_TO_WAREHOUSE';
     } else if (sourceLocation?.type === 'WAREHOUSE' && ['HOTEL', 'SPA', 'RESORT'].includes(destinationType)) {
       type = 'WAREHOUSE_TO_CUSTOMER';

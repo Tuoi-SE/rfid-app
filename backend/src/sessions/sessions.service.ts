@@ -312,6 +312,16 @@ export class SessionsService {
         const scannedTagsByProduct = new Map<string, string[]>();
         for (const tag of scannedTagsInfo) {
           if (!tag.productId) continue;
+
+          // Validate LBAC: Từ Xưởng xuất đi chỗ khác không được, bắt buộc phải nhập Kho Xưởng trước
+          if (order.type === 'OUTBOUND' && tag.status === 'IN_WORKSHOP') {
+            throw new BusinessException(
+              `Thẻ ${tag.epc} đang nằm ở khu vực "Xưởng". Chỉ thẻ đã nhập vào "Kho Xưởng" mới được phép tạo xuất kho đi nơi khác!`,
+              'INVALID_OUTBOUND_SOURCE',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+
           const current = scannedTagsByProduct.get(tag.productId) || [];
           current.push(tag.epc);
           scannedTagsByProduct.set(tag.productId, current);

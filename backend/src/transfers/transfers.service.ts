@@ -250,8 +250,8 @@ export class TransfersService {
         throw new BadRequestException('Vị trí đích phải là WORKSHOP');
       }
     } else if (dto.type === 'WORKSHOP_TO_WAREHOUSE') {
-      if (source.type !== LocationType.WORKSHOP) {
-        throw new BadRequestException('Vị trí nguồn phải là WORKSHOP');
+      if (source.type !== LocationType.WORKSHOP_WAREHOUSE) {
+        throw new BadRequestException('Vị trí xuất điều chuyển bắt buộc phải là Kho Xưởng (không được xuất trực tiếp từ Xưởng)');
       }
       if (destination.type !== LocationType.WAREHOUSE) {
         throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
