@@ -11,6 +11,8 @@ class BleReaderService {
   private notifySubscription: Subscription | null = null;
   private isScanning = false;
   private isConnecting = false;
+  private scanTimeout: ReturnType<typeof setTimeout> | null = null;
+  private resolvePendingScan: (() => void) | null = null;
   private rawBuffer: number[] = [];
   private onTagCallback: ((tag: RFIDTag) => void) | null = null;
 
@@ -49,6 +51,8 @@ class BleReaderService {
     onError: (error: Error) => void
   ): Promise<void> {
     try {
+      this.stopDeviceScan();
+
       const state = await manager.state();
       if (state !== 'PoweredOn') {
         await new Promise<void>((resolve) => {
@@ -85,14 +89,36 @@ class BleReaderService {
 
       console.log('[BLE] Starting scan...');
       await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          manager.stopDeviceScan();
-          console.log('[BLE] Scan done, found', seen.size, 'devices');
+        let settled = false;
+
+        const finishScan = () => {
+          if (settled) return;
+          settled = true;
+          if (this.scanTimeout) {
+            clearTimeout(this.scanTimeout);
+            this.scanTimeout = null;
+          }
+          if (this.resolvePendingScan === finishScan) {
+            this.resolvePendingScan = null;
+          }
+          try {
+            manager.stopDeviceScan();
+          } catch {}
           resolve();
+        };
+
+        this.resolvePendingScan = finishScan;
+        this.scanTimeout = setTimeout(() => {
+          console.log('[BLE] Scan done, found', seen.size, 'devices');
+          finishScan();
         }, 10000);
 
         manager.startDeviceScan(null, { allowDuplicates: false }, (error, dev) => {
-          if (error) { clearTimeout(timeout); onError(new Error(error.message)); resolve(); return; }
+          if (error) {
+            onError(new Error(error.message));
+            finishScan();
+            return;
+          }
           if (dev && dev.id && !seen.has(dev.id)) {
             const name = dev.localName || dev.name || '';
             if (name) {
@@ -108,7 +134,16 @@ class BleReaderService {
   }
 
   stopDeviceScan() {
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = null;
+    }
     try { manager.stopDeviceScan(); } catch {}
+    if (this.resolvePendingScan) {
+      const resolveScan = this.resolvePendingScan;
+      this.resolvePendingScan = null;
+      resolveScan();
+    }
   }
 
   async connect(deviceInfo: { id: string }, onTagRead: (tag: RFIDTag) => void): Promise<void> {
@@ -119,7 +154,7 @@ class BleReaderService {
 
     try {
       console.log('[BLE] Connecting to:', deviceId);
-      manager.stopDeviceScan();
+      this.stopDeviceScan();
       await this.disconnect();
       await new Promise(r => setTimeout(r, 100));
 

@@ -1,10 +1,14 @@
-import { useState } from 'react';
 import { bleReaderService } from '../services/ble-reader.service';
 import { useReaderStore } from '../store/reader.store';
 import { RFIDTag } from '../types';
 
 export function useReaderConnection() {
   const { setStatus, addDevice, setConnectedDevice, clearDevices, status } = useReaderStore();
+
+  const syncStatusWithConnection = () => {
+    const { connectedDevice } = useReaderStore.getState();
+    setStatus(connectedDevice || bleReaderService.isConnected() ? 'connected' : 'disconnected');
+  };
 
   const scanDevices = async () => {
     const hasPermission = await bleReaderService.requestPermissions();
@@ -19,6 +23,10 @@ export function useReaderConnection() {
     await bleReaderService.scanDevices(
       (device) => addDevice(device as any),
       (error) => {
+        const { connectedDevice } = useReaderStore.getState();
+        if (connectedDevice || bleReaderService.isConnected()) {
+          return;
+        }
         setStatus('error');
         scanError = error;
       }
@@ -28,7 +36,7 @@ export function useReaderConnection() {
       throw scanError;
     }
 
-    setStatus('disconnected');
+    syncStatusWithConnection();
   };
 
   const connectToDevice = async (device: { id: string }, onTagRead: (tag: RFIDTag) => void) => {
@@ -36,7 +44,7 @@ export function useReaderConnection() {
     try {
       await bleReaderService.connect(device, onTagRead);
       setConnectedDevice(device as any);
-      setStatus('connected');
+      syncStatusWithConnection();
     } catch (error) {
       setStatus('error');
       throw error;
