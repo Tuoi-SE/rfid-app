@@ -3,6 +3,7 @@ import { Tag, LayoutDashboard, Package, History, Users, ClipboardList, Warehouse
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/providers/AuthProvider';
+import { isSuperAdmin } from '@/utils/role-helpers';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -73,7 +74,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Navigation List by Group */}
       <nav className="flex flex-1 flex-col px-4 py-2 gap-5 overflow-y-auto mt-2">
         {menuGroups.map((group, idx) => {
-          if (group.adminOnly && user?.role !== 'ADMIN') return null;
+          if (group.adminOnly && !isSuperAdmin(user?.role)) return null;
 
           return (
             <div key={idx} className="flex flex-col gap-1.5">

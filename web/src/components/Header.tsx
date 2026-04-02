@@ -5,6 +5,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { httpClient } from '@/lib/http/client';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useRef, useEffect } from 'react';
+import { isSuperAdmin, getRoleDisplayName } from '@/utils/role-helpers';
 
 interface SearchResultItem {
   id: string;
@@ -298,7 +299,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const roleText = user?.role === 'ADMIN' ? 'QUẢN TRỊ VIÊN CẤP CAO' : 'NHÂN VIÊN KHO';
+  const roleText = getRoleDisplayName(user?.role);
 
   // Dynamic breadcrumb labels based on routes
   const getPageName = (path: string) => {
@@ -319,7 +320,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
 
   const getStaticResults = (query: string): SearchResultItem[] => {
     const scopedItems = STATIC_SEARCH_ITEMS
-      .filter((item) => !item.adminOnly || user?.role === 'ADMIN')
+      .filter((item) => !item.adminOnly || isSuperAdmin(user?.role))
       .map((item) => ({
         ...item,
         searchText: buildSearchText(item.title, item.subtitle, item.section, ...(item.keywords || [])),
@@ -489,7 +490,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
         ...activityLogs,
         ...stockItems,
       ]
-        .filter((item) => !item.adminOnly || user?.role === 'ADMIN')
+        .filter((item) => !item.adminOnly || isSuperAdmin(user?.role))
         .filter((item) => matchesAllTerms(trimmed, [item.title, item.subtitle, item.section, item.searchText, ...(item.keywords || [])]))
         .map((item, index) => ({
           ...item,
@@ -649,7 +650,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg shadow-slate-200/50 border border-slate-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-2 border-b border-slate-50 mb-1">
                 <p className="text-[13px] font-semibold text-slate-800">{user?.username || 'Admin User'}</p>
-                <p className="text-[10px] text-slate-500 truncate">{user?.role === 'ADMIN' ? 'Phiên làm việc quản trị' : 'Phiên bảo mật kho'}</p>
+                <p className="text-[10px] text-slate-500 truncate">{isSuperAdmin(user?.role) ? 'Phiên làm việc quản trị' : 'Phiên bảo mật kho'}</p>
               </div>
 
               <button

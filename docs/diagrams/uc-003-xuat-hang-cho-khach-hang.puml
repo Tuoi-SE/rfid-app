@@ -1,0 +1,38 @@
+@startuml
+title UC-003 - Xuất hàng cho khách hàng
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+
+rectangle "RFID Asset Tracking System" {
+  usecase "UC-003\nXuất hàng cho\nkhách hàng" as Main
+  usecase "Tạo transfer\nWAREHOUSE_TO_CUSTOMER" as CreateOutbound
+  usecase "Tự động hoàn tất\nchuyển giao" as AutoComplete
+  usecase "Cập nhật asset sang\nOUT_OF_STOCK" as UpdateStatus
+  usecase "Ghi nhận địa điểm\nkhách hàng" as SetDestination
+}
+
+SA --> Main
+SA --> CreateOutbound
+
+Main .> CreateOutbound : <<include>>
+Main .> AutoComplete : <<include>>
+AutoComplete .> UpdateStatus : <<include>>
+AutoComplete .> SetDestination : <<include>>
+
+note right of AutoComplete
+1-step workflow:
+tạo transfer là COMPLETED ngay.
+Không có bước scan verify từ khách hàng.
+end note
+
+note bottom of Main
+Khách hàng là địa điểm đích của chuyển giao,
+không phải actor sử dụng hệ thống trong phạm vi v1.
+end note
+
+@enduml

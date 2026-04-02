@@ -91,6 +91,7 @@ export function UsersTable({
           {users.map((u, i) => {
             const roleDisplay: string = u.role;
             const getRoleBadge = (role: string) => {
+              if (role === 'SUPER_ADMIN') return "bg-[#FEE2E2] text-[#991B1B]";
               if (role === 'ADMIN') return "bg-[#EEF2FF] text-[#04147B]";
               if (role === 'WAREHOUSE_MANAGER') return "bg-[#FFF8E6] text-[#B07300]";
               return "bg-[#EEF2FF] text-[#2454FF]";

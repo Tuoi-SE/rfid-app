@@ -23,7 +23,7 @@ export class ActivityLogController {
   @PolicyDecorator.check((ability) => ability.can('read', 'ActivityLog'))
   @ResponseMessageDecorator.withMessage('Lấy lịch sử hoạt động thành công')
   findAll(@Query() query: QueryActivityLogDto, @Request() req: AuthenticatedRequest) {
-    const isAdmin = req.user.role === Role.ADMIN;
+    const isAdmin = req.user.role === Role.SUPER_ADMIN;
     return this.activityLogService.findAll(query, req.user.id, isAdmin);
   }
 }

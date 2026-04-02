@@ -27,13 +27,13 @@ export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
 
   @Post()
-  @RolesDecorator.allow(Role.ADMIN, Role.WAREHOUSE_MANAGER)
+  @RolesDecorator.allow(Role.SUPER_ADMIN, Role.ADMIN, Role.WAREHOUSE_MANAGER)
   create(@Body() dto: CreateTransferDto, @Request() req: RequestWithUser) {
     return this.transfersService.create(dto, req.user as any);
   }
 
   @Post(':id/confirm')
-  @RolesDecorator.allow(Role.WAREHOUSE_MANAGER)
+  @RolesDecorator.allow(Role.SUPER_ADMIN, Role.WAREHOUSE_MANAGER)
   confirm(
     @Param('id') id: string,
     @Body() dto: ConfirmTransferDto,
@@ -43,7 +43,7 @@ export class TransfersController {
   }
 
   @Post(':id/cancel')
-  @RolesDecorator.allow(Role.ADMIN)
+  @RolesDecorator.allow(Role.SUPER_ADMIN, Role.ADMIN)
   cancel(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.transfersService.cancel(id, req.user as any);
   }

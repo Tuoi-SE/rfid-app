@@ -1,0 +1,41 @@
+@startuml
+title Use Case Overview - Hệ Thống Theo Dõi Tài Sản RFID
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
+actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+
+rectangle "RFID Asset Tracking System" {
+  usecase "UC-001\nGắn RFID tag\ncho sản phẩm mới" as UC1
+  usecase "UC-002\nChuyển hàng\nxưởng -> kho" as UC2
+  usecase "UC-003\nXuất hàng\ncho khách hàng" as UC3
+  usecase "UC-004\nKiểm kê\nhàng ngày" as UC4
+  usecase "Theo dõi quét live /\nweb dashboard" as UCW
+}
+
+TS --> UC1
+SA --> UC2
+WS --> UC2
+SA --> UC3
+WS --> UC4
+SA --> UCW
+TS --> UCW
+WS --> UCW
+
+note bottom of UC1
+TAGGING_STAFF gắn tag tại location ADMIN.
+SUPER_ADMIN có thể phân nhiều account
+cho cùng một batch lớn.
+end note
+
+note bottom of UC2
+SUPER_ADMIN tạo hoặc hủy transfer.
+WAREHOUSE_STAFF scan verify và confirm nhận hàng.
+end note
+
+@enduml

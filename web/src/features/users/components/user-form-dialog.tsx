@@ -45,7 +45,7 @@ const payload = { ...formData };
 if (editItem && !payload.password) {
   delete payload.password;
 }
-if (payload.role === 'ADMIN') {
+if (payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN') {
   payload.locationId = null;
 }
 onSubmit(payload);
@@ -93,10 +93,11 @@ return (
           <option value="STAFF">Nhân viên (STAFF)</option>
           <option value="WAREHOUSE_MANAGER">Quản lý Kho (MANAGER)</option>
           <option value="ADMIN">Quản trị (ADMIN)</option>
+          <option value="SUPER_ADMIN">Quản trị cấp cao (SUPER ADMIN)</option>
         </select>
       </div>
       
-      {formData.role !== 'ADMIN' && (
+      {formData.role !== 'ADMIN' && formData.role !== 'SUPER_ADMIN' && (
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Trực thuộc (Kho/Xưởng) *</label>
           <select

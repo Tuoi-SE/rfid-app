@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { TagsTable } from './tags-table';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 import toast from 'react-hot-toast';
 
 const getStatusBadge = (status: string) => {
@@ -73,7 +74,7 @@ const translateStatus = (status: string | undefined): string => {
 
 export const TagsMain = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
 
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState({});

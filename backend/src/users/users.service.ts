@@ -190,8 +190,8 @@ export class UsersService {
    */
   async remove(id: string, operatorId?: string) {
     const user = await this.findById(id);
-    if (user.role === Role.ADMIN) {
-      const adminCount = await this.prisma.user.count({ where: { role: Role.ADMIN, deletedAt: null } });
+    if (user.role === Role.SUPER_ADMIN) {
+      const adminCount = await this.prisma.user.count({ where: { role: Role.SUPER_ADMIN, deletedAt: null } });
       if (adminCount <= 1) {
         throw new BusinessException('Không thể xóa admin cuối cùng', 'USER_LAST_ADMIN_DELETE_FORBIDDEN');
       }

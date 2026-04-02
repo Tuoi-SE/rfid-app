@@ -19,6 +19,7 @@ export type Subjects =
   | 'Inventory'
   | 'ActivityLog'
   | 'Dashboard'
+  | 'Transfer'
   | 'all';
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
@@ -26,6 +27,9 @@ export type AppAbility = MongoAbility<[Actions, Subjects]>;
 const normalizeRole = (role: Role | string): Role | null => {
   const value = String(role || '').trim().toUpperCase();
 
+  if (value === Role.SUPER_ADMIN || value === 'SUPERADMIN' || value === 'SUPER_ADMIN') {
+    return Role.SUPER_ADMIN;
+  }
   if (value === Role.ADMIN) return Role.ADMIN;
   if (value === Role.STAFF) return Role.STAFF;
   if (value === Role.WAREHOUSE_MANAGER || value === 'MANAGER' || value === 'WAREHOUSEMANAGER') {
@@ -42,12 +46,27 @@ export class CaslAbilityFactory {
     const role = normalizeRole(user.role);
 
     switch (role) {
-      case Role.ADMIN:
+      case Role.SUPER_ADMIN:
         can('manage', 'all');
         break;
 
+      case Role.ADMIN:
+        // Business CRUD — KHÔNG có Dashboard, User, ActivityLog
+        can('manage', 'Category');
+        can('manage', 'Product');
+        can('manage', 'Tag');
+        can('manage', 'Order');
+        can('manage', 'Session');
+        can('manage', 'Scan');
+        can('manage', 'Location');
+        can('manage', 'Inventory');
+        can('read', 'Transfer');
+        can('create', 'Transfer');
+        can('update', 'Transfer');
+        can('delete', 'Transfer');
+        break;
+
       case Role.WAREHOUSE_MANAGER:
-        // Manager thao tác phiếu kho của chính mình (chi tiết ownership check ở service layer)
         can('read', 'Category');
         can('read', 'Product');
         can('read', 'Tag');
@@ -60,16 +79,13 @@ export class CaslAbilityFactory {
         can('read', 'Inventory');
         can('read', 'ActivityLog');
 
-        // Session: được tạo phiên quét
         can('read', 'Session');
         can('create', 'Session');
 
-        // Scan: full quyền quét
         can('manage', 'Scan');
         break;
 
       case Role.STAFF:
-        // Chỉ đọc
         can('read', 'Category');
         can('read', 'Product');
         can('read', 'Tag');
@@ -80,7 +96,6 @@ export class CaslAbilityFactory {
         can('read', 'Inventory');
         can('read', 'ActivityLog');
 
-        // Session & Scan: được tạo / quét
         can('read', 'Session');
         can('create', 'Session');
         can('read', 'Scan');
@@ -91,3 +106,4 @@ export class CaslAbilityFactory {
     return build();
   }
 }
+

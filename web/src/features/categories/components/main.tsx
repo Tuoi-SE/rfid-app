@@ -14,10 +14,11 @@ import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useCategoriesTableLogic } from '../hooks/use-categories-table-logic';
 import { Trash2 } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 
 export const CategoriesMain = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
 
   const [search, setSearch] = useState('');
 

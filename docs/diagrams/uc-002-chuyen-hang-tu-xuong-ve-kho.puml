@@ -1,0 +1,47 @@
+@startuml
+title UC-002 - Chuyển hàng từ xưởng về kho
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "RFID Reader\nST-H103 UHF" as Reader
+
+rectangle "RFID Asset Tracking System" {
+  usecase "UC-002\nChuyển hàng từ\nxưởng về kho" as Main
+  usecase "Tạo transfer\nPENDING" as CreateTransfer
+  usecase "Quét xác nhận\n(scan verify)" as ScanVerify
+  usecase "Xác nhận đã nhận đủ hàng" as ConfirmTransfer
+  usecase "Kiểm tra tất cả items\nđã có scannedAt" as ValidateScanned
+  usecase "Hủy transfer PENDING" as CancelTransfer
+}
+
+SA --> Main
+WS --> Main
+SA --> CreateTransfer
+SA --> CancelTransfer
+WS --> ScanVerify
+WS --> ConfirmTransfer
+Reader --> ScanVerify
+
+Main .> CreateTransfer : <<include>>
+Main .> ScanVerify : <<include>>
+Main .> ConfirmTransfer : <<include>>
+ConfirmTransfer .> ValidateScanned : <<include>>
+CancelTransfer ..> Main : <<extend>>
+
+note bottom of CreateTransfer
+POST /api/transfers
+type = WORKSHOP_TO_WAREHOUSE
+status = PENDING
+end note
+
+note bottom of ConfirmTransfer
+POST /api/transfers/:id/confirm
+Chỉ hoàn tất khi tất cả items đã được quét.
+end note
+
+@enduml

@@ -5,6 +5,7 @@ import { X, Plus, Trash2, Loader2, ClipboardList, Search, ChevronDown } from 'lu
 import { OrderItemForm } from '../types';
 import { createOrder } from '../api/create-order';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 
 interface Product {
   id: string;
@@ -180,7 +181,7 @@ export const CreateOrderModal = ({ onClose, onSuccess }: { onClose: () => void, 
     ownInboundLocation?.children?.forEach((child) => addLocation(child));
 
     // CHỈ CÓ ADMIN mới được quyền thấy toàn bộ mọi Kho tổng để nhập hàng trực tiếp
-    if (user?.role === 'ADMIN') {
+    if (hasAdminAccess(user?.role)) {
       locations
         .filter((location) => location.type === 'WAREHOUSE')
         .forEach((location) => addLocation(location));

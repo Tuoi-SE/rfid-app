@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { Users, Plus, Loader2, ShieldAlert, ShieldCheck, Search, Filter, Trash2, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { isSuperAdmin } from '@/utils/role-helpers';
 import { useUsers } from '../hooks/use-users';
 import { useUserMutations } from '../hooks/use-user-mutations';
 import { useDashboardStats } from '../hooks/use-dashboard-stats';
@@ -67,7 +68,7 @@ export const UsersPageClient = () => {
     const exportData = displayItems.map((u: any) => ({
       'Tài Khoản': u.username,
       'Email': u.email || '',
-      'Vai Trò': u.role === 'ADMIN' ? 'Quản Trị' : u.role === 'WAREHOUSE_MANAGER' ? 'Quản Lý Kho' : 'Nhân Viên',
+      'Vai Trò': u.role === 'SUPER_ADMIN' ? 'Quản Trị Cấp Cao' : u.role === 'ADMIN' ? 'Quản Trị' : u.role === 'WAREHOUSE_MANAGER' ? 'Quản Lý Kho' : 'Nhân Viên',
       'Đại Lý': u.agency ? u.agency.name : 'Văn phòng chính',
       'Trạng Thái': u.deletedAt ? 'Vô hiệu hoá' : 'Hoạt động',
       'Ngày Tạo': u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : ''
@@ -97,7 +98,7 @@ export const UsersPageClient = () => {
     });
   }
 
-  if (currentUser && currentUser.role !== 'ADMIN') {
+  if (currentUser && !isSuperAdmin(currentUser.role)) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-slate-500">
         <ShieldAlert className="w-16 h-16 text-red-100 mb-4" />
@@ -211,9 +212,9 @@ export const UsersPageClient = () => {
             value: roleFilter,
             onChange: setRoleFilter,
             options: [
+              { label: 'Quản trị cấp cao (SUPER ADMIN)', value: 'SUPER_ADMIN' },
               { label: 'Quản trị viên (ADMIN)', value: 'ADMIN' },
               { label: 'Quản lý kho', value: 'WAREHOUSE_MANAGER' },
-              { label: 'Nhân viên xưởng', value: 'WORKSHOP_STAFF' },
               { label: 'Nhân viên', value: 'STAFF' }
             ]
           }

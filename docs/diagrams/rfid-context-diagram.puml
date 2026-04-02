@@ -1,0 +1,71 @@
+@startuml
+title Context Diagram - Hệ Thống Theo Dõi Tài Sản RFID
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+skinparam rectangle {
+  BackgroundColor #F8F9FA
+  BorderColor #2F4858
+}
+
+skinparam database {
+  BackgroundColor #FFF3E0
+  BorderColor #B26A00
+}
+
+skinparam actor {
+  BackgroundColor #EAF4FF
+  BorderColor #2F4858
+}
+
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
+actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "RFID Reader\nST-H103 UHF" as Reader
+actor "Khách hàng /\nĐịa điểm nhận\n(HOTEL / RESORT / SPA)" as Customer
+
+rectangle "RFID Asset Tracking System" as System {
+  rectangle "Web Dashboard" as Web
+  rectangle "Mobile App" as Mobile
+  rectangle "Backend API\n+ WebSocket" as API
+  database "PostgreSQL" as DB
+  rectangle "Redis Cache" as Redis
+
+  Web --> API
+  Mobile --> API
+  API --> DB
+  API --> Redis
+}
+
+SA --> Web : quản lý users/roles,\naudit trail,\nđiều phối batch,\nchuyển giao
+TS --> Web : theo dõi live view,\ntra cứu asset/product\ntrên web theo RBAC
+WS --> Web : theo dõi live view,\ntra cứu tồn kho/chuyển giao\ntrên web theo RBAC
+TS --> Mobile : gắn tag tại\nlocation ADMIN,\nassign asset vào product
+WS --> Mobile : quét, kiểm kê,\nxác nhận nhận hàng
+Reader --> Mobile : BLE scan EPC + RSSI
+API --> Customer : ghi nhận địa điểm nhận hàng\nvà trạng thái giao hàng
+
+note bottom of System
+Web Dashboard, Mobile App, REST API và WebSocket
+được xem là thành phần nội bộ của solution,
+không phải actor bên ngoài.
+Cả 3 role nội bộ đều có thể đăng nhập web;
+route/action cụ thể phụ thuộc RBAC.
+end note
+
+note left of TS
+Nhiều tài khoản TAGGING_STAFF
+có thể được SUPER_ADMIN phân ca
+để xử lý cùng một batch lớn.
+end note
+
+note right of Customer
+Không có customer portal trong phạm vi v1.
+Actor này chỉ đại diện cho địa điểm đích
+của các chuyển giao WAREHOUSE_TO_CUSTOMER.
+end note
+
+@enduml

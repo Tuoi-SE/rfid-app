@@ -27,6 +27,7 @@ import { AssignProductModal } from './assign-product-modal';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { CreateTransferModal } from '@/features/transfers/components/create-transfer-modal';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -39,7 +40,7 @@ interface SessionTableProps {
 export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTableProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [assigningSession, setAssigningSession] = useState<SessionData | null>(null);

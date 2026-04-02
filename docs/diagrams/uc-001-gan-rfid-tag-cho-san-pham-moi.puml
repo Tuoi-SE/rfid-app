@@ -1,0 +1,48 @@
+@startuml
+title UC-001 - Gắn RFID tag cho sản phẩm mới
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
+actor "RFID Reader\nST-H103 UHF" as Reader
+
+rectangle "RFID Asset Tracking System" {
+  usecase "UC-001\nGắn RFID tag\ncho sản phẩm mới" as Main
+  usecase "Tra cứu sản phẩm" as LookupProduct
+  usecase "Quét RFID tag" as ScanTag
+  usecase "Gán asset vào product" as AssignAsset
+  usecase "Kiểm tra EPC hợp lệ\nvà duy nhất" as ValidateEPC
+}
+
+TS --> Main
+Reader --> ScanTag
+
+Main .> LookupProduct : <<include>>
+Main .> ScanTag : <<include>>
+Main .> AssignAsset : <<include>>
+AssignAsset .> ValidateEPC : <<include>>
+
+note right of LookupProduct
+Capability được dùng trong SRS:
+GET /api/products?limit=1000
+Cần được mô tả rõ trong bảng API.
+end note
+
+note bottom of AssignAsset
+PATCH /api/assets/assign
+{ productId, assetIds }
+end note
+
+note bottom of Main
+Sau khi gắn tag và liên kết asset vào product,
+tài sản được bàn giao vật lý xuống WORKSHOP
+để xưởng tiếp tục vận hành.
+Nhiều tài khoản TAGGING_STAFF có thể
+cùng xử lý một batch lớn; mọi thao tác
+đều phải audit theo userId.
+end note
+
+@enduml

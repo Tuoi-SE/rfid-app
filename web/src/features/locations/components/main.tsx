@@ -15,11 +15,12 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useLocationsTableLogic } from '../hooks/use-locations-table-logic';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 import { Pagination } from '@/components/Pagination';
 
 export const LocationsMain = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
 
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);

@@ -1,0 +1,42 @@
+@startuml
+title UC-004 - Kiểm kê hàng ngày
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "RFID Reader\nST-H103 UHF" as Reader
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+
+rectangle "RFID Asset Tracking System" {
+  usecase "UC-004\nKiểm kê hàng ngày" as Main
+  usecase "Quét RFID real-time" as LiveScan
+  usecase "Đồng bộ live scan\nqua WebSocket" as PushUpdate
+  usecase "Phát hiện asset thiếu\n(MISSING)" as DetectMissing
+  usecase "Lưu phiên kiểm kê" as SaveSession
+  usecase "Đồng bộ queue offline\nkhi có mạng lại" as OfflineSync
+  usecase "Theo dõi dashboard\nreal-time" as MonitorDashboard
+}
+
+WS --> Main
+WS --> LiveScan
+WS --> SaveSession
+Reader --> LiveScan
+SA --> MonitorDashboard
+
+Main .> LiveScan : <<include>>
+Main .> DetectMissing : <<include>>
+Main .> SaveSession : <<include>>
+LiveScan .> PushUpdate : <<include>>
+MonitorDashboard .> PushUpdate : <<include>>
+OfflineSync ..> SaveSession : <<extend>>
+
+note bottom of SaveSession
+POST /api/sessions
+Nếu offline, scan queue được lưu trong AsyncStorage
+và đồng bộ lại theo thứ tự FIFO khi có mạng.
+end note
+
+@enduml

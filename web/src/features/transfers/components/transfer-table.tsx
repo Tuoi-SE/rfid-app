@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { TransferData, TransferType, TransferStatus } from '../types';
 import { ArrowRight, CheckCircle2, Clock, XCircle, MapPin, Truck, Edit, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/lib/http/client';
 import { EditTransferModal } from './edit-transfer-modal';
@@ -47,7 +48,7 @@ export const TransferTable: React.FC<TransferTableProps> = ({ transfers }) => {
   });
 
   const isWarehouseManager = user?.role === 'WAREHOUSE_MANAGER';
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
 
   const getSortableValue = (transfer: TransferData, key: SortKey): string | number => {
     switch (key) {

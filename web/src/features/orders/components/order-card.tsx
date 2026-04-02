@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Edit2, Trash2, Eye, MoreVertical, MapPin, User as UserIcon } from 'lucide-react';
 import { Order, OrderItem } from '../types';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 
 interface OrderCardProps {
   order: Order;
@@ -12,7 +13,7 @@ interface OrderCardProps {
 
 export const OrderCard = ({ order, onView, onEdit, onDelete }: OrderCardProps) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
   const canModify = !isAdmin;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);

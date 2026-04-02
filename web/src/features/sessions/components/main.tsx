@@ -9,11 +9,12 @@ import { SessionTable } from './session-table';
 import { SessionDetailsModal } from './session-details-modal';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
+import { isSuperAdmin } from '@/utils/role-helpers';
 import toast from 'react-hot-toast';
 
 export const SessionsMain = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = isSuperAdmin(user?.role);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('');

@@ -14,10 +14,11 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '@/components/BulkActionsBar';
 import { useCategories } from '@/features/categories/hooks/use-categories';
 import { useAuth } from '@/providers/AuthProvider';
+import { hasAdminAccess } from '@/utils/role-helpers';
 
 export const ProductsMain = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasAdminAccess(user?.role);
 
   const [search, setSearch] = useState('');
 
