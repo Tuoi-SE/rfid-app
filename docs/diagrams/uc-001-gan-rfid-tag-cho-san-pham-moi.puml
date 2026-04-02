@@ -1,48 +1,47 @@
 @startuml
-title UC-001 - Gắn RFID tag cho sản phẩm mới
+title UC-001 - Khởi tạo tag và gán vào sản phẩm
 
 left to right direction
 skinparam shadowing false
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
-actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
+actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Admin\n(`ADMIN`)" as AD
 actor "RFID Reader\nST-H103 UHF" as Reader
 
-rectangle "RFID Asset Tracking System" {
-  usecase "UC-001\nGắn RFID tag\ncho sản phẩm mới" as Main
+rectangle "RFID Tracking System" {
+  usecase "UC-001\nKhởi tạo tag\nvà gán product" as Main
+  usecase "Tạo tag trắng" as CreateTag
   usecase "Tra cứu sản phẩm" as LookupProduct
-  usecase "Quét RFID tag" as ScanTag
-  usecase "Gán asset vào product" as AssignAsset
+  usecase "Gán tag vào product" as AssignTag
   usecase "Kiểm tra EPC hợp lệ\nvà duy nhất" as ValidateEPC
+  usecase "Auto-create EPC lạ\nqua scanStream" as AutoCreate
 }
 
-TS --> Main
-Reader --> ScanTag
+SA --> Main
+AD --> Main
+Reader --> AutoCreate
 
+Main .> CreateTag : <<include>>
 Main .> LookupProduct : <<include>>
-Main .> ScanTag : <<include>>
-Main .> AssignAsset : <<include>>
-AssignAsset .> ValidateEPC : <<include>>
+Main .> AssignTag : <<include>>
+CreateTag .> ValidateEPC : <<include>>
+AutoCreate ..> Main : <<extend>>
 
-note right of LookupProduct
-Capability được dùng trong SRS:
-GET /api/products?limit=1000
-Cần được mô tả rõ trong bảng API.
+note bottom of CreateTag
+POST /api/tags
+Policy: create Tag
 end note
 
-note bottom of AssignAsset
-PATCH /api/assets/assign
-{ productId, assetIds }
+note bottom of AssignTag
+PATCH /api/tags/assign
+{ productId, tagIds[] }
 end note
 
-note bottom of Main
-Sau khi gắn tag và liên kết asset vào product,
-tài sản được bàn giao vật lý xuống WORKSHOP
-để xưởng tiếp tục vận hành.
-Nhiều tài khoản TAGGING_STAFF có thể
-cùng xử lý một batch lớn; mọi thao tác
-đều phải audit theo userId.
+note bottom of AutoCreate
+Gateway may auto-create unknown EPCs
+as Tag with status UNASSIGNED.
 end note
 
 @enduml

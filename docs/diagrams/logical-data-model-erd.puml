@@ -1,0 +1,154 @@
+@startuml
+title Logical Data Model / ERD (As-Built)
+left to right direction
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam entity {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  FontColor #0F172A
+}
+
+entity "User" as User {
+  * id : UUID
+  --
+  username : String
+  role : Role
+  locationId : UUID?
+  createdById : UUID?
+}
+
+entity "Location" as Location {
+  * id : UUID
+  --
+  code : String
+  name : String
+  type : LocationType
+  parentId : UUID?
+}
+
+entity "Category" as Category {
+  * id : UUID
+  --
+  name : String
+  createdById : UUID?
+}
+
+entity "Product" as Product {
+  * id : UUID
+  --
+  name : String
+  sku : String?
+  categoryId : UUID
+}
+
+entity "Tag" as Tag {
+  * id : UUID
+  --
+  epc : String
+  productId : UUID?
+  locationId : UUID?
+  status : TagStatus
+}
+
+entity "TagEvent" as TagEvent {
+  * id : UUID
+  --
+  tagId : UUID
+  type : String
+  location : String?
+  userId : UUID?
+}
+
+entity "Order" as Order {
+  * id : UUID
+  --
+  code : String
+  type : OrderType
+  status : OrderStatus
+  locationId : UUID?
+}
+
+entity "OrderItem" as OrderItem {
+  * id : UUID
+  --
+  orderId : UUID
+  productId : UUID
+  quantity : Int
+}
+
+entity "Session" as Session {
+  * id : UUID
+  --
+  name : String
+  userId : UUID?
+  orderId : UUID?
+}
+
+entity "Scan" as Scan {
+  * id : UUID
+  --
+  tagEpc : String
+  sessionId : UUID
+  rssi : Int
+}
+
+entity "Transfer" as Transfer {
+  * id : UUID
+  --
+  code : String
+  type : TransferType
+  status : TransferStatus
+  sourceId : UUID
+  destinationId : UUID
+  createdById : UUID
+}
+
+entity "TransferItem" as TransferItem {
+  * id : UUID
+  --
+  transferId : UUID
+  tagId : UUID
+  scannedAt : DateTime?
+}
+
+entity "ActivityLog" as ActivityLog {
+  * id : UUID
+  --
+  userId : UUID
+  entity : String
+  action : String
+  entityId : UUID?
+}
+
+Location ||--o{ User : locationId
+Location ||--o{ Location : parentId
+User ||--o{ Category : createdById
+Category ||--o{ Product : categoryId
+Product ||--o{ Tag : productId
+Location ||--o{ Tag : locationId
+Tag ||--o{ TagEvent : tagId
+Location ||--o{ Order : locationId
+Order ||--o{ OrderItem : orderId
+Product ||--o{ OrderItem : productId
+User ||--o{ Session : userId
+Order ||--o{ Session : orderId
+Tag ||--o{ Scan : epc -> tagEpc
+Session ||--o{ Scan : sessionId
+User ||--o{ Transfer : createdById
+Location ||--o{ Transfer : sourceId
+Location ||--o{ Transfer : destinationId
+Transfer ||--o{ TransferItem : transferId
+Tag ||--o{ TransferItem : tagId
+User ||--o{ ActivityLog : userId
+
+note bottom of TagEvent
+Current schema stores `location`
+and `userId` as scalar fields,
+not full FK relations.
+end note
+
+@enduml

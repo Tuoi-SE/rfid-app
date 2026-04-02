@@ -1,42 +1,55 @@
 @startuml
-title UC-004 - Kiểm kê hàng ngày
+title UC-004 - Session và live scan
 
 left to right direction
 skinparam shadowing false
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
-actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
-actor "RFID Reader\nST-H103 UHF" as Reader
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Warehouse Manager\n(`WAREHOUSE_MANAGER`)" as WM
+actor "Staff\n(`STAFF`)" as ST
+actor "RFID Reader\nST-H103 UHF" as Reader
 
-rectangle "RFID Asset Tracking System" {
-  usecase "UC-004\nKiểm kê hàng ngày" as Main
-  usecase "Quét RFID real-time" as LiveScan
-  usecase "Đồng bộ live scan\nqua WebSocket" as PushUpdate
-  usecase "Phát hiện asset thiếu\n(MISSING)" as DetectMissing
-  usecase "Lưu phiên kiểm kê" as SaveSession
-  usecase "Đồng bộ queue offline\nkhi có mạng lại" as OfflineSync
-  usecase "Theo dõi dashboard\nreal-time" as MonitorDashboard
+rectangle "RFID Tracking System" {
+  usecase "UC-004\nSession và\nlive scan" as Main
+  usecase "Tạo session" as CreateSession
+  usecase "Gửi scanStream /\nliveScan" as SendScan
+  usecase "Nhận scanDetected" as ReceiveScan
+  usecase "Auto-create EPC lạ" as AutoCreate
+  usecase "Assign product cho session" as AssignSessionProduct
 }
 
-WS --> Main
-WS --> LiveScan
-WS --> SaveSession
-Reader --> LiveScan
-SA --> MonitorDashboard
+WM --> Main
+ST --> Main
+WM --> CreateSession
+ST --> CreateSession
+Reader --> SendScan
 
-Main .> LiveScan : <<include>>
-Main .> DetectMissing : <<include>>
-Main .> SaveSession : <<include>>
-LiveScan .> PushUpdate : <<include>>
-MonitorDashboard .> PushUpdate : <<include>>
-OfflineSync ..> SaveSession : <<extend>>
+Main .> CreateSession : <<include>>
+Main .> SendScan : <<include>>
+SendScan .> ReceiveScan : <<include>>
+ReceiveScan .> AutoCreate : <<include>>
+AssignSessionProduct ..> Main : <<extend>>
 
-note bottom of SaveSession
+note bottom of CreateSession
 POST /api/sessions
-Nếu offline, scan queue được lưu trong AsyncStorage
-và đồng bộ lại theo thứ tự FIFO khi có mạng.
+Trong UC-004 chi the hien
+WAREHOUSE_MANAGER va STAFF
+la nguoi tao session van hanh.
+end note
+
+note bottom of ReceiveScan
+Moi websocket client co JWT hop le
+deu join room scan:live va nhan scanDetected.
+inventoryUpdate la luong rieng cua
+room admin:dashboard cho role ADMIN.
+end note
+
+note bottom of AssignSessionProduct
+PATCH /api/sessions/:id/assign-product
+Khong thuoc flow chinh cua UC-004.
+Neu can, co the mo ta o use case rieng.
 end note
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml
-title Context Diagram - Hệ Thống Theo Dõi Tài Sản RFID
+title Context Diagram - RFID Tracking System (As-Built)
 
 left to right direction
 skinparam shadowing false
@@ -22,15 +22,16 @@ skinparam actor {
 }
 
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
-actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
-actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "Admin\n(`ADMIN`)" as AD
+actor "Warehouse Manager\n(`WAREHOUSE_MANAGER`)" as WM
+actor "Staff\n(`STAFF`)" as ST
 actor "RFID Reader\nST-H103 UHF" as Reader
-actor "Khách hàng /\nĐịa điểm nhận\n(HOTEL / RESORT / SPA)" as Customer
+actor "Customer Location\n(HOTEL / RESORT /\nSPA / CUSTOMER)" as Customer
 
-rectangle "RFID Asset Tracking System" as System {
+rectangle "RFID Tracking System" as System {
   rectangle "Web Dashboard" as Web
   rectangle "Mobile App" as Mobile
-  rectangle "Backend API\n+ WebSocket" as API
+  rectangle "Backend API\n+ Socket.IO" as API
   database "PostgreSQL" as DB
   rectangle "Redis Cache" as Redis
 
@@ -40,32 +41,35 @@ rectangle "RFID Asset Tracking System" as System {
   API --> Redis
 }
 
-SA --> Web : quản lý users/roles,\naudit trail,\nđiều phối batch,\nchuyển giao
-TS --> Web : theo dõi live view,\ntra cứu asset/product\ntrên web theo RBAC
-WS --> Web : theo dõi live view,\ntra cứu tồn kho/chuyển giao\ntrên web theo RBAC
-TS --> Mobile : gắn tag tại\nlocation ADMIN,\nassign asset vào product
-WS --> Mobile : quét, kiểm kê,\nxác nhận nhận hàng
-Reader --> Mobile : BLE scan EPC + RSSI
-API --> Customer : ghi nhận địa điểm nhận hàng\nvà trạng thái giao hàng
+SA --> Web : user management,\ndashboard summary,\nfull system access
+AD --> Web : manage category,\nproduct, tag, location,\ninventory, transfer
+AD --> Mobile : live scan,\norders, sessions
+WM --> Web : orders, transfers,\ninventory, activity logs
+WM --> Mobile : sessions, scans,\nconfirm transfer
+ST --> Web : read catalog,\nlogs theo policy
+ST --> Mobile : create order,\nsession, scan
+Reader --> Mobile : BLE EPC + RSSI
+API --> Customer : lưu destination cho\nWAREHOUSE_TO_CUSTOMER
 
 note bottom of System
-Web Dashboard, Mobile App, REST API và WebSocket
-được xem là thành phần nội bộ của solution,
-không phải actor bên ngoài.
-Cả 3 role nội bộ đều có thể đăng nhập web;
-route/action cụ thể phụ thuộc RBAC.
+Current source is tag-centric:
+core entities are Tag, Transfer, Order,
+Session, Scan, ActivityLog.
 end note
 
-note left of TS
-Nhiều tài khoản TAGGING_STAFF
-có thể được SUPER_ADMIN phân ca
-để xử lý cùng một batch lớn.
+note right of Web
+Dashboard summary REST endpoint
+is guarded by CASL `read Dashboard`
+and effectively belongs to SUPER_ADMIN.
+Moi websocket client hop le deu join scan:live.
+Socket room `admin:dashboard`
+is currently keyed by JWT role ADMIN.
 end note
 
 note right of Customer
-Không có customer portal trong phạm vi v1.
-Actor này chỉ đại diện cho địa điểm đích
-của các chuyển giao WAREHOUSE_TO_CUSTOMER.
+No customer portal in v1.
+Customer is represented as
+destination location only.
 end note
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml
-title Use Case Overview - Hệ Thống Theo Dõi Tài Sản RFID
+title Use Case Overview - RFID Tracking System (As-Built)
 
 left to right direction
 skinparam shadowing false
@@ -7,42 +7,58 @@ skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
-actor "Nhân viên gắn tag\n(`TAGGING_STAFF`)" as TS
-actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "Admin\n(`ADMIN`)" as AD
+actor "Warehouse Manager\n(`WAREHOUSE_MANAGER`)" as WM
+actor "Staff\n(`STAFF`)" as ST
 
-rectangle "RFID Asset Tracking System" {
-  usecase "UC-001\nGắn RFID tag\ncho sản phẩm mới" as UC1
-  usecase "UC-002\nChuyển hàng\nxưởng -> kho" as UC2
-  usecase "UC-003\nXuất hàng\ncho khách hàng" as UC3
-  usecase "UC-004\nKiểm kê\nhàng ngày" as UC4
-  usecase "Theo dõi quét live /\nweb dashboard" as UCW
+rectangle "RFID Tracking System" {
+  usecase "UC-001\nKhởi tạo tag\nvà gán product" as UC1
+  usecase "UC-002\nĐiều chuyển nội bộ\nADMIN/WORKSHOP" as UC2
+  usecase "UC-003\nXuất kho\ncho khách hàng" as UC3
+  usecase "UC-004\nSession và\nlive scan" as UC4
+  usecase "Dashboard /\nUser /\nAudit" as UCW
 }
 
-TS --> UC1
 SA --> UC2
-WS --> UC2
 SA --> UC3
-WS --> UC3
-WS --> UC4
 SA --> UCW
-TS --> UCW
-WS --> UCW
+SA --> UC1
+AD --> UC1
+WM --> UC2
+WM --> UC3
+WM --> UC4
+ST --> UC4
 
 note bottom of UC1
-TAGGING_STAFF gắn tag tại location ADMIN.
-SUPER_ADMIN có thể phân nhiều account
-cho cùng một batch lớn.
+Implemented with /api/tags
+and /api/tags/assign.
+SUPER_ADMIN và ADMIN đều có thể
+khởi tạo tag và gán product.
+Core entity is Tag, not Asset.
 end note
 
 note bottom of UC2
-SUPER_ADMIN hoặc WAREHOUSE_STAFF tạo transfer.
-SUPER_ADMIN hủy transfer.
-WAREHOUSE_STAFF scan verify và confirm nhận hàng.
+Transfer types:
+ADMIN_TO_WORKSHOP
+WORKSHOP_TO_WAREHOUSE
+Actor trong UC-002:
+SUPER_ADMIN va WAREHOUSE_MANAGER.
 end note
 
 note bottom of UC3
-SUPER_ADMIN hoặc WAREHOUSE_STAFF tạo transfer.
-Hệ thống tự hoàn tất và cập nhật OUT_OF_STOCK.
+SUPER_ADMIN hoặc WAREHOUSE_MANAGER
+tạo WAREHOUSE_TO_CUSTOMER.
+Transfer tạo ra COMPLETED ngay.
+Neu can reverse sau do,
+source hien dung admin recovery flow rieng.
+end note
+
+note bottom of UC4
+scanStream may auto-create unknown EPCs.
+Actor trong UC-004:
+WAREHOUSE_MANAGER va STAFF la nguoi van hanh.
+scanDetected di qua room scan:live;
+inventoryUpdate di qua room admin:dashboard.
 end note
 
 @enduml

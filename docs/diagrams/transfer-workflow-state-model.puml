@@ -1,5 +1,5 @@
 @startuml
-title Transfer Workflow State Model
+title Transfer Workflow State Model (As-Built)
 left to right direction
 
 skinparam shadowing false
@@ -12,27 +12,53 @@ skinparam state {
   FontColor #0F172A
 }
 
+state "ADMIN_TO_WORKSHOP" as ADMIN_TO_WORKSHOP {
+  state "PENDING" as A2W_PENDING #FEF3C7
+  state "COMPLETED" as A2W_COMPLETED #DCFCE7
+  state "CANCELLED" as A2W_CANCELLED #FEE2E2
+
+  [*] --> A2W_PENDING : SUPER_ADMIN / ADMIN /\nWAREHOUSE_MANAGER creates
+  A2W_PENDING --> A2W_COMPLETED : SUPER_ADMIN /\nWAREHOUSE_MANAGER confirms
+  A2W_PENDING --> A2W_CANCELLED : ADMIN cancels
+  A2W_COMPLETED --> [*]
+  A2W_CANCELLED --> [*]
+}
+
 state "WORKSHOP_TO_WAREHOUSE" as WORKSHOP_TO_WAREHOUSE {
   state "PENDING" as W2W_PENDING #FEF3C7
   state "COMPLETED" as W2W_COMPLETED #DCFCE7
   state "CANCELLED" as W2W_CANCELLED #FEE2E2
 
-  [*] --> W2W_PENDING : SUPER_ADMIN or\nWAREHOUSE_STAFF creates
-  W2W_PENDING --> W2W_COMPLETED : WAREHOUSE_STAFF confirms
-  W2W_PENDING --> W2W_CANCELLED : SUPER_ADMIN cancels
+  [*] --> W2W_PENDING : SUPER_ADMIN / ADMIN /\nWAREHOUSE_MANAGER creates
+  W2W_PENDING --> W2W_COMPLETED : SUPER_ADMIN /\nWAREHOUSE_MANAGER confirms
+  W2W_PENDING --> W2W_CANCELLED : ADMIN cancels
   W2W_COMPLETED --> [*]
   W2W_CANCELLED --> [*]
 }
 
 state "WAREHOUSE_TO_CUSTOMER" as WAREHOUSE_TO_CUSTOMER {
   state "COMPLETED" as W2C_COMPLETED #DCFCE7
+  state "CANCELLED" as W2C_CANCELLED #FEE2E2
 
-  [*] --> W2C_COMPLETED : SUPER_ADMIN or\nWAREHOUSE_STAFF creates
+  [*] --> W2C_COMPLETED : SUPER_ADMIN /\nWAREHOUSE_MANAGER creates
+  W2C_COMPLETED --> W2C_CANCELLED : ADMIN cancels
   W2C_COMPLETED --> [*]
+  W2C_CANCELLED --> [*]
 }
 
+note right of ADMIN_TO_WORKSHOP
+Source must be ADMIN
+Destination must be WORKSHOP
+end note
+
+note right of WORKSHOP_TO_WAREHOUSE
+Source must be WORKSHOP_WAREHOUSE
+Destination must be WAREHOUSE
+end note
+
 note right of W2C_COMPLETED
-Asset status = OUT_OF_STOCK
+locationId = destination
+Tag.status = COMPLETED
 end note
 
 @enduml

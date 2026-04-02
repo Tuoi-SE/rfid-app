@@ -1,49 +1,46 @@
 @startuml
-title UC-002 - Chuyển hàng từ xưởng về kho
+title UC-002 - Dieu chuyen noi bo
 
-left to right direction
+top to bottom direction
 skinparam shadowing false
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
-actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "Warehouse Manager\n(`WAREHOUSE_MANAGER`)" as WM
 actor "RFID Reader\nST-H103 UHF" as Reader
 
-rectangle "RFID Asset Tracking System" {
-  usecase "UC-002\nChuyển hàng từ\nxưởng về kho" as Main
-  usecase "Tạo transfer\nPENDING" as CreateTransfer
-  usecase "Quét xác nhận\n(scan verify)" as ScanVerify
-  usecase "Xác nhận đã nhận đủ hàng" as ConfirmTransfer
-  usecase "Kiểm tra tất cả items\nđã có scannedAt" as ValidateScanned
-  usecase "Hủy transfer PENDING" as CancelTransfer
+rectangle "RFID Tracking System" {
+  usecase "UC-002\nDieu chuyen noi bo" as Main
+  usecase "Tao transfer\nPENDING" as CreateTransfer
+  usecase "Validate source /\ndestination theo type" as ValidateType
+  usecase "Scan verify" as ScanVerify
+  usecase "Confirm transfer" as ConfirmTransfer
+  usecase "Danh dau tag thieu\nla MISSING" as MarkMissing
 }
 
 SA --> Main
-WS --> Main
-SA --> CreateTransfer
-WS --> CreateTransfer
-SA --> CancelTransfer
-WS --> ScanVerify
-WS --> ConfirmTransfer
+WM --> Main
 Reader --> ScanVerify
 
 Main .> CreateTransfer : <<include>>
-Main .> ScanVerify : <<include>>
+CreateTransfer .> ValidateType : <<include>>
 Main .> ConfirmTransfer : <<include>>
-ConfirmTransfer .> ValidateScanned : <<include>>
-CancelTransfer ..> Main : <<extend>>
+ConfirmTransfer .> ScanVerify : <<include>>
+ConfirmTransfer .> MarkMissing : <<include>>
 
-note bottom of CreateTransfer
-POST /api/transfers
-type = WORKSHOP_TO_WAREHOUSE
-status = PENDING
-createdBy = SUPER_ADMIN or WAREHOUSE_STAFF
+note bottom of Main
+UC-002 chi the hien operational workflow.
+SUPER_ADMIN va WAREHOUSE_MANAGER
+tao va confirm transfer noi bo.
 end note
 
-note bottom of ConfirmTransfer
-POST /api/transfers/:id/confirm
-Chỉ hoàn tất khi tất cả items đã được quét.
+note bottom of ValidateType
+ADMIN_TO_WORKSHOP:
+ADMIN -> WORKSHOP
+
+WORKSHOP_TO_WAREHOUSE:
+WORKSHOP_WAREHOUSE -> WAREHOUSE
 end note
 
 @enduml

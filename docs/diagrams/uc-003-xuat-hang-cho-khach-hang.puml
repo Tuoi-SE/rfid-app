@@ -7,20 +7,20 @@ skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
-actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
+actor "Warehouse Manager\n(`WAREHOUSE_MANAGER`)" as WM
 
-rectangle "RFID Asset Tracking System" {
+rectangle "RFID Tracking System" {
   usecase "UC-003\nXuất hàng cho\nkhách hàng" as Main
   usecase "Tạo transfer\nWAREHOUSE_TO_CUSTOMER" as CreateOutbound
-  usecase "Tự động hoàn tất\nchuyển giao" as AutoComplete
-  usecase "Cập nhật asset sang\nOUT_OF_STOCK" as UpdateStatus
-  usecase "Ghi nhận địa điểm\nkhách hàng" as SetDestination
+  usecase "Tự động COMPLETED" as AutoComplete
+  usecase "Cập nhật Tag.status\n= COMPLETED" as UpdateStatus
+  usecase "Ghi nhận destination\nHOTEL/RESORT/SPA/CUSTOMER" as SetDestination
 }
 
 SA --> Main
+WM --> Main
 SA --> CreateOutbound
-WS --> Main
-WS --> CreateOutbound
+WM --> CreateOutbound
 
 Main .> CreateOutbound : <<include>>
 Main .> AutoComplete : <<include>>
@@ -29,19 +29,15 @@ AutoComplete .> SetDestination : <<include>>
 
 note right of AutoComplete
 1-step workflow:
-tạo transfer là COMPLETED ngay.
-Không có bước scan verify từ khách hàng.
-end note
-
-note bottom of CreateOutbound
-POST /api/transfers
-type = WAREHOUSE_TO_CUSTOMER
-createdBy = SUPER_ADMIN or WAREHOUSE_STAFF
+status = COMPLETED ngay khi create.
+TransferItem.scannedAt cũng được set ngay.
 end note
 
 note bottom of Main
-Khách hàng là địa điểm đích của chuyển giao,
-không phải actor sử dụng hệ thống trong phạm vi v1.
+UC-003 chi the hien actor tao outbound:
+SUPER_ADMIN va WAREHOUSE_MANAGER.
+Neu can reverse sau khi COMPLETED,
+source hien dung luong cancel rieng do ADMIN thuc hien.
 end note
 
 @enduml
