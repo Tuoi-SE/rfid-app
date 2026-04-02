@@ -8,6 +8,7 @@ import { OrderDetailsModal } from './order-details-modal';
 import { deleteOrder } from '../api/delete-order';
 
 import { useAuth } from '@/providers/AuthProvider';
+import { isSuperAdmin } from '@/utils/role-helpers';
 import toast from 'react-hot-toast';
 
 interface OrderListProps {
@@ -20,6 +21,7 @@ interface OrderListProps {
 export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: OrderListProps) => {
   const { user } = useAuth();
   const isManager = user?.role === 'WAREHOUSE_MANAGER';
+  const canCreate = isManager || isSuperAdmin(user?.role);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: Ord
         </div>
         <p className="text-slate-500 font-bold text-lg mb-1">Chưa có giao dịch kho</p>
         <p className="text-slate-400 text-sm mb-6">Hãy tạo một phiếu nhập hoặc xuất để bắt đầu.</p>
-        {isManager && onCreateRequest && (
+        {canCreate && onCreateRequest && (
           <button
             onClick={onCreateRequest}
             className="px-6 py-3 bg-amber-50 text-amber-700 font-bold text-sm rounded-xl hover:bg-amber-100 transition-colors"

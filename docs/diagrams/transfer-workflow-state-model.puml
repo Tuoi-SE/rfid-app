@@ -1,0 +1,38 @@
+@startuml
+title Transfer Workflow State Model
+left to right direction
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam state {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+  FontColor #0F172A
+}
+
+state "WORKSHOP_TO_WAREHOUSE" as WORKSHOP_TO_WAREHOUSE {
+  state "PENDING" as W2W_PENDING #FEF3C7
+  state "COMPLETED" as W2W_COMPLETED #DCFCE7
+  state "CANCELLED" as W2W_CANCELLED #FEE2E2
+
+  [*] --> W2W_PENDING : SUPER_ADMIN creates
+  W2W_PENDING --> W2W_COMPLETED : WAREHOUSE_STAFF confirms
+  W2W_PENDING --> W2W_CANCELLED : SUPER_ADMIN cancels
+  W2W_COMPLETED --> [*]
+  W2W_CANCELLED --> [*]
+}
+
+state "WAREHOUSE_TO_CUSTOMER" as WAREHOUSE_TO_CUSTOMER {
+  state "COMPLETED" as W2C_COMPLETED #DCFCE7
+
+  [*] --> W2C_COMPLETED : SUPER_ADMIN creates
+  W2C_COMPLETED --> [*]
+}
+
+note right of W2C_COMPLETED
+Asset status = OUT_OF_STOCK
+end note
+
+@enduml

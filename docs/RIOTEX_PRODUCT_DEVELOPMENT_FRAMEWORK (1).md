@@ -142,7 +142,7 @@ Tài liệu này dành cho:
 
 | Actor / Role | Primary Responsibility | Channels |
 |--------------|------------------------|----------|
-| `SUPER_ADMIN` | Quản lý users/roles, audit, điều phối batch tagging, tạo/hủy transfer, xem dashboard tổng hợp | Web |
+| `SUPER_ADMIN` | Quản lý users/roles, audit, điều phối batch tagging, tạo/hủy transfer, xem dashboard tổng hợp | Web, Mobile |
 | `TAGGING_STAFF` | Gắn tag tại location `ADMIN`, tạo/assign asset, theo dõi quét live | Web, Mobile |
 | `WAREHOUSE_STAFF` | Scan verify, kiểm kê, confirm transfer, theo dõi tồn kho và live view | Web, Mobile |
 | RFID Reader | Cung cấp EPC + RSSI qua BLE | Mobile integration |
@@ -163,7 +163,7 @@ Tài liệu này dành cho:
 
 #### BP-03: Chuyển giao `WORKSHOP_TO_WAREHOUSE`
 
-1. `SUPER_ADMIN` tạo transfer ở trạng thái `PENDING`.
+1. `WAREHOUSE_STAFF` tạo transfer ở trạng thái `PENDING`.
 2. `WAREHOUSE_STAFF` scan verify tại kho đích.
 3. Chỉ khi tất cả item đã được quét, transfer mới được confirm.
 
@@ -181,16 +181,10 @@ Tài liệu này dành cho:
 
 #### Transfer Workflow State Model
 
-```text
-WORKSHOP_TO_WAREHOUSE
+**PlantUML source**
+- [`transfer-workflow-state-model.puml`](./diagrams/transfer-workflow-state-model.puml)
 
-START --SUPER_ADMIN creates--> PENDING --WAREHOUSE_STAFF confirms--> COMPLETED
-PENDING --SUPER_ADMIN cancels--> CANCELLED
-
-WAREHOUSE_TO_CUSTOMER
-
-START --SUPER_ADMIN creates--> COMPLETED
-```
+![Figure 2-2. Transfer Workflow State Model](./images/diagrams/transfer-workflow-state-model.png)
 
 ### 2.5 Assumptions & Dependencies
 
