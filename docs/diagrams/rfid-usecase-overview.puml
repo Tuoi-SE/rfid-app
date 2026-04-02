@@ -22,6 +22,7 @@ TS --> UC1
 SA --> UC2
 WS --> UC2
 SA --> UC3
+WS --> UC3
 WS --> UC4
 SA --> UCW
 TS --> UCW
@@ -34,8 +35,14 @@ cho cùng một batch lớn.
 end note
 
 note bottom of UC2
-SUPER_ADMIN tạo hoặc hủy transfer.
+SUPER_ADMIN hoặc WAREHOUSE_STAFF tạo transfer.
+SUPER_ADMIN hủy transfer.
 WAREHOUSE_STAFF scan verify và confirm nhận hàng.
+end note
+
+note bottom of UC3
+SUPER_ADMIN hoặc WAREHOUSE_STAFF tạo transfer.
+Hệ thống tự hoàn tất và cập nhật OUT_OF_STOCK.
 end note
 
 @enduml

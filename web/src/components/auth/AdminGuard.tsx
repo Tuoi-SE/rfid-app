@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/providers/AuthProvider';
+import { isSuperAdmin } from '@/utils/role-helpers';
 import { Loader2 } from 'lucide-react';
 
 export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
@@ -14,8 +15,8 @@ export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
     if (!isLoading) {
       if (!user) {
         router.replace('/login');
-      } else if (user.role !== 'ADMIN') {
-        router.replace('/sessions'); // Redirect non-admins to sessions page
+      } else if (!isSuperAdmin(user.role)) {
+        router.replace('/sessions'); // Redirect non-super-admins to sessions page
       }
     }
   }, [isLoading, user, router]);
@@ -29,8 +30,8 @@ export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Only render children if user exists AND is an ADMIN
-  if (!user || user.role !== 'ADMIN') {
+  // Only render children if user exists AND is a SUPER_ADMIN
+  if (!user || !isSuperAdmin(user.role)) {
     return null; // Return null while redirecting
   }
 

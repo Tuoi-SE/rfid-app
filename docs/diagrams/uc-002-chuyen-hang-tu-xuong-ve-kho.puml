@@ -22,6 +22,7 @@ rectangle "RFID Asset Tracking System" {
 SA --> Main
 WS --> Main
 SA --> CreateTransfer
+WS --> CreateTransfer
 SA --> CancelTransfer
 WS --> ScanVerify
 WS --> ConfirmTransfer
@@ -37,6 +38,7 @@ note bottom of CreateTransfer
 POST /api/transfers
 type = WORKSHOP_TO_WAREHOUSE
 status = PENDING
+createdBy = SUPER_ADMIN or WAREHOUSE_STAFF
 end note
 
 note bottom of ConfirmTransfer

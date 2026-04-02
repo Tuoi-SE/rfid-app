@@ -7,6 +7,7 @@ skinparam actorStyle awesome
 skinparam packageStyle rectangle
 
 actor "Super Admin\n(`SUPER_ADMIN`)" as SA
+actor "Nhân viên kho\n(`WAREHOUSE_STAFF`)" as WS
 
 rectangle "RFID Asset Tracking System" {
   usecase "UC-003\nXuất hàng cho\nkhách hàng" as Main
@@ -18,6 +19,8 @@ rectangle "RFID Asset Tracking System" {
 
 SA --> Main
 SA --> CreateOutbound
+WS --> Main
+WS --> CreateOutbound
 
 Main .> CreateOutbound : <<include>>
 Main .> AutoComplete : <<include>>
@@ -28,6 +31,12 @@ note right of AutoComplete
 1-step workflow:
 tạo transfer là COMPLETED ngay.
 Không có bước scan verify từ khách hàng.
+end note
+
+note bottom of CreateOutbound
+POST /api/transfers
+type = WAREHOUSE_TO_CUSTOMER
+createdBy = SUPER_ADMIN or WAREHOUSE_STAFF
 end note
 
 note bottom of Main
