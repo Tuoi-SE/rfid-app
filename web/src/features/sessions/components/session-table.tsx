@@ -27,7 +27,7 @@ import { AssignProductModal } from './assign-product-modal';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { CreateTransferModal } from '@/features/transfers/components/create-transfer-modal';
 import { useAuth } from '@/providers/AuthProvider';
-import { hasAdminAccess } from '@/utils/role-helpers';
+import { hasAdminAccess, isSuperAdmin } from '@/utils/role-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -41,6 +41,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = hasAdminAccess(user?.role);
+  const superAdmin = isSuperAdmin(user?.role);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [assigningSession, setAssigningSession] = useState<SessionData | null>(null);
@@ -341,7 +342,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
         const canAssign = isAdmin || hasUnassigned;
         const canTransfer = !isFullyUnassigned;
 
-        if (isTransferred) {
+        if (isTransferred && !superAdmin) {
           return (
             <div className="flex items-center gap-1 justify-end min-w-[100px] opacity-50 group-hover:opacity-100 transition-opacity">
               <button 
@@ -506,7 +507,7 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
                 const hasAssigned = session.hasAssignedTags === true;
                 const isFullyUnassigned = hasUnassigned && !hasAssigned;
                 const isTransferred = isSessionTransferred(session);
-                return !isFullyUnassigned && !isTransferred;
+                return !isFullyUnassigned && (!isTransferred || superAdmin);
               });
 
               if (transferableSessions.length === 0) {
