@@ -49,7 +49,7 @@ export class SessionsController {
   @PolicyDecorator.check((ability) => ability.can('update', 'Session'))
   @ResponseMessageDecorator.withMessage('Gán sản phẩm cho phiên quét hàng loạt thành công')
   async assignProduct(@Param('id') id: string, @Body() dto: AssignSessionProductDto, @Request() req: AuthenticatedRequest) {
-    const result = await this.sessionsService.assignProductToSession(id, dto.productId, req.user.id, dto.strategy);
+    const result = await this.sessionsService.assignProductToSession(id, dto.productId, req.user as any, dto.strategy);
     this.eventsGateway.emitTagsUpdated();
     return result;
   }

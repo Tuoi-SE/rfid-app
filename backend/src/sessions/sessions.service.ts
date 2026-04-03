@@ -118,7 +118,7 @@ export class SessionsService {
   async assignProductToSession(
     sessionId: string,
     productId: string,
-    userId: string,
+    user: { id: string; role: string },
     strategy?: AssignSessionStrategy,
   ) {
     // Check if session exists and fetch associated scans
@@ -143,32 +143,37 @@ export class SessionsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const lockedTransfer = await tx.transferItem.findFirst({
+      const exportedTag = await tx.tag.findFirst({
         where: {
-          tag: { epc: { in: uniqueEpcs } },
-          transfer: { status: { in: [TransferStatus.PENDING, TransferStatus.COMPLETED] } },
-        },
-        select: {
-          tag: { select: { epc: true } },
-          transfer: { select: { code: true, status: true } },
-        },
+          epc: { in: uniqueEpcs },
+          status: TagStatus.COMPLETED
+        }
       });
 
-      if (lockedTransfer) {
+      if (exportedTag) {
         throw new BusinessException(
-          `Phiên đã có thẻ nằm trong phiếu điều chuyển ${lockedTransfer.transfer.code} (${lockedTransfer.transfer.status}), không thể cập nhật lại sản phẩm gán.`,
-          'SESSION_TRANSFER_LOCKED',
+          `Phiên quét chứa thẻ đã được xuất bán cho khách hàng (${exportedTag.epc}), không thể cập nhật lại sản phẩm gán.`,
+          'SESSION_TAG_ALREADY_EXPORTED',
           HttpStatus.CONFLICT,
         );
       }
 
       const tagsInSession = await tx.tag.findMany({
         where: { epc: { in: uniqueEpcs }, deletedAt: null },
-        select: { id: true, epc: true, productId: true },
+        select: { id: true, epc: true, productId: true, status: true },
       });
 
       const assignedTags = tagsInSession.filter((tag) => !!tag.productId);
       const unassignedTags = tagsInSession.filter((tag) => !tag.productId);
+      
+      if (assignedTags.length > 0 && user.role !== 'SUPER_ADMIN') {
+        throw new BusinessException(
+          'Chỉ Siêu Quản trị viên (SUPER_ADMIN) mới có quyền cập nhật/sửa lỗi sản phẩm của những thẻ đã được gán từ trước.',
+          'SESSION_REASSIGN_PERMISSION_DENIED',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
       const hasMixedAssignment = assignedTags.length > 0 && unassignedTags.length > 0;
 
       const effectiveStrategy: AssignSessionStrategy | null =
@@ -216,20 +221,38 @@ export class SessionsService {
         };
       }
 
-      const tagsToUpdate = await tx.tag.findMany({
-        where: { epc: { in: targetEpcs }, deletedAt: null },
-        select: { id: true },
-      });
-      const tagIds = tagsToUpdate.map((tag) => tag.id);
+      const tagsToUpdate = tagsInSession.filter(t => targetEpcs.includes(t.epc));
+      const tagIds = tagsToUpdate.map((t) => t.id);
 
-      const updateResult = await tx.tag.updateMany({
-        where: { epc: { in: targetEpcs }, deletedAt: null },
-        data: {
-          productId: productId,
-          status: TagStatus.IN_WORKSHOP,
-          updatedById: userId,
-        },
-      });
+      const registeredTags = tagsToUpdate.filter(t => t.status === TagStatus.UNASSIGNED);
+      const otherTags = tagsToUpdate.filter(t => t.status !== TagStatus.UNASSIGNED);
+
+      let updateCount = 0;
+
+      if (registeredTags.length > 0) {
+        const res = await tx.tag.updateMany({
+          where: { epc: { in: registeredTags.map(t => t.epc) }, deletedAt: null },
+          data: {
+            productId: productId,
+            status: TagStatus.IN_WORKSHOP,
+            updatedById: user.id,
+          },
+        });
+        updateCount += res.count;
+      }
+
+      if (otherTags.length > 0) {
+        const res = await tx.tag.updateMany({
+          where: { epc: { in: otherTags.map(t => t.epc) }, deletedAt: null },
+          data: {
+            productId: productId,
+            updatedById: user.id,
+          },
+        });
+        updateCount += res.count;
+      }
+
+      const updateResult = { count: updateCount };
 
       if (tagIds.length > 0) {
         const description =
@@ -242,7 +265,7 @@ export class SessionsService {
             tagId,
             type: 'ASSIGNED',
             description,
-            userId,
+            userId: user.id,
           })),
         });
       }
