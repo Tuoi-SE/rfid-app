@@ -576,4 +576,41 @@ export class SessionsService {
 
     return plainToInstance(SessionEntity, { ...session, scans: Array.from(mergedScans.values()) });
   }
+
+  async remove(id: string, user: { id: string; role: string }) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new BusinessException(
+        'Chỉ Siêu Quản trị viên (SUPER_ADMIN) mới có quyền xóa Phiên quét.',
+        'DELETE_SESSION_PERMISSION_DENIED',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const session = await this.prisma.session.findUnique({ where: { id } });
+    if (!session) {
+      throw new BusinessException('Không tìm thấy phiên quét', 'SESSION_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    await this.prisma.session.delete({ where: { id } });
+    return { success: true };
+  }
+
+  async removeBulk(ids: string[], user: { id: string; role: string }) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new BusinessException(
+        'Chỉ Siêu Quản trị viên (SUPER_ADMIN) mới có quyền xóa Phiên quét.',
+        'DELETE_SESSION_PERMISSION_DENIED',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (!ids || ids.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const { count } = await this.prisma.session.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return { success: true, count };
+  }
 }

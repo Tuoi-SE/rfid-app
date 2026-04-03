@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
@@ -52,5 +52,20 @@ export class SessionsController {
     const result = await this.sessionsService.assignProductToSession(id, dto.productId, req.user as any, dto.strategy);
     this.eventsGateway.emitTagsUpdated();
     return result;
+  }
+  /** DELETE /api/sessions/bulk — Xóa nhiều phiên quét */
+  @Delete('bulk')
+  @PolicyDecorator.check((ability) => ability.can('delete', 'Session'))
+  @ResponseMessageDecorator.withMessage('Xóa danh sách phiên quét thành công')
+  async removeBulk(@Body() dto: { ids: string[] }, @Request() req: AuthenticatedRequest) {
+    return this.sessionsService.removeBulk(dto.ids, req.user as any);
+  }
+
+  /** DELETE /api/sessions/:id — Xóa phiên quét */
+  @Delete(':id')
+  @PolicyDecorator.check((ability) => ability.can('delete', 'Session'))
+  @ResponseMessageDecorator.withMessage('Xóa phiên quét thành công')
+  async remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.sessionsService.remove(id, req.user as any);
   }
 }

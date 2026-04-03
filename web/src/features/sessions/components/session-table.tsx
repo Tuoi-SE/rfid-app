@@ -25,7 +25,10 @@ import { SessionData } from '../types';
 import { Pagination } from '@/components/Pagination';
 import { AssignProductModal } from './assign-product-modal';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CreateTransferModal } from '@/features/transfers/components/create-transfer-modal';
+import { useDeleteSessionMutation } from '../api/delete-session';
+import { useBulkDeleteSessionsMutation } from '../api/bulk-delete-sessions';
 import { useAuth } from '@/providers/AuthProvider';
 import { hasAdminAccess, isSuperAdmin } from '@/utils/role-helpers';
 import { useQueryClient } from '@tanstack/react-query';
@@ -47,6 +50,13 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
   const [assigningSession, setAssigningSession] = useState<SessionData | null>(null);
   const [transferringSession, setTransferringSession] = useState<SessionData | null>(null);
   const [bulkTransferSessions, setBulkTransferSessions] = useState<SessionData[] | null>(null);
+
+  // Thêm state cho Deletion
+  const [deletingSession, setDeletingSession] = useState<SessionData | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const deleteSessionMutation = useDeleteSessionMutation();
+  const bulkDeleteSessionsMutation = useBulkDeleteSessionsMutation();
 
   const handleTransferSuccess = async () => {
     setTransferringSession(null);
@@ -401,6 +411,16 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
             >
               <FileText className="w-5 h-5" />
             </button>
+
+            {superAdmin && (
+              <button 
+                onClick={() => setDeletingSession(row.original)}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Xóa phiên quét này"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
           </div>
         );
       },
@@ -532,7 +552,13 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
             label: 'Xoá phiên quét',
             icon: Trash2,
             variant: 'danger',
-            onClick: () => toast(`Tính năng xoá hàng loạt đang chờ cấp quyền Admin...`, { icon: '🚧' })
+            onClick: () => {
+              if (superAdmin) {
+                setIsBulkDeleting(true);
+              } else {
+                toast.error('Chỉ Siêu Quản trị viên mới có quyền xoá phiên quét hàng loạt.');
+              }
+            }
           }
         ]}
       />
@@ -558,6 +584,46 @@ export const SessionTable = ({ data, isLoading, onViewDetails }: SessionTablePro
           sessions={bulkTransferSessions}
           onClose={() => setBulkTransferSessions(null)}
           onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {deletingSession && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Xác nhận xóa phiên quét"
+          description={`Bạn có chắc chắn muốn xóa phiên quét "${deletingSession.name}" không? Hành động này sẽ xóa toàn bộ dữ liệu quét bên trong phiên đó.`}
+          confirmText="Xóa"
+          cancelText="Hủy"
+          variant="danger"
+          onConfirm={() => {
+            deleteSessionMutation.mutate(deletingSession.id, {
+              onSuccess: () => setDeletingSession(null)
+            });
+          }}
+          onClose={() => setDeletingSession(null)}
+          isLoading={deleteSessionMutation.isPending}
+        />
+      )}
+
+      {isBulkDeleting && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Xác nhận xóa hàng loạt"
+          description={`Bạn có chắc chắn muốn xóa ${table.getSelectedRowModel().rows.length} phiên quét đã chọn không?`}
+          confirmText="Xóa hàng loạt"
+          cancelText="Hủy"
+          variant="danger"
+          onConfirm={() => {
+            const selectedIds = table.getSelectedRowModel().rows.map(r => r.original.id);
+            bulkDeleteSessionsMutation.mutate(selectedIds, {
+              onSuccess: () => {
+                setIsBulkDeleting(false);
+                table.resetRowSelection();
+              }
+            });
+          }}
+          onClose={() => setIsBulkDeleting(false)}
+          isLoading={bulkDeleteSessionsMutation.isPending}
         />
       )}
     </>
