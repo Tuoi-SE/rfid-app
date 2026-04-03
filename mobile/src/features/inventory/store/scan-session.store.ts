@@ -13,6 +13,7 @@ export interface ScanTagItem {
 interface ScanSessionState {
   scannedTags: Record<string, ScanTagItem>;
   addOrUpdateTag: (epc: string, rssi: number) => void;
+  flushPendingTags: () => void;
   startNewSession: () => void;
   clearAll: () => void;
   saveToStorage: () => Promise<void>;
@@ -26,36 +27,44 @@ const FLUSH_INTERVAL = 300;
 let tagBuffer: Map<string, { epc: string; rssi: number }> = new Map();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+function flushBufferedTags() {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+
+  const batch = tagBuffer;
+  tagBuffer = new Map();
+  if (batch.size === 0) return;
+
+  useScanSessionStore.setState(state => {
+    const updated = { ...state.scannedTags };
+    const now = new Date();
+    for (const [epc, { rssi }] of batch) {
+      const existing = updated[epc];
+      updated[epc] = existing ? {
+        ...existing,
+        rssi,
+        scanCount: existing.scanCount + 1,
+        lastScanTime: now,
+        isPresent: true,
+      } : {
+        epc,
+        rssi,
+        scanCount: 1,
+        firstScanTime: now,
+        lastScanTime: now,
+        isPresent: true,
+      };
+    }
+    return { scannedTags: updated };
+  });
+}
+
 function scheduleFlush() {
   if (flushTimer) return;
   flushTimer = setTimeout(() => {
-    flushTimer = null;
-    const batch = tagBuffer;
-    tagBuffer = new Map();
-    if (batch.size === 0) return;
-
-    useScanSessionStore.setState(state => {
-      const updated = { ...state.scannedTags };
-      const now = new Date();
-      for (const [epc, { rssi }] of batch) {
-        const existing = updated[epc];
-        updated[epc] = existing ? {
-          ...existing,
-          rssi,
-          scanCount: existing.scanCount + 1,
-          lastScanTime: now,
-          isPresent: true,
-        } : {
-          epc,
-          rssi,
-          scanCount: 1,
-          firstScanTime: now,
-          lastScanTime: now,
-          isPresent: true,
-        };
-      }
-      return { scannedTags: updated };
-    });
+    flushBufferedTags();
   }, FLUSH_INTERVAL);
 }
 
@@ -66,6 +75,10 @@ export const useScanSessionStore = create<ScanSessionState>((set, get) => ({
     // Ghi vào buffer thay vì cập nhật Zustand trực tiếp
     tagBuffer.set(epc, { epc, rssi });
     scheduleFlush();
+  },
+
+  flushPendingTags: () => {
+    flushBufferedTags();
   },
 
   startNewSession: () => set(state => {

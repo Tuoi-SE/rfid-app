@@ -8,10 +8,10 @@ type FetchOptions = RequestInit & {
 
 export const httpClient = async <T>(endpoint: string, options: FetchOptions = {}): Promise<T> => {
   const { token, logout } = useAuthStore.getState();
-  
+
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -33,7 +33,8 @@ export const httpClient = async <T>(endpoint: string, options: FetchOptions = {}
       headers,
     });
 
-    if (response.status === 401) {
+    // Login can also legitimately return 401 for wrong credentials; keep the backend message.
+    if (response.status === 401 && endpoint !== '/auth/login') {
       logout();
       throw new UnauthorizedError();
     }
