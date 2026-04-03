@@ -213,8 +213,19 @@ export class TagsService {
     }
 
     const count = await this.prisma.$transaction(async (tx) => {
+      // Vì Frontend đang gửi selectedEpcs vào field tagIds, nên dto.tagIds đang chứa mảng EPC strings (không phải UUID).
+      // Ta cần fetch ra danh sách Tag IDs thật dựa trên EPC trước khi update
+      const tags = await tx.tag.findMany({
+        where: { epc: { in: dto.tagIds }, deletedAt: null },
+        select: { id: true }
+      });
+
+      if (tags.length === 0) return 0;
+
+      const validTagIds = tags.map(t => t.id);
+
       const updateResult = await tx.tag.updateMany({
-        where: { id: { in: dto.tagIds }, deletedAt: null },
+        where: { id: { in: validTagIds } },
         data: {
           productId: dto.productId,
           status: TagStatus.IN_WORKSHOP,
@@ -223,7 +234,7 @@ export class TagsService {
       });
 
       await tx.tagEvent.createMany({
-        data: dto.tagIds.map((tagId) => ({
+        data: validTagIds.map((tagId) => ({
           tagId,
           type: 'ASSIGNED',
           description: `Được gán cho Sản phẩm: ${product.name}`,
