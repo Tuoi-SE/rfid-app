@@ -17,7 +17,7 @@ export const OrdersPageClient = () => {
   const searchParams = useSearchParams();
 
   const { user } = useAuth();
-  const canCreate = isSuperAdmin(user?.role) || user?.role === 'ADMIN';
+  const canCreate = isSuperAdmin(user?.role) || user?.role === 'SUPER_ADMIN';
 
   const { data: ordersData, isLoading, refetch } = useOrders(search);
 
@@ -67,31 +67,28 @@ export const OrdersPageClient = () => {
         <div className="flex items-center bg-gray-100/50 p-1 rounded-xl w-fit">
           <button
             onClick={() => setTypeFilter('ALL')}
-            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
-              typeFilter === 'ALL'
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${typeFilter === 'ALL'
                 ? 'bg-white text-[#04147B] shadow-sm'
                 : 'text-gray-500 hover:text-gray-900'
-            }`}
+              }`}
           >
             Tất cả
           </button>
           <button
             onClick={() => setTypeFilter('INBOUND')}
-            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
-              typeFilter === 'INBOUND'
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${typeFilter === 'INBOUND'
                 ? 'bg-white text-emerald-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-900'
-            }`}
+              }`}
           >
             Phiếu Nhập
           </button>
           <button
             onClick={() => setTypeFilter('OUTBOUND')}
-            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
-              typeFilter === 'OUTBOUND'
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${typeFilter === 'OUTBOUND'
                 ? 'bg-white text-amber-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-900'
-            }`}
+              }`}
           >
             Phiếu Xuất
           </button>

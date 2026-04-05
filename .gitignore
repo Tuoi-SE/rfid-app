@@ -50,3 +50,5 @@ venv/
 .claude/
 .agent/
 .gitnexus
+.vercel
+.env*.local

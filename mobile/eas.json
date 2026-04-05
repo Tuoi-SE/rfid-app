@@ -10,14 +10,17 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://rfid-backend-gy05.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://rfid-inventory-backend.onrender.com/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://rfid-backend-gy05.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://rfid-inventory-backend.onrender.com/api"
       }
     }
   },
