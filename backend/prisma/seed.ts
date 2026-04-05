@@ -140,6 +140,25 @@ const PRODUCTS: { category: string; name: string; sku: string; desc: string }[] 
 
 class SeedRunner {
   static async run() {
+    // ── 0. Super Admin user ──
+    const superAdminExists = await prisma.user.findUnique({
+      where: { username: 'superadmin' },
+    });
+
+    if (!superAdminExists) {
+      const hashedPassword = await bcrypt.hash('superadmin123', 10);
+      await prisma.user.create({
+        data: {
+          username: 'superadmin',
+          password: hashedPassword,
+          role: 'SUPER_ADMIN',
+        },
+      });
+      console.log('✅ Super Admin user created (superadmin / superadmin123)');
+    } else {
+      console.log('ℹ️  Super Admin user already exists, skipping.');
+    }
+
     // ── 1. Admin user ──
     const adminExists = await prisma.user.findUnique({
       where: { username: 'admin' },
