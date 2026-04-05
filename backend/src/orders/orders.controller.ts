@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
+import { MobileQuickSubmitDto } from './dto/mobile-quick-submit.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../casl/policies.guard';
 import { PolicyDecorator } from '../casl/decorators/check-policies.decorator';
@@ -60,5 +61,13 @@ export class OrdersController {
   @ResponseMessageDecorator.withMessage('Xóa đơn hàng thành công')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.ordersService.remove(id, req.user as any);
+  }
+
+  /** POST /api/orders/mobile-quick-submit — Scan Tự Do & Chốt Đơn trên Mobile */
+  @Post('mobile-quick-submit')
+  @PolicyDecorator.check((ability) => ability.can('create', 'Order')) // Same policy as create
+  @ResponseMessageDecorator.withMessage('Quét & chốt phiếu giao dịch thành công')
+  mobileQuickSubmit(@Body() dto: MobileQuickSubmitDto, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.mobileQuickSubmit(dto, req.user as any);
   }
 }

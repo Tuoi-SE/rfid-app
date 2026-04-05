@@ -2,11 +2,12 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
+import { MobileQuickSubmitDto } from './dto/mobile-quick-submit.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { randomBytes } from 'crypto';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
-import { LocationType, OrderStatus, Prisma } from '.prisma/client';
+import { LocationType, OrderStatus, Prisma, TagStatus } from '.prisma/client';
 import { OrderEntity } from './entities/order.entity';
 
 @Injectable()
@@ -379,5 +380,153 @@ export class OrdersService {
     const mapped = new OrderEntity(updated);
     this.events.server.emit('orderUpdate', mapped);
     return mapped;
+  }
+
+  async mobileQuickSubmit(dto: MobileQuickSubmitDto, user: { id: string; role: string; locationId?: string }) {
+    if (!['WAREHOUSE_MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      throw new BusinessException('Không có quyền tạo phiếu lưu động.', 'ORDER_FORBIDDEN', HttpStatus.FORBIDDEN);
+    }
+    if (!dto.epcs || dto.epcs.length === 0) {
+      throw new BusinessException('Không có tag nào được quét.', 'EMPTY_TAGS', HttpStatus.BAD_REQUEST);
+    }
+
+    let mappedLocationId = dto.locationId;
+    if (dto.type === 'INBOUND') {
+      mappedLocationId = await this.validateInboundDestination(
+        user.role === 'WAREHOUSE_MANAGER' ? user.locationId : dto.locationId,
+      );
+    } else if (dto.type === 'OUTBOUND') {
+      mappedLocationId = await this.validateOutboundDestination(dto.locationId);
+      if (user.role === 'WAREHOUSE_MANAGER') {
+        if (!user.locationId) {
+          throw new BusinessException('Tài khoản quản lý chưa được gán kho.', 'NO_LOCATION', HttpStatus.BAD_REQUEST);
+        }
+        if (mappedLocationId === user.locationId) {
+          throw new BusinessException('Nơi xuất phải khác với kho hiện tại.', 'DESTINATION_SAME_AS_SOURCE', HttpStatus.BAD_REQUEST);
+        }
+      }
+    }
+
+    // 1. Fetch tags and validate
+    const tags = await this.prisma.tag.findMany({
+      where: { epc: { in: dto.epcs }, deletedAt: null },
+      select: { id: true, epc: true, productId: true },
+    });
+
+    if (tags.length === 0) {
+      throw new BusinessException('Tất cả EPC đều không tồn tại hoặc đã bị xóa.', 'INVALID_TAGS', HttpStatus.BAD_REQUEST);
+    }
+
+    // Group by product
+    const productCounts: Record<string, number> = {};
+    for (const tag of tags) {
+      if (tag.productId) {
+        productCounts[tag.productId] = (productCounts[tag.productId] || 0) + 1;
+      }
+    }
+    
+    const items = Object.entries(productCounts).map(([productId, quantity]) => ({ productId, quantity }));
+    if (items.length === 0) {
+      throw new BusinessException('Các dữ liệu thẻ quét được chưa được gán sản phẩm.', 'NO_VALID_PRODUCTS', HttpStatus.BAD_REQUEST);
+    }
+
+    const code = `${dto.type === 'INBOUND' ? 'IN' : 'OUT'}-M-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
+
+    // 2. Determine target status
+    let tagsToUpdateStatus: TagStatus;
+    let finalLocationId = mappedLocationId;
+
+    if (dto.type === 'OUTBOUND') {
+      const dest = await this.prisma.location.findUnique({ where: { id: mappedLocationId } });
+      if (dest?.type === 'WORKSHOP') {
+        tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
+      } else if (dest?.type === 'WAREHOUSE' || dest?.type === 'WORKSHOP_WAREHOUSE' || dest?.type === 'ADMIN') {
+        tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+      } else {
+        tagsToUpdateStatus = TagStatus.COMPLETED;
+      }
+    } else {
+      const dest = await this.prisma.location.findUnique({ where: { id: mappedLocationId } });
+      if (dest?.type === 'WORKSHOP') {
+        const workshopWarehouse = await this.prisma.location.findFirst({
+          where: { parentId: mappedLocationId, type: 'WORKSHOP_WAREHOUSE', deletedAt: null },
+        });
+        if (workshopWarehouse) {
+          tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+          finalLocationId = workshopWarehouse.id;
+        } else {
+          tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
+        }
+      } else {
+        tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
+      }
+    }
+
+    // 3. Execute Transaction
+    const order = await this.prisma.$transaction(async (tx) => {
+      const newOrder = await tx.order.create({
+        data: {
+          code,
+          type: dto.type,
+          locationId: mappedLocationId,
+          status: OrderStatus.COMPLETED, // Instant completion
+          createdById: user.id,
+          updatedById: user.id,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              scannedQuantity: item.quantity, // Fully matched
+            })),
+          },
+        },
+        include: { items: { include: { product: true } }, location: true, createdBy: { select: { id: true, username: true, role: true } } },
+      });
+
+      const now = new Date();
+      // Update Tags
+      await tx.tag.updateMany({
+        where: { epc: { in: tags.map(t => t.epc) } },
+        data: {
+          status: tagsToUpdateStatus,
+          locationId: finalLocationId,
+          lastSeenAt: now,
+        }
+      });
+
+      // Create TagEvents
+      const tagEvents = tags.map(tag => ({
+        tagId: tag.id,
+        type: dto.type === 'INBOUND' ? 'INBOUND' : 'OUTBOUND',
+        description: `Tạo & quét nhanh qua Mobile (Phiếu: ${code})`,
+        userId: user.id,
+      }));
+      // Workaround for TagEventType enums if they enforce specific strings
+      await tx.tagEvent.createMany({
+        data: tagEvents as any,
+      });
+
+      // Create Session logging the quick scan
+      await tx.session.create({
+        data: {
+          name: `Mobile Quick Submit (Phiếu ${code})`,
+          totalTags: tags.length,
+          endedAt: now,
+          orderId: newOrder.id,
+          userId: user.id,
+          scans: {
+            create: tags.map(t => ({ tagEpc: t.epc, rssi: -50, scannedAt: now })),
+          }
+        }
+      });
+
+      return newOrder;
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+
+    const entity = new OrderEntity(order as any);
+    this.events.server.emit('orderUpdate', entity);
+    return entity;
   }
 }

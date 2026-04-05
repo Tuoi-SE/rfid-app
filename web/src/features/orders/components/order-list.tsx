@@ -20,8 +20,7 @@ interface OrderListProps {
 
 export const OrderList = ({ orders, isLoading, onRefresh, onCreateRequest }: OrderListProps) => {
   const { user } = useAuth();
-  const isManager = user?.role === 'WAREHOUSE_MANAGER';
-  const canCreate = isManager || isSuperAdmin(user?.role);
+  const canCreate = isSuperAdmin(user?.role);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null);

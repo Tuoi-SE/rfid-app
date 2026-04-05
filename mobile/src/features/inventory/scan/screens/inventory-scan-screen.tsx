@@ -33,6 +33,8 @@ import { useReaderStore } from "../../../reader/ble/store/reader.store";
 import { useScanSessionStore } from "../../store/scan-session.store";
 import { useTagCacheStore } from "../../store/tag-cache.store";
 import { inventoryApi } from "../../api/sessions";
+import { QuickSubmitModal } from "../../../transactions/components/quick-submit-modal";
+import { useAuthStore } from "../../../auth/store/auth.store";
 
 const { width } = Dimensions.get("window");
 
@@ -42,12 +44,14 @@ export function InventoryScanScreen() {
 
   const { scannedTags, startNewSession, saveToStorage, clearAll } =
     useScanSessionStore();
+  const { role } = useAuthStore();
 
   const { serverNames, getName, renameTag, updateServerNames } = useTagCacheStore();
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isQuickSubmitVisible, setIsQuickSubmitVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
@@ -123,55 +127,68 @@ export function InventoryScanScreen() {
     if (hasPendingSync) {
       Alert.alert(
         "Cần đồng bộ trước khi lưu",
-        "Bạn phải bấm nút \"Đồng bộ\" để đồng bộ dữ liệu trước khi lưu phiên quét.",
+        "Bạn phải bấm nút \"Đồng bộ\" để đồng bộ dữ liệu trước khi xử lý.",
       );
       return;
     }
 
-    Alert.alert(
-      "Lưu phiên kiểm kê",
-      `Bạn có chắc muốn kết thúc phiên và đẩy ${mappedTags.length} thẻ lên hệ thống?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Lưu & Kết thúc",
-          style: "default",
-          onPress: async () => {
-            setIsSaving(true);
-            try {
-              const now = new Date();
-              const m = now.getMinutes().toString().padStart(2, "0");
-              const sessionName = `Ca kiểm kê ${now.getHours()}h${m} ngày ${now.getDate()}/${now.getMonth() + 1}`;
+    const saveNormalSession = async () => {
+      setIsSaving(true);
+      try {
+        const now = new Date();
+        const m = now.getMinutes().toString().padStart(2, "0");
+        const sessionName = `Ca kiểm kê ${now.getHours()}h${m} ngày ${now.getDate()}/${now.getMonth() + 1}`;
 
-              const session: any = await inventoryApi.pushSession({
-                name: sessionName,
-                scans: mappedTags as any,
-              });
+        const session: any = await inventoryApi.pushSession({
+          name: sessionName,
+          scans: mappedTags as any,
+        });
 
-              Alert.alert(
-                "Thành công",
-                "Đã lưu phiên kiểm kê và đồng bộ lên server.",
-                [{
-                  text: "OK",
-                  onPress: () => {
-                    clearAll();
-                    setLastSyncedAt(null);
-                    setLastScanAt(null);
-                  },
-                }],
-              );
-            } catch (e: any) {
-              Alert.alert(
-                "Lỗi lưu phiên",
-                e.message || "Không thể kết nối đến máy chủ.",
-              );
-            } finally {
-              setIsSaving(false);
-            }
+        Alert.alert(
+          "Thành công",
+          "Đã lưu phiên kiểm kê và đồng bộ lên server.",
+          [{
+            text: "OK",
+            onPress: () => {
+              clearAll();
+              setLastSyncedAt(null);
+              setLastScanAt(null);
+            },
+          }],
+        );
+      } catch (e: any) {
+        Alert.alert(
+          "Lỗi lưu phiên",
+          e.message || "Không thể kết nối đến máy chủ.",
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    if (role === 'WAREHOUSE_MANAGER') {
+      setIsQuickSubmitVisible(true);
+    } else if (role === 'ADMIN') {
+      saveNormalSession();
+    } else {
+      // SUPER_ADMIN
+      Alert.alert(
+        "Xử lý dữ liệu quét",
+        `Bạn muốn chốt Phiếu Nhập/Xuất hay Lưu Session kiểm kê?`,
+        [
+          { text: "Bỏ qua", style: "cancel" },
+          {
+            text: "Chốt Nhập/Xuất",
+            onPress: () => setIsQuickSubmitVisible(true),
           },
-        },
-      ],
-    );
+          {
+            text: "Lưu Session",
+            style: "default",
+            onPress: saveNormalSession,
+          },
+        ],
+      );
+    }
   };
 
   const syncTags = async () => {
@@ -337,7 +354,7 @@ export function InventoryScanScreen() {
                     <Save color="#4F46E5" size={16} />
                   )}
                   <Text style={[styles.clearText, { color: "#4F46E5" }]}>
-                    {isSaving ? "Đang lưu..." : hasPendingSync ? "Cần đồng bộ" : "Lưu phiên"}
+                    {isSaving ? "Đang xử lý..." : hasPendingSync ? "Cần đồng bộ" : role === 'WAREHOUSE_MANAGER' ? "Chốt Nhập/Xuất" : role === 'ADMIN' ? 'Lưu Phiên' : "Xử lý/Lưu"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -466,6 +483,25 @@ export function InventoryScanScreen() {
             </View>
           </View>
         </Modal>
+
+        <QuickSubmitModal
+          visible={isQuickSubmitVisible}
+          onClose={() => setIsQuickSubmitVisible(false)}
+          epcs={Object.values(scannedTags).filter(t => t.isPresent).map(t => t.epc)}
+          onSuccess={() => {
+            setIsQuickSubmitVisible(false);
+            Alert.alert("Chốt phiếu thành công", "Hệ thống đã cập nhật số lượng và vị trí cho thẻ.", [
+              {
+                text: "OK",
+                onPress: () => {
+                  clearAll();
+                  setLastSyncedAt(null);
+                  setLastScanAt(null);
+                }
+              }
+            ]);
+          }}
+        />
       </View>
     </SafeAreaView>
   );

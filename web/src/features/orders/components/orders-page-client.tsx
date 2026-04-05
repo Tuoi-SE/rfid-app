@@ -13,11 +13,11 @@ import { useSearchParams } from 'next/navigation';
 export const OrdersPageClient = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
   const searchParams = useSearchParams();
 
   const { user } = useAuth();
-  const isManager = user?.role === 'WAREHOUSE_MANAGER';
-  const canCreate = isManager || isSuperAdmin(user?.role);
+  const canCreate = isSuperAdmin(user?.role) || user?.role === 'ADMIN';
 
   const { data: ordersData, isLoading, refetch } = useOrders(search);
 
@@ -36,10 +36,13 @@ export const OrdersPageClient = () => {
       : [];
 
   // Filter local for simplicity if backend doesn't support search yet
-  const filteredOrders = orders.filter((o: Order) =>
-    o.code?.toLowerCase().includes(search.toLowerCase()) ||
-    (o as any).createdBy?.username?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOrders = orders.filter((o: Order) => {
+    const matchSearch =
+      o.code?.toLowerCase().includes(search.toLowerCase()) ||
+      (o as any).createdBy?.username?.toLowerCase().includes(search.toLowerCase());
+    const matchType = typeFilter === 'ALL' || o.type === typeFilter;
+    return matchSearch && matchType;
+  });
 
   return (
     <div className="w-full relative pb-24">
@@ -60,7 +63,40 @@ export const OrdersPageClient = () => {
         }
       />
 
-      <div className="mt-8">
+      <div className="mt-6 flex flex-col gap-4">
+        <div className="flex items-center bg-gray-100/50 p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setTypeFilter('ALL')}
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
+              typeFilter === 'ALL'
+                ? 'bg-white text-[#04147B] shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Tất cả
+          </button>
+          <button
+            onClick={() => setTypeFilter('INBOUND')}
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
+              typeFilter === 'INBOUND'
+                ? 'bg-white text-emerald-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Phiếu Nhập
+          </button>
+          <button
+            onClick={() => setTypeFilter('OUTBOUND')}
+            className={`px-5 py-2 rounded-lg font-semibold text-[14px] transition-all duration-200 ease-spring ${
+              typeFilter === 'OUTBOUND'
+                ? 'bg-white text-amber-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Phiếu Xuất
+          </button>
+        </div>
+
         <OrderList
           orders={filteredOrders}
           isLoading={isLoading}

@@ -60,6 +60,7 @@ export class TransfersService {
   private async validateTagsForCreateTransfer(
     tagIds: string[],
     dto: CreateTransferDto,
+    user: { id: string; role: string },
   ): Promise<string[]> {
     const uniqueTagIds = Array.from(new Set(tagIds));
     if (uniqueTagIds.length === 0) {
@@ -136,6 +137,7 @@ export class TransfersService {
       completedTransferCode?: string;
     }> = [];
     const acceptedTagIds: string[] = [];
+    const tagsToRecall: Array<{ id: string; epc: string; fromLocationId: string }> = [];
 
     for (const tagId of uniqueTagIds) {
       const tag = tagById.get(tagId);
@@ -186,6 +188,17 @@ export class TransfersService {
         dto.type === 'ADMIN_TO_WORKSHOP' && !tag.locationId;
 
       if (tag.locationId !== dto.sourceId && !allowUnknownSourceForAdminFlow) {
+        // SUPER_ADMIN: auto-recall tag về source thay vì block
+        if (user.role === 'SUPER_ADMIN') {
+          tagsToRecall.push({
+            id: tagId,
+            epc: tag.epc,
+            fromLocationId: tag.locationId || 'UNKNOWN',
+          });
+          acceptedTagIds.push(tagId);
+          continue;
+        }
+
         blockedTags.push({
           tagId,
           epc: tag.epc,
@@ -206,6 +219,28 @@ export class TransfersService {
         acceptedTagIds.length,
         uniqueTagIds.length,
       );
+    }
+
+    // Auto-recall: batch update tags about source + ghi audit trail
+    if (tagsToRecall.length > 0) {
+      await this.prisma.tag.updateMany({
+        where: { id: { in: tagsToRecall.map((t) => t.id) } },
+        data: {
+          locationId: dto.sourceId,
+          status: TagStatus.UNASSIGNED,
+        },
+      });
+
+      // Ghi TagEvent cho mỗi tag được recall
+      await this.prisma.tagEvent.createMany({
+        data: tagsToRecall.map((t) => ({
+          tagId: t.id,
+          type: 'RECALLED',
+          location: `${t.fromLocationId} → ${dto.sourceId}`,
+          description: `SUPER_ADMIN thu hồi tag ${t.epc} để điều chuyển lại`,
+          userId: user.id,
+        })),
+      });
     }
 
     return acceptedTagIds;
@@ -279,6 +314,7 @@ export class TransfersService {
     const validatedTagIds = await this.validateTagsForCreateTransfer(
       dto.tagIds,
       dto,
+      user,
     );
 
     // Generate unique code: TRF-{timestamp}-{random}

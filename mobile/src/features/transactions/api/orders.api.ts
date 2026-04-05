@@ -24,5 +24,12 @@ export const ordersApi = {
       method: 'POST',
       body: JSON.stringify(session)
     });
+  },
+
+  mobileQuickSubmit: async (dto: { type: 'INBOUND' | 'OUTBOUND'; locationId?: string; epcs: string[] }) => {
+    return httpClient('/orders/mobile-quick-submit', {
+      method: 'POST',
+      body: JSON.stringify(dto)
+    });
   }
 };
