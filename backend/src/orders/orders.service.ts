@@ -274,6 +274,10 @@ export class OrdersService {
         items: {
           include: { product: true },
         },
+        sessions: {
+          include: { scans: true, user: { select: { id: true, username: true } } },
+          orderBy: { startedAt: 'desc' },
+        },
       },
     });
     

@@ -124,8 +124,8 @@ export const UsersPageClient = () => {
         }
       />
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 mt-2">
+      {/* 3 Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-2">
         {/* Card 1 */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between h-[120px] relative overflow-hidden group">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider relative z-10">TỔNG THÀNH VIÊN</div>
@@ -165,23 +165,7 @@ export const UsersPageClient = () => {
           <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-indigo-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
         </div>
 
-        {/* Card 4 - Security */}
-        <div className={`rounded-2xl p-6 shadow-md flex flex-col justify-between text-white relative overflow-hidden h-[120px] ${stats?.securityStatus === 'WARNING' ? 'bg-orange-500' : 'bg-[#04147B]'}`}>
-          {/* Decorative blurred circle */}
-          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 ${stats?.securityStatus === 'WARNING' ? 'bg-red-500' : 'bg-indigo-500'}`}></div>
 
-          <div className={`text-[11px] font-bold uppercase tracking-wider relative z-10 ${stats?.securityStatus === 'WARNING' ? 'text-orange-100' : 'text-indigo-200'}`}>BẢO MẬT HỆ THỐNG</div>
-          <div className="flex items-center gap-2.5 mt-auto relative z-10">
-            {stats?.securityStatus === 'WARNING' ? (
-              <ShieldAlert className="w-7 h-7 text-white" strokeWidth={1.5} />
-            ) : (
-              <ShieldCheck className="w-7 h-7 text-white" strokeWidth={1.5} />
-            )}
-            <span className="text-xl font-bold tracking-wide">
-              {statsLoading ? '...' : (stats?.securityStatus === 'WARNING' ? 'CẢNH BÁO' : 'AN TOÀN')}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Table Actions & Filters */}
