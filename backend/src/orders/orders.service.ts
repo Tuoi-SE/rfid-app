@@ -15,7 +15,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
-  ) {}
+  ) { }
 
   private readonly outboundAllowedDestinationTypes: LocationType[] = [
     LocationType.WAREHOUSE,
@@ -274,16 +274,20 @@ export class OrdersService {
         items: {
           include: { product: true },
         },
+        sessions: {
+          include: { scans: true, user: { select: { id: true, username: true } } },
+          orderBy: { startedAt: 'desc' },
+        },
       },
     });
-    
+
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
     await this.ensureManagerCanAccessOrder(order, user);
 
     const targetItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
     const scannedItems = order.items.reduce((sum, item) => sum + Math.min(item.scannedQuantity, item.quantity), 0);
-    
+
     return new OrderEntity({
       ...order,
       progress: targetItems > 0 ? Math.round((scannedItems / targetItems) * 100) : 0,
@@ -424,7 +428,7 @@ export class OrdersService {
         productCounts[tag.productId] = (productCounts[tag.productId] || 0) + 1;
       }
     }
-    
+
     const items = Object.entries(productCounts).map(([productId, quantity]) => ({ productId, quantity }));
     if (items.length === 0) {
       throw new BusinessException('Các dữ liệu thẻ quét được chưa được gán sản phẩm.', 'NO_VALID_PRODUCTS', HttpStatus.BAD_REQUEST);
