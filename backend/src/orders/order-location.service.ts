@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prisma/prisma.service';
 import { LocationType, TagStatus } from '@prisma/client';
+import { getAuthorizedLocationIds } from '@common/helpers/location.helper';
 
 export interface TagStatusResult {
   status: TagStatus;
@@ -11,18 +12,9 @@ export interface TagStatusResult {
 export class OrderLocationService {
   constructor(private prisma: PrismaService) {}
 
-  async getAuthorizedLocationIds(locationId?: string): Promise<string[]> {
-    if (!locationId) return [];
-    const locs = await this.prisma.location.findMany({
-      where: { OR: [{ id: locationId }, { parentId: locationId }], deletedAt: null },
-      select: { id: true },
-    });
-    return locs.map((l) => l.id);
-  }
-
   async getManagerInboundAllowedLocationIds(locationId?: string): Promise<string[]> {
     const [ownedAndChildren, centralWarehouses] = await Promise.all([
-      this.getAuthorizedLocationIds(locationId),
+      getAuthorizedLocationIds(this.prisma, locationId),
       this.prisma.location.findMany({
         where: { type: LocationType.WAREHOUSE, deletedAt: null },
         select: { id: true },
