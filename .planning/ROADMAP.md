@@ -216,13 +216,13 @@ Plans:
 
 **Depends on:** Phase 11
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — P0: EventsGateway decoupling (EventEmitter2 pattern)
-- [ ] 12-02-PLAN.md — P1: AuthenticatedRequest fix + OrdersService split
-- [ ] 12-03-PLAN.md — P1: TransfersService split
-- [ ] 12-04-PLAN.md — P2: Cleanup stale .bak file
+- [x] 12-01-PLAN.md — P0: EventsGateway decoupling (EventEmitter2 pattern)
+- [x] 12-02-PLAN.md — P1: AuthenticatedRequest fix + OrdersService split
+- [x] 12-03-PLAN.md — P1: TransfersService split
+- [x] 12-04-PLAN.md — P2: Cleanup stale .bak file
 
 ---
 
@@ -241,4 +241,4 @@ Plans:
 | 9. Cache Integration - Inventory Summary | 1/1 | Complete    | 2026-03-27 |
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
-| 12. backend-refactor | 0/4 | Planned | 2026-04-08 |
+| 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
