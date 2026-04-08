@@ -1,6 +1,7 @@
 import { Controller, Post, Get, UseGuards, Request, Body } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '@auth/auth.service';
+import { DEVICE_TYPES } from '@common/constants/error-codes';
 import { LocalAuthGuard } from '@auth/guards/local-auth.guard';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { LoginDto } from '@auth/dto/login.dto';
@@ -34,7 +35,7 @@ export class AuthController {
   @Post('login')
   @ResponseMessageDecorator.withMessage('Đăng nhập thành công')
   login(@Request() req: AuthenticatedRequest & { ip?: string }, @Body() dto: LoginDto) {
-    return this.authService.login(req.user, dto.deviceType || 'WEB', req.ip);
+    return this.authService.login(req.user, dto.deviceType || DEVICE_TYPES.WEB, req.ip);
   }
 
   /**

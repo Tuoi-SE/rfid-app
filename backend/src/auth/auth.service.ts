@@ -7,6 +7,8 @@ import { UsersService } from '@users/users.service';
 import { PrismaService } from '@prisma/prisma.service';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { DEVICE_TYPES } from '@common/constants/error-codes';
+
 
 /**
  * AuthService — Xử lý logic xác thực người dùng.
@@ -121,7 +123,7 @@ export class AuthService {
    * Lưu hash của refresh token vào bảng RefreshToken.
    * Interceptor sẽ auto-wrap thành { success, message, data }.
    */
-  async login(user: { id: string; username: string; role: string; locationId?: string | null }, deviceType: string = 'WEB', ipAddress?: string) {
+  async login(user: { id: string; username: string; role: string; locationId?: string | null }, deviceType: string = DEVICE_TYPES.WEB, ipAddress?: string) {
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
 

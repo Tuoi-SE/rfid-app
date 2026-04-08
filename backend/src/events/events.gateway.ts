@@ -97,19 +97,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   ) {
     if (!scans?.length) return;
 
-    // Re-validate JWT on every message
-    const token =
-      client.handshake.auth?.token ||
-      client.handshake.headers?.authorization?.replace('Bearer ', '');
-    if (!token) {
-      throw new WsException('Unauthorized');
-    }
-
-    try {
-      this.jwtService.verify(token);
-    } catch {
-      throw new WsException('Unauthorized');
-    }
+    // D-05: Use user attached in handleConnection instead of re-verifying JWT
+    const user = (client as any).user;
+    if (!user) throw new WsException('Unauthorized');
 
     const epcs = scans.map((s) => s.epc);
 
@@ -190,22 +180,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return { success: false, error: 'No EPCs provided' };
     }
 
-    // Re-validate JWT on every message
-    const token =
-      client.handshake.auth?.token ||
-      client.handshake.headers?.authorization?.replace('Bearer ', '');
-    if (!token) {
-      throw new WsException('Unauthorized');
-    }
-
-    let payload: { id?: string; sub?: string; role?: string };
-    try {
-      payload = this.jwtService.verify(token);
-    } catch {
-      throw new WsException('Unauthorized');
-    }
-
-    const userId = payload?.id || payload?.sub || 'system';
+    // D-05: Use user attached in handleConnection instead of re-verifying JWT
+    const user = (client as any).user;
+    if (!user) throw new WsException('Unauthorized');
+    const userId = user.id || user.sub || 'system';
 
     // D-05: Process EPCs through buffer - auto-flush triggers at 500
     // Track total processed including auto-flushes

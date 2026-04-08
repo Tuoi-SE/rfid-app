@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@prisma/prisma.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { TransferStatus, TagStatus } from '@prisma/client';
+import { TAG_EVENT_TYPES } from '@common/constants/error-codes';
 
 interface TagValidationError {
   tagId: string;
@@ -193,7 +194,7 @@ export class TransferValidationService {
       await this.prisma.tagEvent.createMany({
         data: tagsToRecall.map((t) => ({
           tagId: t.id,
-          type: 'RECALLED',
+          type: TAG_EVENT_TYPES.RECALLED,
           location: `${t.fromLocationId} → ${dto.sourceId}`,
           description: `SUPER_ADMIN thu hồi tag ${t.epc} để điều chuyển lại`,
           userId: user.id,

@@ -1,9 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { TRANSFER_ERROR_CODES } from '@common/constants/error-codes';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
@@ -19,6 +16,7 @@ import {
   TagStatus,
   Prisma,
 } from '@prisma/client';
+import { TRANSFER_CODE_PREFIX, TAG_CONDITIONS } from '@common/constants/error-codes';
 
 @Injectable()
 export class TransfersService {
@@ -37,33 +35,33 @@ export class TransfersService {
     const source = await this.prisma.location.findUnique({
       where: { id: dto.sourceId },
     });
-    if (!source) throw new NotFoundException('Không tìm thấy vị trí nguồn');
+    if (!source) throw new BusinessException('Không tìm thấy vị trí nguồn', TRANSFER_ERROR_CODES.SOURCE_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     // Validate destination location based on transfer type (per D-13)
     const destination = await this.prisma.location.findUnique({
       where: { id: dto.destinationId },
     });
-    if (!destination) throw new NotFoundException('Không tìm thấy vị trí đích');
+    if (!destination) throw new BusinessException('Không tìm thấy vị trí đích', TRANSFER_ERROR_CODES.DEST_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     // Type-specific validation
     if (dto.type === 'ADMIN_TO_WORKSHOP') {
       if (source.type !== LocationType.ADMIN) {
-        throw new BadRequestException('Vị trí nguồn phải là ADMIN');
+        throw new BusinessException('Vị trí nguồn phải là ADMIN', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (destination.type !== LocationType.WORKSHOP) {
-        throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+        throw new BusinessException('Vị trí đích phải là WORKSHOP', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
     } else if (dto.type === 'WORKSHOP_TO_WAREHOUSE') {
       if (source.type !== LocationType.WORKSHOP_WAREHOUSE) {
-        throw new BadRequestException('Vị trí xuất điều chuyển bắt buộc phải là Kho Xưởng (không được xuất trực tiếp từ Xưởng)');
+        throw new BusinessException('Vị trí xuất điều chuyển bắt buộc phải là Kho Xưởng (không được xuất trực tiếp từ Xưởng)', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (destination.type !== LocationType.WAREHOUSE) {
-        throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+        throw new BusinessException('Vị trí đích phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
     } else if (dto.type === 'WAREHOUSE_TO_CUSTOMER') {
       // D-18: WAREHOUSE_TO_CUSTOMER: source=WAREHOUSE, destination=HOTEL/RESORT/SPA
       if (source.type !== LocationType.WAREHOUSE) {
-        throw new BadRequestException('Vị trí nguồn phải là WAREHOUSE');
+        throw new BusinessException('Vị trí nguồn phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (
         destination.type !== LocationType.HOTEL &&
@@ -71,12 +69,14 @@ export class TransfersService {
         destination.type !== LocationType.SPA &&
         destination.type !== 'CUSTOMER' // backward compat
       ) {
-        throw new BadRequestException(
+        throw new BusinessException(
           'Vị trí đích phải là HOTEL, RESORT, hoặc SPA',
+          TRANSFER_ERROR_CODES.INVALID_REQUEST,
+          HttpStatus.BAD_REQUEST,
         );
       }
     } else {
-      throw new BadRequestException('Loại transfer không hợp lệ');
+      throw new BusinessException('Loại transfer không hợp lệ', TRANSFER_ERROR_CODES.INVALID_TYPE, HttpStatus.BAD_REQUEST);
     }
 
     // Hard-rule validation across full history/current state before creating transfer
@@ -87,7 +87,7 @@ export class TransfersService {
     );
 
     // Generate unique code: TRF-{timestamp}-{random}
-    const code = `TRF-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
+    const code = `${TRANSFER_CODE_PREFIX}Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
 
     // D-20: WAREHOUSE_TO_CUSTOMER - 1-step workflow (tạo = COMPLETED ngay)
     const isWarehouseToCustomer = dto.type === 'WAREHOUSE_TO_CUSTOMER';
@@ -108,7 +108,7 @@ export class TransfersService {
           create: validatedTagIds.map((tagId) => ({
             tagId,
             scannedAt: isWarehouseToCustomer ? new Date() : null, // D-20: Mark as scanned
-            condition: isWarehouseToCustomer ? 'GOOD' : undefined,
+            condition: isWarehouseToCustomer ? TAG_CONDITIONS.GOOD : undefined,
           })),
         },
       },
@@ -157,7 +157,7 @@ export class TransfersService {
       include: { items: { include: { tag: true } }, destination: true },
     });
 
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     // LBAC check for WAREHOUSE_MANAGER
     if (user.role === 'WAREHOUSE_MANAGER') {
@@ -166,14 +166,16 @@ export class TransfersService {
         (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) ||
         (!transfer.destinationId || !allowedIds.includes(transfer.destinationId))
       ) {
-        throw new ForbiddenException(
+        throw new BusinessException(
           'Không có quyền xác nhận phiếu điều chuyển này',
+          TRANSFER_ERROR_CODES.ACCESS_DENIED,
+          HttpStatus.FORBIDDEN,
         );
       }
     }
 
     if (transfer.status !== TransferStatus.PENDING) {
-      throw new BadRequestException('Transfer không ở trạng thái PENDING');
+      throw new BusinessException('Transfer không ở trạng thái PENDING', TRANSFER_ERROR_CODES.INVALID_STATUS, HttpStatus.BAD_REQUEST);
     }
 
     // Identify scanned tags vs missing tags
@@ -222,7 +224,7 @@ export class TransfersService {
         where: { transferId, tagId: { in: scannedTagIds } },
         data: {
           scannedAt: new Date(),
-          condition: 'GOOD',
+          condition: TAG_CONDITIONS.GOOD,
         },
       });
     }
@@ -320,7 +322,7 @@ export class TransfersService {
         items: { include: { tag: true } },
       },
     });
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (user.role === 'WAREHOUSE_MANAGER') {
       const allowedIds = await this.transferLocation.getAuthorizedLocationIds(user.locationId);
@@ -329,8 +331,10 @@ export class TransfersService {
         (!transfer.destinationId ||
           !allowedIds.includes(transfer.destinationId))
       ) {
-        throw new ForbiddenException(
+        throw new BusinessException(
           'Không có quyền truy cập phiếu luân chuyển này',
+          TRANSFER_ERROR_CODES.ACCESS_DENIED,
+          HttpStatus.FORBIDDEN,
         );
       }
     }
@@ -343,8 +347,10 @@ export class TransfersService {
     user: { id: string; role: string; locationId?: string },
   ) {
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
-      throw new ForbiddenException(
+      throw new BusinessException(
         'Chỉ ADMIN và SUPER_ADMIN có quyền hủy phiếu điều chuyển.',
+        TRANSFER_ERROR_CODES.ACCESS_DENIED,
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -352,14 +358,16 @@ export class TransfersService {
       where: { id },
       include: { source: true, items: true },
     });
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (
       transfer.status !== TransferStatus.PENDING &&
       transfer.status !== TransferStatus.COMPLETED
     ) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Chỉ transfer PENDING hoặc COMPLETED mới có thể hủy',
+        TRANSFER_ERROR_CODES.INVALID_STATUS,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -403,8 +411,10 @@ export class TransfersService {
     user: { id: string; role: string; locationId?: string },
   ) {
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException(
+      throw new BusinessException(
         'Chỉ SUPER_ADMIN mới được chỉnh sửa xưởng nhận của phiếu luân chuyển.',
+        TRANSFER_ERROR_CODES.ACCESS_DENIED,
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -413,35 +423,39 @@ export class TransfersService {
       include: { source: true, items: true },
     });
 
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (transfer.status !== TransferStatus.PENDING) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Chỉ transfer ở trạng thái PENDING mới có thể chỉnh sửa xưởng nhận.',
+        TRANSFER_ERROR_CODES.INVALID_STATUS,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     const newDest = await this.prisma.location.findUnique({
       where: { id: destinationId },
     });
-    if (!newDest) throw new NotFoundException('Vị trí đích mới không tồn tại');
+    if (!newDest) throw new BusinessException('Vị trí đích mới không tồn tại', TRANSFER_ERROR_CODES.DEST_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (
       transfer.type === 'ADMIN_TO_WORKSHOP' &&
       newDest.type !== LocationType.WORKSHOP
     ) {
-      throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+      throw new BusinessException('Vị trí đích phải là WORKSHOP', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     } else if (
       transfer.type === 'WORKSHOP_TO_WAREHOUSE' &&
       newDest.type !== LocationType.WAREHOUSE
     ) {
-      throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+      throw new BusinessException('Vị trí đích phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     } else if (
       transfer.type === 'WAREHOUSE_TO_CUSTOMER' &&
       !['HOTEL', 'RESORT', 'SPA', 'CUSTOMER'].includes(newDest.type)
     ) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Vị trí đích phải là khách hàng (HOTEL, RESORT, SPA)',
+        TRANSFER_ERROR_CODES.INVALID_REQUEST,
+        HttpStatus.BAD_REQUEST,
       );
     }
 

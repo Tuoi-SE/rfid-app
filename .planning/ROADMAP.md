@@ -243,7 +243,7 @@ Plans:
 8. Magic strings extracted to constants (D-09)
 9. getAuthorizedLocationIds cached in request context (D-10)
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [x] 13-01-PLAN.md — D-01: BusinessException in TransfersService + D-02/D-03: buildStockSummary refactor with groupBy
@@ -271,4 +271,4 @@ Plans:
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
 | 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
-| 13. backend-quality-improvement | 4/4 | Planned | — |
+| 13. backend-quality-improvement | 1/4 | In Progress|  |
