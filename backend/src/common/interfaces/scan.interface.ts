@@ -43,3 +43,24 @@ export interface EPCScanResult {
  * Listened by EventsGateway for WebSocket broadcast
  */
 export const TAGS_UPDATED_EVENT = 'tags:updated';
+
+/**
+ * Event name for order updated notification
+ * Emitted by OrdersService, SessionsService via EventEmitter2
+ * Listened by EventsGateway for WebSocket broadcast
+ */
+export const ORDER_UPDATED_EVENT = 'order:updated';
+
+/**
+ * Event name for transfer updated notification
+ * Emitted by TransfersService via EventEmitter2
+ * Listened by EventsGateway for WebSocket broadcast
+ */
+export const TRANSFER_UPDATED_EVENT = 'transfer:updated';
+
+/**
+ * Event name for session created notification
+ * Emitted by SessionsService via EventEmitter2
+ * Listened by EventsGateway for WebSocket broadcast
+ */
+export const SESSION_CREATED_EVENT = 'session:created';

@@ -9,5 +9,6 @@ export interface AuthenticatedRequest {
     id: string;
     username: string;
     role: Role;
+    locationId?: string; // D-06: WAREHOUSE_MANAGER co locationId trong token
   };
 }

@@ -1,17 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '@prisma/prisma.service';
-import { EventsGateway } from '../events/events.gateway';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { OrderStatus } from '.prisma/client';
+import { OrderValidationService } from './order-validation.service';
+import { OrderLocationService } from './order-location.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: any;
-  let events: any;
+  let eventEmitter: any;
 
   const mockPrisma = {
     $transaction: jest.fn(),
+    location: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     order: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -21,8 +27,20 @@ describe('OrdersService', () => {
     },
   };
 
-  const mockEvents = {
-    server: { emit: jest.fn() },
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  };
+
+  const mockOrderValidation = {
+    validateInboundDestination: jest.fn(),
+    validateOutboundDestination: jest.fn(),
+    ensureManagerCanAccessOrder: jest.fn(),
+  };
+
+  const mockOrderLocation = {
+    getAuthorizedLocationIds: jest.fn(),
+    getManagerInboundAllowedLocationIds: jest.fn(),
+    determineTagStatusAndLocation: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,19 +48,24 @@ describe('OrdersService', () => {
       providers: [
         OrdersService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: EventsGateway, useValue: mockEvents },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: OrderValidationService, useValue: mockOrderValidation },
+        { provide: OrderLocationService, useValue: mockOrderLocation },
       ],
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
     prisma = module.get(PrismaService);
-    events = module.get(EventsGateway);
+    eventEmitter = module.get(EventEmitter2);
 
     jest.clearAllMocks();
   });
 
   describe('create', () => {
     it('should create order inside transaction', async () => {
+      mockPrisma.location.findFirst.mockResolvedValue({ id: 'loc-1', type: 'WAREHOUSE' });
+      mockOrderValidation.validateInboundDestination.mockResolvedValue('loc-1');
+
       const mockOrder = {
         id: 'order-1',
         code: 'IN-123456-AB12',
@@ -61,25 +84,25 @@ describe('OrdersService', () => {
       });
 
       const result = await service.create(
-        { type: 'INBOUND' as any, items: [{ productId: 'p1', quantity: 10 }] },
-        'user-1',
+        { type: 'INBOUND' as any, locationId: 'loc-1', items: [{ productId: 'p1', quantity: 10 }] },
+        { id: 'user-1', role: 'ADMIN', locationId: 'loc-1' },
       );
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
       expect(result).toBeDefined();
-      expect(mockEvents.server.emit).toHaveBeenCalledWith('orderUpdate', expect.anything());
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('order:updated', expect.anything());
     });
   });
 
   describe('cancelOrder', () => {
     it('should cancel a PENDING order', async () => {
-      const pendingOrder = { id: 'o1', status: OrderStatus.PENDING, deletedAt: null };
+      const pendingOrder = { id: 'o1', status: OrderStatus.PENDING, deletedAt: null, createdById: 'admin-1' };
       const cancelledOrder = { ...pendingOrder, status: OrderStatus.CANCELLED };
 
       mockPrisma.order.findFirst.mockResolvedValue(pendingOrder);
       mockPrisma.order.update.mockResolvedValue(cancelledOrder);
 
-      const result = await service.cancelOrder('o1', 'admin-1');
+      const result = await service.cancelOrder('o1', { id: 'admin-1', role: 'WAREHOUSE_MANAGER', locationId: 'loc-1' });
 
       expect(mockPrisma.order.update).toHaveBeenCalledWith({
         where: { id: 'o1' },
@@ -93,7 +116,7 @@ describe('OrdersService', () => {
         id: 'o2', status: OrderStatus.IN_PROGRESS, deletedAt: null,
       });
 
-      await expect(service.cancelOrder('o2', 'admin-1'))
+      await expect(service.cancelOrder('o2', { id: 'admin-1', role: 'WAREHOUSE_MANAGER', locationId: 'loc-1' }))
         .rejects
         .toThrow(BusinessException);
     });
@@ -101,7 +124,7 @@ describe('OrdersService', () => {
     it('should throw when order not found', async () => {
       mockPrisma.order.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelOrder('nonexistent', 'admin-1'))
+      await expect(service.cancelOrder('nonexistent', { id: 'admin-1', role: 'WAREHOUSE_MANAGER', locationId: 'loc-1' }))
         .rejects
         .toThrow(BusinessException);
     });
@@ -122,7 +145,7 @@ describe('OrdersService', () => {
 
       mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
 
-      const result = await service.findOne('o1');
+      const result = await service.findOne('o1', { id: 'u1', role: 'ADMIN' });
 
       expect(result).toBeDefined();
       // Progress = (5+20) / (10+20) * 100 = 83%
@@ -131,7 +154,7 @@ describe('OrdersService', () => {
     it('should throw when order not found', async () => {
       mockPrisma.order.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent'))
+      await expect(service.findOne('nonexistent', { id: 'u1', role: 'ADMIN' }))
         .rejects
         .toThrow(BusinessException);
     });
@@ -140,13 +163,13 @@ describe('OrdersService', () => {
   describe('remove (soft delete)', () => {
     it('should set deletedAt and deletedById', async () => {
       mockPrisma.order.findFirst.mockResolvedValue({
-        id: 'o1', status: OrderStatus.PENDING, deletedAt: null,
+        id: 'o1', status: OrderStatus.PENDING, deletedAt: null, createdById: 'admin-1',
       });
       mockPrisma.order.update.mockResolvedValue({
         id: 'o1', deletedAt: new Date(), deletedById: 'admin-1',
       });
 
-      await service.remove('o1', 'admin-1');
+      await service.remove('o1', { id: 'admin-1', role: 'WAREHOUSE_MANAGER', locationId: 'loc-1' });
 
       expect(mockPrisma.order.update).toHaveBeenCalledWith({
         where: { id: 'o1' },

@@ -8,7 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
 import { QueryTransfersDto } from './dto/query-transfers.dto';
-import { EventsGateway } from '../events/events.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TRANSFER_UPDATED_EVENT } from '@common/interfaces/scan.interface';
 import { randomBytes } from 'crypto';
 import {
   LocationType,
@@ -21,7 +22,7 @@ import {
 export class TransfersService {
   constructor(
     private prisma: PrismaService,
-    private events: EventsGateway,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   private buildTransferTagValidationError(
@@ -361,7 +362,7 @@ export class TransfersService {
           status: TagStatus.COMPLETED,
         },
       });
-      this.events.server.emit('transferUpdate', transfer);
+      this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, transfer);
       return transfer;
     }
 
@@ -374,7 +375,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', transfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, transfer);
     return transfer;
   }
 
@@ -483,7 +484,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', completedTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, completedTransfer);
     return completedTransfer;
   }
 
@@ -624,7 +625,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', cancelledTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, cancelledTransfer);
     return cancelledTransfer;
   }
 
@@ -687,7 +688,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', updatedTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, updatedTransfer);
     return updatedTransfer;
   }
 }

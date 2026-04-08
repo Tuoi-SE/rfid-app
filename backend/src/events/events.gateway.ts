@@ -15,7 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { BatchScanService, MAX_BUFFER_SIZE } from '../scanning/batch-scan.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { TAGS_UPDATED_EVENT } from '@common/interfaces/scan.interface';
+import { TAGS_UPDATED_EVENT, ORDER_UPDATED_EVENT, TRANSFER_UPDATED_EVENT, SESSION_CREATED_EVENT } from '@common/interfaces/scan.interface';
 
 interface ScanPayload {
   epc: string;
@@ -38,9 +38,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   ) {}
 
   afterInit() {
-    // Subscribe to tags:updated event from InventoryService via EventEmitter2 (D-01, D-03)
+    // Phase 11 - tags updated (already existing)
     this.eventEmitter.on(TAGS_UPDATED_EVENT, () => {
       this.emitTagsUpdated();
+    });
+
+    // Phase 12 - domain events
+    this.eventEmitter.on(ORDER_UPDATED_EVENT, (order) => {
+      this.server.emit('orderUpdate', order);
+    });
+
+    this.eventEmitter.on(TRANSFER_UPDATED_EVENT, (transfer) => {
+      this.server.emit('transferUpdate', transfer);
+    });
+
+    this.eventEmitter.on(SESSION_CREATED_EVENT, (session) => {
+      this.server.emit('sessionCreated', session);
     });
   }
 
