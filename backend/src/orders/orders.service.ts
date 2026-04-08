@@ -323,7 +323,7 @@ export class OrdersService {
     // 2. Determine target status
     const { status: tagsToUpdateStatus, finalLocationId } = await this.orderLocation.determineTagStatusAndLocation(
       dto.type,
-      mappedLocationId,
+      mappedLocationId!,
     );
 
     // 3. Execute Transaction
