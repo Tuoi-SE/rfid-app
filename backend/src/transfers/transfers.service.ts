@@ -163,7 +163,7 @@ export class TransfersService {
     if (user.role === 'WAREHOUSE_MANAGER') {
       const allowedIds = await this.transferLocation.getAuthorizedLocationIds(user.locationId);
       if (
-        (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) &&
+        (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) ||
         (!transfer.destinationId || !allowedIds.includes(transfer.destinationId))
       ) {
         throw new ForbiddenException(
