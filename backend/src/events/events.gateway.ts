@@ -143,15 +143,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     }
 
     // 3. Build enriched response with SYSTEM IDs (not raw EPCs)
+    // Track seen EPCs within this batch to prevent duplicate isNew flags
+    const seenNewEpcs = new Set<string>();
     const enrichedScans = scans.map((scan) => {
       const tag = tagMap.get(scan.epc)!;
+      const isNew = unknownEpcs.includes(scan.epc) && !seenNewEpcs.has(scan.epc);
+      if (isNew) {
+        seenNewEpcs.add(scan.epc);
+      }
       return {
         tagId: tag.id,          // ← System UUID (hiển thị trên web)
         epc: scan.epc,          // ← Mã gốc RFID (tham khảo)
         rssi: scan.rssi,
         status: tag.status,
         product: tag.product,   // ← null nếu chưa gắn sản phẩm
-        isNew: unknownEpcs.includes(scan.epc),
+        isNew,
       };
     });
 
