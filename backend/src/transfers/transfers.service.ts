@@ -383,13 +383,26 @@ export class TransfersService {
     dto: ConfirmTransferDto,
     user: { id: string; role: string; locationId?: string },
   ) {
-    void user;
     const transfer = await this.prisma.transfer.findUnique({
       where: { id: transferId },
       include: { items: { include: { tag: true } }, destination: true },
     });
 
     if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+
+    // LBAC check for WAREHOUSE_MANAGER
+    if (user.role === 'WAREHOUSE_MANAGER') {
+      const allowedIds = await this.getAuthorizedLocationIds(user.locationId);
+      if (
+        (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) &&
+        (!transfer.destinationId || !allowedIds.includes(transfer.destinationId))
+      ) {
+        throw new ForbiddenException(
+          'Không có quyền xác nhận phiếu điều chuyển này',
+        );
+      }
+    }
+
     if (transfer.status !== TransferStatus.PENDING) {
       throw new BadRequestException('Transfer không ở trạng thái PENDING');
     }
@@ -560,9 +573,9 @@ export class TransfersService {
     id: string,
     user: { id: string; role: string; locationId?: string },
   ) {
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
       throw new ForbiddenException(
-        'Chỉ ADMIN có quyền hủy phiếu điều chuyển.',
+        'Chỉ ADMIN và SUPER_ADMIN có quyền hủy phiếu điều chuyển.',
       );
     }
 
@@ -620,9 +633,9 @@ export class TransfersService {
     destinationId: string,
     user: { id: string; role: string; locationId?: string },
   ) {
-    if (user.role === 'ADMIN') {
+    if (user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException(
-        'Admin chỉ có quyền xem, không được chỉnh sửa phiếu luân chuyển.',
+        'Chỉ SUPER_ADMIN mới được chỉnh sửa xưởng nhận của phiếu luân chuyển.',
       );
     }
 

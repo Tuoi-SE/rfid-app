@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { UsersService } from '@users/users.service';
 import { PrismaService } from '@prisma/prisma.service';
 import { BusinessException } from '@common/exceptions/business.exception';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 /**
  * AuthService — Xử lý logic xác thực người dùng.
@@ -37,6 +38,7 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
   ) {
     this.refreshSecret = this.config.get('JWT_REFRESH_SECRET', this.config.getOrThrow('JWT_SECRET') + '_refresh');
     this.refreshExpDays = Number(this.config.get('JWT_REFRESH_EXPIRATION_DAYS', '7'));
@@ -48,13 +50,68 @@ export class AuthService {
    * Xác thực thông tin đăng nhập.
    * So sánh password (bcrypt) và trả về user info nếu hợp lệ, null nếu sai.
    * Được gọi bởi LocalStrategy (Passport).
+   *
+   * Bảo mật — Account Lockout:
+   * - Khóa tài khoản sau 5 lần đăng nhập sai liên tiếp, trong 15 phút
+   * - Kiểm tra lockout TRƯỚC khi so sánh password
+   * - Đăng nhập thành công → reset failedLoginAttempts về 0
+   * - Đăng nhập thất bại → tăng failedLoginAttempts, khóa nếu >= 5
    */
   async validateUser(username: string, password: string) {
     const user = await this.usersService.findByUsername(username);
     if (!user) return null;
 
+    // Reject soft-deleted users
+    if (user.deletedAt) return null;
+
+    // Check if account is locked (before password comparison)
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new BusinessException(
+        'Tài khoản đã bị khóa tạm thời do đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.',
+        'AUTH_ACCOUNT_LOCKED',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return null;
+
+    if (!isMatch) {
+      // Atomic increment — race-safe, no read-modify-write
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: { increment: 1 },
+        },
+      });
+
+      // Re-fetch to check lockout threshold after atomic increment
+      const updated = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { failedLoginAttempts: true },
+      });
+
+      if ((updated?.failedLoginAttempts || 0) >= 5) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            lockedUntil: new Date(Date.now() + 15 * 60 * 1000),
+          },
+        });
+      }
+
+      return null;
+    }
+
+    // Successful login — reset failed attempts and clear any lockout
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      });
+    }
 
     return { id: user.id, username: user.username, role: user.role, locationId: user.locationId };
   }
@@ -64,7 +121,7 @@ export class AuthService {
    * Lưu hash của refresh token vào bảng RefreshToken.
    * Interceptor sẽ auto-wrap thành { success, message, data }.
    */
-  async login(user: { id: string; username: string; role: string; locationId?: string | null }, deviceType: string = 'WEB') {
+  async login(user: { id: string; username: string; role: string; locationId?: string | null }, deviceType: string = 'WEB', ipAddress?: string) {
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
 
@@ -90,6 +147,15 @@ export class AuthService {
         deviceType,
         expiresAt,
       },
+    });
+
+    // Audit log: LOGIN_SUCCESS
+    await this.activityLogService.log({
+      userId: user.id,
+      action: 'LOGIN_SUCCESS',
+      entity: 'User',
+      entityId: user.id,
+      ipAddress,
     });
 
     return {
@@ -144,6 +210,15 @@ export class AuthService {
       where: { id: storedToken.id },
       data: { revoked: true },
     });
+
+    // Bước 3b: Verify user is not soft-deleted
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: storedToken.userId },
+      select: { id: true, deletedAt: true },
+    });
+    if (!userRecord || userRecord.deletedAt) {
+      throw new BusinessException('Tài khoản không hợp lệ', 'AUTH_REFRESH_INVALID', HttpStatus.UNAUTHORIZED);
+    }
 
     // Bước 4: Cấp cặp token mới
     const user = { id: payload.sub, username: payload.username, role: payload.role, locationId: payload.locationId };

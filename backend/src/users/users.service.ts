@@ -11,7 +11,7 @@ import { plainToInstance } from 'class-transformer';
 import { UserEntity } from './entities/user.entity';
 
 /** Số vòng bcrypt để hash password */
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 /** Select fields cho audit user (chỉ lấy id + username) */
 const AUDIT_USER_SELECT = { id: true, username: true };
@@ -36,7 +36,7 @@ const USER_SELECT = {
  * Chức năng:
  * - CRUD với audit tracking (created_by, updated_by, deleted_by)
  * - Soft delete + Restore
- * - Password hashing: bcrypt 10 rounds
+ * - Password hashing: bcrypt 12 rounds
  * - Response format: snake_case, dùng PaginationHelper.paginate() helper
  */
 @Injectable()
@@ -132,7 +132,7 @@ export class UsersService {
    * KHÔNG dùng cho API response.
    */
   async findByUsername(username: string) {
-    return this.prisma.user.findUnique({ where: { username } });
+    return this.prisma.user.findUnique({ where: { username, deletedAt: null } });
   }
 
   /**

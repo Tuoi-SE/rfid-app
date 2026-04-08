@@ -210,6 +210,16 @@ Plans:
 Plans:
 - [x] 11-01-PLAN.md — Extract ScanningModule, create @app/common/interfaces/scan.interface.ts, refactor InventoryService to use EventEmitter2, break circular dependency
 
+### Phase 12: backend-refactor
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 11
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 12 to break down)
+
 ---
 
 ## Progress

@@ -8,6 +8,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
+import { WsException } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -77,6 +78,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     @MessageBody() scans: ScanPayload[],
   ) {
     if (!scans?.length) return;
+
+    // Re-validate JWT on every message
+    const token =
+      client.handshake.auth?.token ||
+      client.handshake.headers?.authorization?.replace('Bearer ', '');
+    if (!token) {
+      throw new WsException('Unauthorized');
+    }
+
+    try {
+      this.jwtService.verify(token);
+    } catch {
+      throw new WsException('Unauthorized');
+    }
 
     const epcs = scans.map((s) => s.epc);
 
@@ -151,8 +166,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return { success: false, error: 'No EPCs provided' };
     }
 
-    // Extract userId from JWT payload
-    const userId = (client as any).user?.id || (client as any).user?.sub || 'system';
+    // Re-validate JWT on every message
+    const token =
+      client.handshake.auth?.token ||
+      client.handshake.headers?.authorization?.replace('Bearer ', '');
+    if (!token) {
+      throw new WsException('Unauthorized');
+    }
+
+    let payload: { id?: string; sub?: string; role?: string };
+    try {
+      payload = this.jwtService.verify(token);
+    } catch {
+      throw new WsException('Unauthorized');
+    }
+
+    const userId = payload?.id || payload?.sub || 'system';
 
     // D-05: Process EPCs through buffer - auto-flush triggers at 500
     // Track total processed including auto-flushes

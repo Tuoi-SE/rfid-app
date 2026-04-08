@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 class AuthModuleConfig {
   static createJwtOptions(config: ConfigService) {
@@ -26,6 +27,7 @@ class AuthModuleConfig {
       inject: [ConfigService],
       useFactory: AuthModuleConfig.createJwtOptions,
     }),
+    ActivityLogModule,
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
   controllers: [AuthController],

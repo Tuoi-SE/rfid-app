@@ -29,12 +29,12 @@ export class AuthController {
    * @returns { access_token, token_type, expires_in, refresh_token, refresh_expires_in, user }
    * @error AUTH_INVALID_CREDENTIALS (401)
    */
-  @Throttle({ default: { limit: 5, ttl: 1000 } })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ResponseMessageDecorator.withMessage('Đăng nhập thành công')
-  login(@Request() req: AuthenticatedRequest, @Body() dto: LoginDto) {
-    return this.authService.login(req.user, dto.deviceType || 'WEB');
+  login(@Request() req: AuthenticatedRequest & { ip?: string }, @Body() dto: LoginDto) {
+    return this.authService.login(req.user, dto.deviceType || 'WEB', req.ip);
   }
 
   /**
@@ -55,6 +55,7 @@ export class AuthController {
    * @returns { access_token, token_type, expires_in, refresh_token, refresh_expires_in }
    * @error AUTH_REFRESH_INVALID (401)
    */
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('refresh')
   @ResponseMessageDecorator.withMessage('Làm mới phiên đăng nhập thành công')
   refresh(@Body() dto: RefreshTokenDto) {
@@ -66,6 +67,7 @@ export class AuthController {
    * @body { refresh_token }
    * @returns null
    */
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('logout')
   @ResponseMessageDecorator.withMessage('Đăng xuất thành công')
   logout(@Body() dto: RefreshTokenDto) {
