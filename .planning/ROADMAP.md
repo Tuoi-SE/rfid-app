@@ -224,6 +224,35 @@ Plans:
 - [x] 12-03-PLAN.md — P1: TransfersService split
 - [x] 12-04-PLAN.md — P2: Cleanup stale .bak file
 
+### Phase 13: backend-quality-improvement
+
+**Goal:** Backend quality improvements: BusinessException consistency, performance optimization, missing indexes, env var alignment, test coverage
+
+**Requirements:** D-01 through D-12 (from backend-evaluation.md findings)
+
+**Depends on:** Phase 12
+
+**Success Criteria** (what must be TRUE):
+1. TransfersService uses BusinessException for all error responses (D-01)
+2. buildStockSummary() uses groupBy at DB level (D-02, D-03)
+3. Cache TTL increased to 60-120 seconds (D-04)
+4. JWT re-verification eliminated in WebSocket handlers (D-05)
+5. User table has indexes on failedLoginAttempts, lockedUntil, role, locationId (D-06)
+6. env.validation.ts aligned with auth.service.ts (D-07)
+7. Unit tests for TransfersService and UsersService (D-08)
+8. Magic strings extracted to constants (D-09)
+9. getAuthorizedLocationIds cached in request context (D-10)
+
+**Plans:** 4 plans
+
+Plans:
+- [x] 13-01-PLAN.md — D-01: BusinessException in TransfersService + D-02/D-03: buildStockSummary refactor with groupBy
+- [x] 13-02-PLAN.md — D-04: Cache TTL increase + D-05: JWT re-verify elimination + D-06: User table indexes
+- [x] 13-03-PLAN.md — D-07: Env var alignment + D-09: Magic strings extraction + D-10: Location ID caching
+- [x] 13-04-PLAN.md — D-08: Unit tests for TransfersService and UsersService
+
+**Deferred:** D-11 (processBulkScan batch update), D-12 (TransferItem parallelization) - deferred after buildStockSummary refactor
+
 ---
 
 ## Progress
@@ -242,3 +271,4 @@ Plans:
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
 | 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
+| 13. backend-quality-improvement | 4/4 | Planned | — |
