@@ -212,13 +212,17 @@ Plans:
 
 ### Phase 12: backend-refactor
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Decouple EventsGateway from domain services, split oversized services, fix type safety
+
 **Depends on:** Phase 11
-**Plans:** 0 plans
+
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 12 to break down)
+- [ ] 12-01-PLAN.md — P0: EventsGateway decoupling (EventEmitter2 pattern)
+- [ ] 12-02-PLAN.md — P1: AuthenticatedRequest fix + OrdersService split
+- [ ] 12-03-PLAN.md — P1: TransfersService split
+- [ ] 12-04-PLAN.md — P2: Cleanup stale .bak file
 
 ---
 
@@ -237,3 +241,4 @@ Plans:
 | 9. Cache Integration - Inventory Summary | 1/1 | Complete    | 2026-03-27 |
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
+| 12. backend-refactor | 0/4 | Planned | 2026-04-08 |
