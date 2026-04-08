@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Performance & Scale Preparation
 status: completed
-last_updated: "2026-03-27T15:29:46.132Z"
-last_activity: 2026-03-27
+last_updated: "2026-04-08T00:00:00.000Z"
+last_activity: 2026-04-08
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 11
   total_plans: 12
   completed_plans: 12
@@ -22,10 +22,10 @@ progress:
 
 ## Current Position
 
-Phase: 11-service-boundary-cleanup
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-27
+Phase: 12-backend-refactor
+Plan: Not planned yet
+Status: Phase added — awaiting planning
+Last activity: 2026-04-08
 
 ## Accumulated Context
 
@@ -37,7 +37,7 @@ Last activity: 2026-03-27
 - Workshop CRUD and warehouse transfer with scan verification
 - Outbound flow: WAREHOUSE_TO_CUSTOMER 1-step workflow
 
-### v1.1 Focus (Phases 06-11)
+### v1.1 Focus (Phases 06-12)
 
 - Phase 06: Connection Pooling Foundation (POOL-01, POOL-02)
 - Phase 07: Redis Infrastructure (REDIS-01, REDIS-02, REDIS-03)
@@ -45,6 +45,7 @@ Last activity: 2026-03-27
 - Phase 09: Cache Integration - Inventory Summary (CACHE-04, CACHE-05, CACHE-06)
 - Phase 10: Batch Scan Buffer (BATCH-01 through BATCH-06)
 - Phase 11: Service Boundary Cleanup (BOUND-01, BOUND-02, BOUND-03)
+- Phase 12: Backend Refactor (EventsGateway decoupling, service size reduction)
 - Real-time requirement maintained throughout
 - Microservice decision deferred until >1000 users
 
@@ -57,3 +58,4 @@ Last activity: 2026-03-27
 | 2026-03-27 | Redis cache before microservice | Real-time requirement demands shared DB first |
 | 2026-03-27 | Microservice only when >1000 users | Avoid over-engineering |
 | 2026-03-27 | v1.1 roadmap created | 6 phases (06-11), 19 requirements mapped |
+| 2026-04-08 | Phase 12 added: backend-refactor | Based on backend-structure-review.md findings |
