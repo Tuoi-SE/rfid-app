@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { TransferData, TransferType, TransferStatus } from '../types';
-import { ArrowRight, CheckCircle2, Clock, XCircle, MapPin, Truck, Edit, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, XCircle, MapPin, Truck, Edit, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, FileText } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { hasAdminAccess } from '@/utils/role-helpers';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface TransferTableProps {
   transfers: TransferData[];
+  onViewDetails?: (id: string) => void;
 }
 
 type SortKey = 'createdAt' | 'code' | 'route' | 'volume' | 'status';
@@ -36,7 +37,7 @@ const getStatusBadge = (status: TransferStatus) => {
   }
 };
 
-export const TransferTable: React.FC<TransferTableProps> = ({ transfers }) => {
+export const TransferTable: React.FC<TransferTableProps> = ({ transfers, onViewDetails }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -228,6 +229,14 @@ export const TransferTable: React.FC<TransferTableProps> = ({ transfers }) => {
                   </td>
                   <td className="px-5 py-4 text-right align-middle">
                     <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => onViewDetails?.(tr.id)}
+                        className="w-8 h-8 inline-flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus:outline-none"
+                        title="Xem chi tiết lệnh"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+
                       {tr.status === 'PENDING' && isWarehouseManager && (
                         <button
                           disabled={confirmingId === tr.id}

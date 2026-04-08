@@ -7,6 +7,7 @@ import { TableActions } from '@/components/TableActions';
 import { useTransfers } from '../hooks/use-transfers';
 import { TransferStatCards } from './transfer-stat-cards';
 import { TransferTable } from './transfer-table';
+import { TransferDetailsModal } from './transfer-details-modal';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ export const TransfersMain = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useTransfers('limit=100');
   
@@ -137,7 +139,14 @@ export const TransfersMain = () => {
             ]}
             statusText={`Hiển thị ${filteredTransfers.length} kết quả`}
           />
-          <TransferTable transfers={filteredTransfers} />
+          <TransferTable transfers={filteredTransfers} onViewDetails={setSelectedTransferId} />
+          
+          {selectedTransferId && (
+            <TransferDetailsModal
+              transferId={selectedTransferId}
+              onClose={() => setSelectedTransferId(null)}
+            />
+          )}
         </>
       )}
     </div>

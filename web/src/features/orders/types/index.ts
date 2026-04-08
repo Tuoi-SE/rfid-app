@@ -18,6 +18,36 @@ export interface Order {
   createdById?: string;
   createdBy?: { id: string; username: string; role?: string };
   location?: { id: string; name: string; type: string };
+  
+  // New detail fields from backend/Sessions
+  sessions?: {
+    id: string;
+    name: string;
+    startedAt: string;
+    endedAt?: string;
+    totalTags: number;
+    user?: { id: string; username: string };
+    scans?: { id: string; tagEpc: string; scannedAt: string; rssi: number }[];
+  }[];
+
+  // Transport details (Mostly mocked for now as per design)
+  transport?: {
+    eta: string;
+    status: string;
+    roadmap: {
+      source: string;
+      intermediate?: string;
+      destination: string;
+    };
+    timeline: {
+      id: string;
+      title: string;
+      description: string;
+      timestamp: string;
+      actor: string;
+      zone?: string;
+    }[];
+  };
 }
 
 export interface OrderItemForm {
