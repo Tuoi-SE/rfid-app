@@ -23,7 +23,12 @@ interface ScanPayload {
 }
 
 @WebSocketGateway({
-  cors: true, // CORS sẽ được inject động qua afterInit
+  cors: {
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+      : ['http://localhost:3001'],
+    credentials: true,
+  },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
