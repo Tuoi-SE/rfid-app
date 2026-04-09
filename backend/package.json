@@ -47,6 +47,7 @@
     "dotenv": "^17.3.1",
     "ioredis": "^5.10.1",
     "nestjs-pino": "^4.6.1",
+    "nodemailer": "^8.0.5",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -68,6 +69,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^8.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
@@ -113,7 +115,8 @@
       "^@tags/(.*)$": "<rootDir>/tags/$1",
       "^@locations/(.*)$": "<rootDir>/locations/$1",
       "^@inventory/(.*)$": "<rootDir>/inventory/$1",
-      "^@orders/(.*)$": "<rootDir>/orders/$1"
+      "^@orders/(.*)$": "<rootDir>/orders/$1",
+      "^@common/email/(.*)$": "<rootDir>/common/email/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

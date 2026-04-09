@@ -24,6 +24,7 @@ import { OrdersModule } from './orders/orders.module';
 import { LocationsModule } from './locations/locations.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { LoggerConfigModule } from '@common/config/logger.config';
+import { EmailModule } from '@common/email/email.module';
 
 class AppModuleConfig {
   static async createCacheOptions(configService: ConfigService) {
@@ -70,6 +71,7 @@ class AppModuleConfig {
     PrismaModule,
     CaslModule,
     ActivityLogModule,
+    EmailModule,
     AuthModule,
     UsersModule,
     CategoriesModule,
