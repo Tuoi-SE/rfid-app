@@ -43,9 +43,8 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
     );
   }
 
-  // Mock transport data if missing (to perfectly match Figma design)
   const transport = order.transport || {
-    eta: 'Oct 26, 2023 - 10:30',
+    eta: '26/10/2023 - 10:30',
     status: 'Đã tới khu vực',
     roadmap: {
       source: 'Kho xuất',
@@ -53,9 +52,9 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
       destination: 'Khu vực đích (Kho A2)'
     },
     timeline: [
-      { id: '1', title: 'Đã tới khu vực trung chuyển', description: 'Đơn hàng đã được kiểm tra tại hub trung tâm', timestamp: '14:20, 24 Oct', actor: 'System-Auto', zone: 'DANANG_HUB_G4' },
-      { id: '2', title: 'Rời kho nguồn', description: 'Kiện hàng đã rời Kho A1 và đang trên đường tới hub', timestamp: '08:45, 24 Oct', actor: 'Warehouse-Manager', zone: 'HANOI_WH_A1' },
-      { id: '3', title: 'Tạo phiếu giao nhận', description: 'Phiếu kho đã được khởi tạo và gán lô RFID', timestamp: '16:30, 23 Oct', actor: 'Admin-System' },
+      { id: '1', title: 'Đã tới khu vực trung chuyển', description: 'Đơn hàng đã được kiểm tra tại hub trung tâm', timestamp: '14:20, 24/10', actor: 'System-Auto', zone: 'DANANG_HUB_G4' },
+      { id: '2', title: 'Rời kho nguồn', description: 'Kiện hàng đã rời Kho A1 và đang trên đường tới hub', timestamp: '08:45, 24/10', actor: 'Warehouse-Manager', zone: 'HANOI_WH_A1' },
+      { id: '3', title: 'Tạo phiếu giao nhận', description: 'Phiếu kho đã được khởi tạo và gán lô RFID', timestamp: '16:30, 23/10', actor: 'Admin-System' },
     ]
   };
 
@@ -69,7 +68,9 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
         order.status === 'PROCESSING' ? 'bg-indigo-50 text-[#04147B] border-indigo-100' :
         'bg-amber-50 text-amber-600 border-amber-100'
       }`}>
-        {order.status === 'PROCESSING' ? 'PROCESSING' : order.status}
+        {order.status === 'PROCESSING' ? 'ĐANG XỬ LÝ' : 
+         order.status === 'PENDING' ? 'CHỜ XỬ LÝ' : 
+         order.status === 'COMPLETED' ? 'HOÀN TẤT' : order.status}
       </span>
     </div>
   );
@@ -88,7 +89,7 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
               <div className="space-y-1">
                 <h2 className="text-[32px] font-black text-slate-800 tracking-tighter leading-tight">{order.code}</h2>
                 <div className="flex items-center gap-2 text-slate-400 font-bold text-[13px]">
-                   <span className="flex items-center gap-1"><Radio className="w-3.5 h-3.5" /> Internal Storage Sync</span>
+                   <span className="flex items-center gap-1"><Radio className="w-3.5 h-3.5" /> Đồng bộ kho nội bộ</span>
                    <span>•</span>
                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {order.location?.name || 'Warehouse A2-4'}</span>
                 </div>
@@ -97,11 +98,13 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
             
             <div className="flex items-center gap-3 w-full md:w-auto">
               <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-black text-sm rounded-full transition-all border border-slate-200">
-                <Printer className="w-4 h-4" /> Print Label
+                <Printer className="w-4 h-4" /> In nhãn
               </button>
-              <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-[#04147B] hover:bg-[#030e57] text-white font-black text-sm rounded-full transition-all shadow-[0_8px_20px_-4px_rgba(4,20,123,0.3)] group">
-                Submit Batch <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </button>
+              {order.status === 'PENDING' && (
+                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-[#04147B] hover:bg-[#030e57] text-white font-black text-sm rounded-full transition-all shadow-[0_8px_20px_-4px_rgba(4,20,123,0.3)] group">
+                  Gửi lô hàng <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </button>
+              )}
               <button onClick={onClose} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-300 hover:text-slate-900 transition-colors hidden sm:block">
                 <X className="w-7 h-7" strokeWidth={2.5} />
               </button>
@@ -143,14 +146,14 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
                   <div className="absolute top-[22px] left-[10%] right-[10%] h-[4px] bg-slate-100 z-0">
                     <div 
                       className="h-full bg-emerald-500 transition-all duration-1000" 
-                      style={{ width: order.status === 'COMPLETED' ? '100%' : order.status === 'PROCESSING' ? '70%' : '5%' }}
+                      style={{ width: order.status === 'COMPLETED' ? '100%' : order.status === 'PROCESSING' ? '66%' : order.status === 'PENDING' ? '33%' : '0%' }}
                     />
                   </div>
 
                   {/* Step Icons */}
                   {[
-                    { id: 'PENDING', label: 'Tạo phiếu', active: true, done: order.status !== 'PENDING' },
-                    { id: 'IN_PROGRESS', label: 'Chờ xử lý', active: order.status === 'PROCESSING' || order.status === 'COMPLETED', done: order.status === 'COMPLETED' },
+                    { id: 'CREATED', label: 'Tạo phiếu', active: true, done: true },
+                    { id: 'PENDING', label: 'Chờ xử lý', active: order.status === 'PENDING' || order.status === 'PROCESSING' || order.status === 'COMPLETED', done: order.status !== 'PENDING' },
                     { id: 'SCANNING', label: 'Đang quét', active: order.status === 'PROCESSING' || order.status === 'COMPLETED', done: order.status === 'COMPLETED' },
                     { id: 'COMPLETED', label: 'Hoàn tất', active: order.status === 'COMPLETED', done: order.status === 'COMPLETED' }
                   ].map((step, idx) => (
@@ -192,7 +195,7 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
                           <span className="text-[11px] font-black text-slate-300 uppercase">/ {item.quantity}</span>
                         </div>
                         {item.scannedQuantity === item.quantity && (
-                          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Matched</span>
+                          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Đã khớp</span>
                         )}
                       </div>
                     </div>
@@ -248,7 +251,7 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
                 <div className="lg:col-span-7 bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-between">
                    <div className="flex items-center justify-between mb-8">
                       <h3 className="text-[18px] font-black text-slate-800 tracking-tight">Lộ trình vận chuyển</h3>
-                      <button className="text-[11px] font-black text-[#04147B] uppercase tracking-widest flex items-center gap-1.5 hover:gap-2 transition-all">Details <ChevronRight className="w-4 h-4" /></button>
+                      <button className="text-[11px] font-black text-[#04147B] uppercase tracking-widest flex items-center gap-1.5 hover:gap-2 transition-all">Chi tiết <ChevronRight className="w-4 h-4" /></button>
                    </div>
 
                    <div className="flex-1 flex flex-col justify-center gap-10 py-4 px-4">
@@ -324,7 +327,7 @@ export const OrderDetailsModal = ({ orderId, onClose }: { orderId: string, onClo
                              <Clock className="w-3.5 h-3.5 text-slate-300" /> {event.timestamp}
                            </div>
                            <div className="text-[11px] font-bold text-[#04147B]/60 uppercase tracking-widest">
-                             Actor: {event.actor}
+                             Người thực hiện: {event.actor}
                            </div>
                         </div>
                       </div>

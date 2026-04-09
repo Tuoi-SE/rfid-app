@@ -222,7 +222,7 @@ export const TransferTable: React.FC<TransferTableProps> = ({ transfers, onViewD
                     <div className="text-xl font-black text-slate-800 tracking-tight">
                       {tr.items?.length || 0}
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Tags</div>
+                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Thẻ</div>
                   </td>
                   <td className="px-5 py-4">
                     {getStatusBadge(tr.status)}
@@ -244,7 +244,7 @@ export const TransferTable: React.FC<TransferTableProps> = ({ transfers, onViewD
                           className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-4 py-2 rounded-xl transition-colors shadow-sm shadow-indigo-200 disabled:opacity-50 inline-flex items-center gap-2"
                         >
                           <Truck className="w-3.5 h-3.5 flex-none" />
-                          {confirmingId === tr.id ? 'Loading...' : 'Nhận Hàng'}
+                          {confirmingId === tr.id ? 'Đang tải...' : 'Nhận Hàng'}
                         </button>
                       )}
 

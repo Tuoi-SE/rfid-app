@@ -120,9 +120,9 @@ export const TransfersMain = () => {
                 value: filterStatus,
                 onChange: setFilterStatus,
                 options: [
-                  { label: 'PENDING', value: 'PENDING' },
-                  { label: 'COMPLETED', value: 'COMPLETED' },
-                  { label: 'CANCELLED', value: 'CANCELLED' }
+                  { label: 'Đang giao', value: 'PENDING' },
+                  { label: 'Hoàn tất', value: 'COMPLETED' },
+                  { label: 'Đã hủy', value: 'CANCELLED' }
                 ]
               },
               {
@@ -131,9 +131,9 @@ export const TransfersMain = () => {
                 value: filterType,
                 onChange: setFilterType,
                 options: [
-                  { label: 'ADMIN_TO_WORKSHOP', value: 'ADMIN_TO_WORKSHOP' },
-                  { label: 'WORKSHOP_TO_ADMIN', value: 'WORKSHOP_TO_ADMIN' },
-                  { label: 'WORKSHOP_TO_WORKSHOP', value: 'WORKSHOP_TO_WORKSHOP' }
+                  { label: 'Nhập kho (Admin -> Xưởng)', value: 'ADMIN_TO_WORKSHOP' },
+                  { label: 'Xuất kho (Xưởng -> Admin)', value: 'WORKSHOP_TO_ADMIN' },
+                  { label: 'Điều chuyển (Xưởng -> Kho)', value: 'WORKSHOP_TO_WORKSHOP' }
                 ]
               }
             ]}

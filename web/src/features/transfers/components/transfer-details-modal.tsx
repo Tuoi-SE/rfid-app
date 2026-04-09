@@ -46,13 +46,16 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
   const statusBadge = (
     <div className="flex gap-2">
       <span className="bg-[#04147B] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-700 shadow-sm flex items-center justify-center">
-        {transfer.type}
+        {transfer.type === 'ADMIN_TO_WORKSHOP' ? 'NHẬP KHO' : 
+         transfer.type === 'WORKSHOP_TO_WAREHOUSE' ? 'ĐIỀU CHUYỂN' : 
+         transfer.type === 'WAREHOUSE_TO_CUSTOMER' ? 'XUẤT KHO' : transfer.type}
       </span>
       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm flex items-center justify-center ${
         transfer.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
         'bg-amber-50 text-amber-600 border-amber-100'
       }`}>
-        {transfer.status}
+        {transfer.status === 'PENDING' ? 'PENDING' : 
+         transfer.status === 'COMPLETED' ? 'HOÀN TẤT' : transfer.status}
       </span>
     </div>
   );
@@ -80,7 +83,13 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
             
             <div className="flex items-center gap-3 w-full md:w-auto">
               <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-black text-sm rounded-full transition-all border border-slate-200">
-                <Printer className="w-4 h-4" /> Print Label
+                <Printer className="w-4 h-4" /> In nhãn
+              </button>
+              <button 
+                onClick={() => {}} 
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-[#04147B] hover:bg-[#030d63] text-white font-black text-sm rounded-full transition-all shadow-lg shadow-indigo-200"
+              >
+                Gửi lô hàng <ArrowUpRight className="w-4 h-4" />
               </button>
               <button onClick={onClose} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-300 hover:text-slate-900 transition-colors hidden sm:block">
                 <X className="w-7 h-7" strokeWidth={2.5} />
@@ -125,7 +134,7 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
                        </div>
                        <div>
                           <p className="font-black text-slate-800 tracking-tight">{transfer.source?.name}</p>
-                          <p className="text-xs text-slate-400 font-bold">{transfer.source?.address || 'N/A'}</p>
+                          <p className="text-xs text-slate-400 font-bold">{(transfer.source as any)?.address || 'N/A'}</p>
                        </div>
                     </div>
                  </div>
@@ -139,7 +148,7 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
                        </div>
                        <div>
                           <p className="font-black text-slate-800 tracking-tight">{transfer.destination?.name}</p>
-                          <p className="text-xs text-slate-400 font-bold">{transfer.destination?.address || 'N/A'}</p>
+                          <p className="text-xs text-slate-400 font-bold">{(transfer.destination as any)?.address || 'N/A'}</p>
                        </div>
                     </div>
                  </div>
@@ -148,9 +157,9 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
               {/* Items Summary */}
               <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-between overflow-hidden relative">
                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Chi tiết lô hàng ({transfer.items?.length || 0} thẻ)</h3>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Danh mục sản phẩm yêu cầu</h3>
                     <div className="bg-slate-50 px-4 py-1.5 rounded-full text-[11px] font-black border border-slate-100 uppercase tracking-widest">
-                       Kiểm đếm 100%
+                       {transfer.items?.length || 0} SKU
                     </div>
                  </div>
 
@@ -170,7 +179,7 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
                            <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
                               item.scannedAt ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
                            }`}>
-                              {item.scannedAt ? 'Đã quét' : 'Chờ quét'}
+                              {item.scannedAt ? 'Đã quét' : '0 / 1'}
                            </div>
                         </div>
                       )).slice(0, 10)
@@ -194,16 +203,43 @@ export const TransferDetailsModal = ({ transferId, onClose }: { transferId: stri
           )}
         </div>
 
+        {/* STEPPER PROGRESS (Figma) */}
+        {activeTab === 'info' && (
+          <div className="px-8 py-10 bg-white border-t border-slate-50">
+             <div className="flex items-center justify-between relative max-w-4xl mx-auto">
+                <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-100 z-0" />
+                
+                {[
+                  { label: 'Tạo phiếu', status: 'active' },
+                  { label: 'Chờ xử lý', status: 'idle' },
+                  { label: 'Đang quét', status: 'idle' },
+                  { label: 'Hoàn tất', status: 'idle' }
+                ].map((step, idx) => (
+                  <div key={idx} className="relative z-10 flex flex-col items-center gap-3">
+                     <div className={`w-11 h-11 rounded-full flex items-center justify-center border-4 ${
+                       step.status === 'active' ? 'bg-[#04147B] border-indigo-100 text-white shadow-lg' : 'bg-white border-slate-50 text-slate-200'
+                     }`}>
+                        <div className={`w-2.5 h-2.5 rounded-full ${step.status === 'active' ? 'bg-white' : 'bg-slate-100'}`} />
+                     </div>
+                     <span className={`text-[11px] font-black uppercase tracking-widest ${step.status === 'active' ? 'text-[#04147B]' : 'text-slate-300'}`}>
+                       {step.label}
+                     </span>
+                  </div>
+                ))}
+             </div>
+          </div>
+        )}
+
         {/* FOOTER */}
         <div className="p-6 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-             <ListChecks className="w-4 h-4" /> Bản quyền hệ thống RFID Riotex
+           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest italic">
+             <Radio className="w-4 h-4" /> Dữ liệu được bảo mật bởi Riotex System
            </div>
            <button 
              onClick={onClose} 
              className="w-full md:w-auto px-8 py-3 bg-white border border-slate-200 text-slate-900 font-black rounded-2xl shadow-sm hover:bg-slate-50 transition-all text-sm uppercase tracking-wider"
            >
-             Đóng cửa sổ
+             Đóng Tab điều hướng
            </button>
         </div>
       </div>

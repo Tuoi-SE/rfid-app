@@ -15,6 +15,7 @@ const [password, setPassword] = useState('');
 const [showPassword, setShowPassword] = useState(false);
 const [rememberMe, setRememberMe] = useState(false);
 const [error, setError] = useState('');
+const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
 const [isSubmitLoading, setIsSubmitLoading] = useState(false);
 const [isForgotOpen, setIsForgotOpen] = useState(false);
 
@@ -26,18 +27,38 @@ if (!isAuthLoading && token) {
 }, [isAuthLoading, token, router]);
 
 const handleSubmit = async (e: React.FormEvent) => {
-e.preventDefault();
-setError('');
-setIsSubmitLoading(true);
+  e.preventDefault();
+  setError('');
+  setErrors({});
 
-try {
-  const res = await loginAuth({ username, password, deviceType: 'WEB' });
-  login(res.access_token, res.refresh_token, rememberMe);
-} catch {
-  setError('Tên đăng nhập hoặc mật khẩu không đúng');
-} finally {
-  setIsSubmitLoading(false);
-}
+  let hasError = false;
+  const newErrors: { username?: string; password?: string } = {};
+
+  if (!username) {
+    newErrors.username = 'Vui lòng nhập tên đăng nhập';
+    hasError = true;
+  }
+
+  if (!password) {
+    newErrors.password = 'Vui lòng nhập mật khẩu';
+    hasError = true;
+  }
+
+  if (hasError) {
+    setErrors(newErrors);
+    return;
+  }
+
+  setIsSubmitLoading(true);
+
+  try {
+    const res = await loginAuth({ username, password, deviceType: 'WEB' });
+    login(res.access_token, res.refresh_token, rememberMe);
+  } catch {
+    setError('Tên đăng nhập hoặc mật khẩu không đúng');
+  } finally {
+    setIsSubmitLoading(false);
+  }
 };
 
 // Nếu đang kiểm tra token hoặc đã có token rồi (chuẩn bị redirect đi), sẽ hiện màn hình xoay để tránh chớp giật giao diện cũ
@@ -58,83 +79,92 @@ return (
     <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-100/40 rounded-full blur-[100px]" />
   </div>
 
-  <div className="relative z-10 w-full max-w-[340px] sm:max-w-[380px]">
+  <div className="relative z-10 w-full max-w-[360px] sm:max-w-[400px]">
     {/* Main Card */}
-    <div className="bg-white rounded-2xl p-6 sm:p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+    <div className="bg-white rounded-[32px] p-6 sm:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.05)] border border-slate-100">
 
       {/* Logo */}
-      <div className="flex justify-center items-center h-10 sm:h-12 w-full mb-3 relative">
+      <div className="flex justify-center items-center h-12 sm:h-14 w-full mb-3 relative">
         <img
           src="/images/vtex-logo.png"
           alt="VTEX Logo"
-          className="absolute w-[200px] sm:w-[220px] h-auto object-contain scale-50"
+          className="absolute w-[240px] sm:w-[260px] h-auto object-contain scale-50"
         />
       </div>
 
-      <div className="text-center mb-5 sm:mb-6">
-        <h1 className="text-[18px] sm:text-[20px] font-bold text-slate-900 mb-1 tracking-tight">
+      <div className="text-center mb-6">
+        <h1 className="text-[22px] sm:text-[24px] font-extrabold text-slate-900 mb-2 tracking-tight">
           RFID Inventory Manager
         </h1>
-        <p className="text-slate-500 text-xs sm:text-sm">
+        <p className="text-slate-500 text-sm sm:text-base">
           Hệ thống quản lý kho chính xác
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl mb-5 text-sm font-medium border border-red-100">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="flex items-center gap-3 bg-red-50 text-red-600 px-5 py-3 rounded-2xl mb-6 text-base font-bold border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+          <AlertCircle className="w-5 h-5 shrink-0" />
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         {/* Username Input */}
         <div>
-          <label className="block text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-            Tên đăng nhập
+          <label className="block text-sm font-semibold text-[#1e293b] mb-1.5">
+            Email
           </label>
-          <div className="relative group">
-            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <div className="relative">
             <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="Nhập tài khoản quản trị"
+              placeholder="Nhập email của bạn"
               autoFocus
-              required
-              className="w-full pl-9 pr-4 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-md sm:rounded-lg text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-[11px] sm:text-xs"
+              className={`w-full px-5 py-2.5 sm:py-3 bg-white border ${errors.username ? 'border-[#ff9494] shadow-[0_0_0_1px_#ff9494]' : 'border-slate-200'} rounded-[16px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-medium text-sm sm:text-base`}
             />
           </div>
+          {errors.username && (
+            <p className="mt-1.5 text-[#ff0000] text-sm font-medium px-1">
+              {errors.username}
+            </p>
+          )}
         </div>
 
         {/* Password Input */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-semibold text-[#1e293b]">
               Mật khẩu
             </label>
-            <button type="button" onClick={() => setIsForgotOpen(true)} className="text-[9px] sm:text-[11px] font-semibold text-primary hover:text-primary-hover transition-colors">
-              Quên mật khẩu?
-            </button>
           </div>
           <div className="relative group">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full pl-9 pr-9 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-md sm:rounded-lg text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium tracking-widest text-[11px] sm:text-xs"
+              placeholder="Nhập mật khẩu của bạn"
+              className={`w-full px-5 pr-12 py-2.5 sm:py-3 bg-white border ${errors.password ? 'border-[#ff9494] shadow-[0_0_0_1px_#ff9494]' : 'border-slate-200'} rounded-[16px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-medium tracking-normal text-sm sm:text-base`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
-              {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+          {errors.password && (
+            <p className="mt-1.5 text-[#ff0000] text-sm font-medium px-1">
+              {errors.password}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button type="button" onClick={() => router.push('/forgot-password')} className="text-sm sm:text-base font-bold text-[#2563eb] hover:text-blue-700 transition-colors">
+            Quên mật khẩu?
+          </button>
         </div>
 
         {/* Remember Me */}
@@ -160,15 +190,13 @@ return (
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitLoading || !username || !password}
-          className="w-full py-1.5 sm:py-2 bg-primary hover:bg-[#000A5C] text-white font-semibold rounded-md sm:rounded-lg text-[11px] sm:text-xs transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-0.5 shadow-[0_4px_14px_rgba(0,15,138,0.25)]"
+          disabled={isSubmitLoading}
+          className="w-full py-3 sm:py-3.5 bg-[#4c59a8] hover:bg-[#3f4a8c] text-white font-bold rounded-[16px] text-base sm:text-lg transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4 shadow-[0_4px_12px_rgba(76,89,168,0.25)]"
         >
           {isSubmitLoading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <>
-              Đăng nhập <LogIn className="w-3.5 h-3.5 ml-1" />
-            </>
+            'Đăng nhập'
           )}
         </button>
       </form>

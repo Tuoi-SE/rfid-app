@@ -719,9 +719,25 @@ interface WarehouseTransportTracking {
 
 ---
 
-## 6. Guideline triển khai
-- Ưu tiên `rounded-xl` cho control và `rounded-2xl` trở lên cho card/container chính.
-- Shadow nên nhẹ, sạch, tránh đổ bóng quá dày.
-- Tương tác hover ngắn, không dùng animation nặng.
-- Dùng Lucide icon đồng nhất trên action, badge và trạng thái.
-- Với trang nhạy cảm, bám logic bảo vệ quyền theo helper hiện có thay vì chỉ dựa vào copy text.
+---
+
+## 7. Giao diện Auth mới
+Hệ thống đã cập nhật bộ giao diện Đăng nhập và Quên mật khẩu theo hướng tối giản, hiện đại và tập trung vào trải nghiệm người dùng với các thông báo lỗi tức thời.
+
+### 7.1 Màn hình Đăng nhập (`/login`)
+- **Tối ưu hiển thị**: Card đăng nhập được phóng to với padding rộng (`p-10 sm:p-14`) và bo góc siêu lớn (`rounded-[40px]`).
+- **Input & Label**:
+  - Loại bỏ icon bên trong ô nhập liệu để tạo cảm giác sạch sẽ.
+  - Label dùng font `semibold`, cỡ chữ thường (không uppercase).
+  - Khi để trống, viền input chuyển sang màu đỏ nhạt (`border-[#ff9494]`).
+- **Inline Validation**: Thông báo lỗi hiện ngay dưới từng trường nhập liệu (Ví dụ: "Vui lòng nhập email") thay vì hiện alert chung phía trên.
+- **Nút bấm**: Nút Đăng nhập chuyển sang tông Blue-Indigo (`#4c59a8`), bo góc mềm mại (`rounded-[22px]`).
+
+### 7.2 Màn hình Quên mật khẩu (`/forgot-password`)
+- **Đồng bộ thiết kế**: Thừa hưởng toàn bộ phong cách kích thước lớn và bo góc của màn hình đăng nhập.
+- **Tính năng mới**: Khi gửi thành công, nút hành động chính sẽ đổi thành **"Mở Gmail để lấy mật khẩu"**, dẫn trực tiếp người dùng tới hòm thư Gmail để thực hiện các bước tiếp theo.
+
+### 7.3 Quy tắc thiết kế Auth (Cập nhật)
+- **Error State**: Ưu tiên hiển thị lỗi inline bằng text đỏ (`#ff0000`) ngay dưới vị trí xảy ra lỗi.
+- **Hệ thống Shadow**: Dùng shadow cực mịn và sâu để nổi bật card trên nền radial gradient sáng.
+- **Validation**: Tắt tính năng kiểm tra mặc định của trình duyệt (`noValidate`) để sử dụng bộ bắt lỗi tùy chỉnh to rõ của hệ thống.

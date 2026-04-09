@@ -21,7 +21,7 @@ export const TransferStatCards = ({ metrics }: { metrics: MetricProps }) => {
             {metrics.pending.toString().padStart(2, '0')}
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 bg-amber-50 w-fit px-2 py-1 rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Đang chừ Giao - Nhận
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Đang chờ Giao - Nhận
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@ export const TransferStatCards = ({ metrics }: { metrics: MetricProps }) => {
             {metrics.totalTagsInTransit.toLocaleString('vi-VN')}
           </div>
           <div className="text-[11px] font-bold text-indigo-600 bg-indigo-50 w-fit px-2 py-1 rounded-md">
-            Tags đang PENDING
+            Thẻ đang chờ xử lý
           </div>
         </div>
       </div>
