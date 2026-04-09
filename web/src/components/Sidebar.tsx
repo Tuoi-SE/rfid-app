@@ -54,10 +54,9 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     <div className={`flex bg-white border-r border-slate-100 w-60 flex-col h-screen fixed inset-y-0 left-0 z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Header */}
       <div className="flex flex-col px-5 pt-6 pb-4 relative">
-        <h1 className="text-[20px] font-black text-slate-800 tracking-tight mb-1 flex items-center gap-2">
-          <Radio className="w-5 h-5 text-indigo-600" />
-          RFID<span className="text-indigo-600">Sync</span>
-        </h1>
+        <div className="flex items-center mb-1 mt-1">
+          <img src="/images/vtex-logo.png" alt="VTEX Logo" className="w-[130px] h-auto object-contain" />
+        </div>
         <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">
           Control Tower
         </h2>
