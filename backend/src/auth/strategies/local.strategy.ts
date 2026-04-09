@@ -15,8 +15,8 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   }
 
   /** Validate và trả user info cho req.user */
-  async validate(username: string, password: string) {
-    const user = await this.authService.validateUser(username, password);
+  async validate(loginKey: string, password: string) {
+    const user = await this.authService.validateUser(loginKey, password);
     if (!user) {
       throw new BusinessException('Sai tài khoản hoặc mật khẩu', 'AUTH_INVALID_CREDENTIALS', HttpStatus.UNAUTHORIZED);
     }

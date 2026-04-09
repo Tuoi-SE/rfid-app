@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +8,11 @@ import { PrismaService } from '@prisma/prisma.service';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { DEVICE_TYPES } from '@common/constants/error-codes';
+import { EmailService } from '@common/email/email.service';
+import { AUTH_ERROR_CODES } from '@common/constants/error-codes';
+
+/** Số vòng bcrypt để hash password */
+const SALT_ROUNDS = 12;
 
 
 /**
@@ -38,9 +43,10 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    private config: ConfigService,
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
+    private config: ConfigService,
+    @Optional() private emailService?: EmailService,
   ) {
     this.refreshSecret = this.config.get('JWT_REFRESH_SECRET', this.config.getOrThrow('JWT_SECRET') + '_refresh');
     this.refreshExpDays = Number(this.config.get('JWT_REFRESH_EXPIRATION_DAYS', '7'));
@@ -59,8 +65,26 @@ export class AuthService {
    * - Đăng nhập thành công → reset failedLoginAttempts về 0
    * - Đăng nhập thất bại → tăng failedLoginAttempts, khóa nếu >= 5
    */
-  async validateUser(username: string, password: string) {
-    const user = await this.usersService.findByUsername(username);
+  async validateUser(loginKey: string, password: string) {
+    // Try username first, then email
+    let user = await this.usersService.findByUsername(loginKey);
+    if (!user) {
+      user = await this.prisma.user.findFirst({
+        where: { email: loginKey, deletedAt: null },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          password: true,
+          role: true,
+          locationId: true,
+          deletedAt: true,
+          failedLoginAttempts: true,
+          lockedUntil: true,
+          passwordChangedAt: true,
+        },
+      });
+    }
     if (!user) return null;
 
     // Reject soft-deleted users
@@ -115,7 +139,13 @@ export class AuthService {
       });
     }
 
-    return { id: user.id, username: user.username, role: user.role, locationId: user.locationId };
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      locationId: user.locationId,
+      passwordChangedAt: user.passwordChangedAt,
+    };
   }
 
   /**
@@ -123,7 +153,7 @@ export class AuthService {
    * Lưu hash của refresh token vào bảng RefreshToken.
    * Interceptor sẽ auto-wrap thành { success, message, data }.
    */
-  async login(user: { id: string; username: string; role: string; locationId?: string | null }, deviceType: string = DEVICE_TYPES.WEB, ipAddress?: string) {
+  async login(user: { id: string; username: string; role: string; locationId?: string | null; passwordChangedAt?: Date | null }, deviceType: string = DEVICE_TYPES.WEB, ipAddress?: string) {
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
 
@@ -166,6 +196,7 @@ export class AuthService {
       expires_in: this.accessExpSeconds,
       refresh_token: refreshToken,
       refresh_expires_in: this.refreshExpSeconds,
+      mustChangePassword: !user.passwordChangedAt,
       user: {
         id: user.id,
         username: user.username,
@@ -261,6 +292,113 @@ export class AuthService {
       data: { revoked: true },
     });
     return null;
+  }
+
+  /**
+   * Send password reset email with 6-digit numeric token.
+   * Always returns void — prevents email enumeration.
+   * Token expires in 15 minutes.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({ where: { email, deletedAt: null } });
+    // Always return — do NOT reveal whether email exists
+    if (!user) return;
+
+    // Invalidate existing reset tokens for this user
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null, type: 'RESET' },
+      data: { usedAt: new Date() },
+    });
+
+    // Generate 6-digit numeric token
+    const rawToken = String(crypto.randomInt(100000, 999999));
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        token: hashedToken,
+        type: 'RESET',
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    if (this.emailService) {
+      const baseUrl = this.config.get('APP_BASE_URL', 'http://localhost:3000');
+      await this.emailService.sendPasswordResetEmail(
+        user.email!,
+        rawToken,
+        user.username,
+        `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email!)}`,
+      );
+    }
+  }
+
+  /**
+   * Reset password using a valid 6-digit numeric token.
+   * Token is single-use (marked as used after successful reset).
+   */
+  async resetPassword(token: string, email: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetToken = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        token: hashedToken,
+        type: 'RESET',
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+        user: { email, deletedAt: null },
+      },
+    });
+
+    if (!resetToken) {
+      throw new BusinessException(
+        'Mã khôi phục không hợp lệ hoặc đã hết hạn',
+        AUTH_ERROR_CODES.INVALID_RESET_TOKEN,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { password: hashedPassword },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  }
+
+  /**
+   * Change password for authenticated user.
+   * Validates current password before allowing change.
+   * Sets passwordChangedAt to current timestamp.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BusinessException('Không tìm thấy tài khoản', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      throw new BusinessException(
+        'Mật khẩu hiện tại không đúng',
+        'AUTH_INVALID_PASSWORD',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword, passwordChangedAt: new Date() },
+    });
   }
 
   /** Tạo access token JWT. Payload: { sub, username, role, locationId } */

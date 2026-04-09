@@ -6,6 +6,9 @@ import { LocalAuthGuard } from '@auth/guards/local-auth.guard';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { LoginDto } from '@auth/dto/login.dto';
 import { RefreshTokenDto } from '@auth/dto/refresh-token.dto';
+import { ForgotPasswordDto } from '@auth/dto/forgot-password.dto';
+import { ResetPasswordDto } from '@auth/dto/reset-password.dto';
+import { ChangePasswordDto } from '@auth/dto/change-password.dto';
 import { ResponseMessageDecorator } from '@common/decorators/response-message.decorator';
 import { AuthenticatedRequest } from '@common/interfaces/request.interface';
 
@@ -26,8 +29,8 @@ export class AuthController {
 
   /**
    * POST /api/auth/login
-   * @body { username, password }
-   * @returns { access_token, token_type, expires_in, refresh_token, refresh_expires_in, user }
+   * @body { loginKey, password }
+   * @returns { access_token, token_type, expires_in, refresh_token, refresh_expires_in, mustChangePassword, user }
    * @error AUTH_INVALID_CREDENTIALS (401)
    */
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -73,5 +76,51 @@ export class AuthController {
   @ResponseMessageDecorator.withMessage('Đăng xuất thành công')
   logout(@Body() dto: RefreshTokenDto) {
     return this.authService.logout(dto.refresh_token);
+  }
+
+  /**
+   * POST /api/auth/forgot-password
+   * @body { email }
+   * @returns 200 (always — prevents email enumeration)
+   * @throttle 5/min per IP
+   */
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  @ResponseMessageDecorator.withMessage('Đã gửi email khôi phục mật khẩu')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email);
+    return null;
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * @body { token, email, newPassword }
+   * @returns 200
+   * @error AUTH_INVALID_RESET_TOKEN (400)
+   */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('reset-password')
+  @ResponseMessageDecorator.withMessage('Đặt lại mật khẩu thành công')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.email, dto.newPassword);
+    return null;
+  }
+
+  /**
+   * POST /api/auth/change-password
+   * @body { currentPassword, newPassword }
+   * @returns 200
+   * @guard JwtAuthGuard (must be authenticated)
+   * @error AUTH_INVALID_PASSWORD (401)
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @ResponseMessageDecorator.withMessage('Đổi mật khẩu thành công')
+  async changePassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
+    return null;
   }
 }

@@ -5,6 +5,7 @@
 -- Add email fields to User table
 ALTER TABLE "User" ADD COLUMN "email" TEXT;
 ALTER TABLE "User" ADD COLUMN "isEmailVerified" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN "passwordChangedAt" TIMESTAMP;
 
 -- Add unique constraint on email (nullable)
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email") WHERE "email" IS NOT NULL;
@@ -13,6 +14,7 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email") WHERE "email" IS NOT NUL
 CREATE TABLE "PasswordResetToken" (
     "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
     "token" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'RESET',
     "userId" TEXT NOT NULL,
     "expiresAt" TIMESTAMP NOT NULL,
     "usedAt" TIMESTAMP,

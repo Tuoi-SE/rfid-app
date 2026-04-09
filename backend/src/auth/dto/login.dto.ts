@@ -1,18 +1,18 @@
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
-  @ApiProperty({ example: 'admin', description: 'Tên đăng nhập' })
+  @ApiProperty({ example: 'user@riotex.vn', description: 'Email hoặc tên đăng nhập' })
   @IsString()
   @IsNotEmpty()
-  username: string;
+  loginKey: string;  // Renamed from 'username'
 
-  @ApiProperty({ example: '123456', description: 'Mật khẩu' })
+  @ApiProperty({ example: 'Matkhau@1234', description: 'Mật khẩu' })
   @IsString()
   @IsNotEmpty()
   password: string;
 
-  @ApiProperty({ example: 'WEB', description: 'Loại thiết bị đăng nhập (WEB/MOBILE)', required: false })
+  @ApiPropertyOptional({ example: 'WEB', description: 'Loại thiết bị (WEB/MOBILE)', required: false })
   @IsOptional()
   @IsString()
   deviceType?: string;
