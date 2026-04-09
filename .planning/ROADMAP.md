@@ -255,6 +255,31 @@ Plans:
 
 ---
 
+## Phase 14: Email-Based Authentication
+
+**Goal:** Full email-based authentication system: email login, password reset via email, user registration with email verification, and forced password change on first login.
+
+**Depends on:** Phase 12, Phase 13
+
+**Success Criteria** (what must be TRUE):
+1. User can log in with email (in addition to username) and password
+2. User can request password reset → receives email with reset link → sets new password
+3. User can register → receives verification email → clicks link → account activated
+4. New registered users must change their auto-generated password on first login
+5. All auth flows use SHA-256 hashed tokens with expiry (15 min reset, 24h verification)
+6. Email service sends branded HTML emails via nodemailer
+7. All 4 frontend pages (login, forgot-password, reset-password, register) are wired to real APIs
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Prisma migration (email field + token tables), nodemailer EmailService, error codes
+- [ ] 14-02-PLAN.md — Backend auth endpoints (forgot-password, reset-password, register, verify-email, change-password)
+- [ ] 14-03-PLAN.md — Frontend login page + password reset pages (forgot, reset, change-password)
+- [ ] 14-04-PLAN.md — Frontend registration + email verification pages + login registration link
+
+---
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -272,3 +297,4 @@ Plans:
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
 | 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
 | 13. backend-quality-improvement | 1/4 | In Progress|  |
+| 14. Email-Based Authentication | 0/4 | Not Started|  |
