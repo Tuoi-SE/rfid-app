@@ -257,26 +257,25 @@ Plans:
 
 ## Phase 14: Email-Based Authentication
 
-**Goal:** Full email-based authentication system: email login, password reset via email, user registration with email verification, and forced password change on first login.
+**Goal:** Email-based authentication with SuperAdmin user creation workflow: SuperAdmin creates users (sends welcome email with temp password), users log in and must change password on first login, forgot password via 6-digit code email.
 
 **Depends on:** Phase 12, Phase 13
 
 **Success Criteria** (what must be TRUE):
-1. User can log in with email (in addition to username) and password
-2. User can request password reset → receives email with reset link → sets new password
-3. User can register → receives verification email → clicks link → account activated
-4. New registered users must change their auto-generated password on first login
-5. All auth flows use SHA-256 hashed tokens with expiry (15 min reset, 24h verification)
-6. Email service sends branded HTML emails via nodemailer
-7. All 4 frontend pages (login, forgot-password, reset-password, register) are wired to real APIs
+1. SuperAdmin can create user via existing /api/users with email → system generates temp password → sends welcome email
+2. Login accepts both email and username (single loginKey field)
+3. First-time login returns `mustChangePassword: true` → frontend redirects to change-password page
+4. User can request forgot password → receives 6-digit numeric code via email → resets password
+5. All token flows use SHA-256 hashed tokens (15-min expiry for reset)
+6. Email service sends branded HTML emails (welcome + reset) via nodemailer
+7. SuperAdmin CLI reset script enhanced with random temp password generation
 
-**Plans:** 4 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Prisma migration (email field + token tables), nodemailer EmailService, error codes
-- [ ] 14-02-PLAN.md — Backend auth endpoints (forgot-password, reset-password, register, verify-email, change-password)
-- [ ] 14-03-PLAN.md — Frontend login page + password reset pages (forgot, reset, change-password)
-- [ ] 14-04-PLAN.md — Frontend registration + email verification pages + login registration link
+- [ ] 14-01-PLAN.md — Prisma migration (email + passwordChangedAt + token tables), nodemailer EmailService (welcome + reset email)
+- [ ] 14-02-PLAN.md — Backend auth endpoints (SuperAdmin creates user, forgot-password, reset-password, change-password, login with mustChangePassword)
+- [ ] 14-03-PLAN.md — Frontend (login/forgot/reset/change-password pages) + SuperAdmin CLI script enhancement
 
 ---
 
@@ -297,4 +296,4 @@ Plans:
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
 | 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
 | 13. backend-quality-improvement | 1/4 | In Progress|  |
-| 14. Email-Based Authentication | 0/4 | Not Started|  |
+| 14. Email-Based Authentication | 0/3 | Not Started|  |
