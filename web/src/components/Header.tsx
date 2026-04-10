@@ -315,6 +315,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
     if (path.startsWith('/activity-logs')) return 'Nhật ký hệ thống';
     if (path.startsWith('/locations')) return 'Địa điểm';
     if (path.startsWith('/transfers')) return 'Điều chuyển';
+    if (path.startsWith('/profile')) return 'Hồ sơ cá nhân';
     return 'Quản trị';
   };
 

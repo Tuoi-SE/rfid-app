@@ -22,6 +22,8 @@ const AUDIT_USER_SELECT = { id: true, username: true };
 const USER_SELECT = {
   id: true,
   username: true,
+  fullName: true,
+  phone: true,
   email: true,
   role: true,
   locationId: true,
@@ -95,6 +97,8 @@ export class UsersService {
       return {
         id: u.id,
         username: u.username,
+        full_name: u.fullName,
+        phone: u.phone,
         email: u.email,
         role: u.role,
         locationId: u.locationId,
@@ -137,6 +141,8 @@ export class UsersService {
     const user = await this.prisma.user.create({
       data: {
         username: dto.username,
+        fullName: (dto as any).fullName,
+        phone: (dto as any).phone,
         email: dto.email,
         password: hashedPassword,
         role: (dto.role as Role) || Role.WAREHOUSE_MANAGER,
@@ -180,6 +186,8 @@ export class UsersService {
       select: {
         id: true,
         username: true,
+        fullName: true,
+        phone: true,
         email: true,
         password: true,
         role: true,
@@ -227,6 +235,8 @@ export class UsersService {
     const data: any = {};
     if (operatorId) data.updatedById = operatorId;
     if (dto.username) data.username = dto.username;
+    if ((dto as any).fullName) data.fullName = (dto as any).fullName;
+    if ((dto as any).phone) data.phone = (dto as any).phone;
     if (dto.email) data.email = dto.email;
     if (dto.role) data.role = dto.role;
     if (dto.locationId !== undefined) data.locationId = dto.locationId;

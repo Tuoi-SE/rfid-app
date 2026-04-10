@@ -18,6 +18,8 @@ export interface User {
 
 export interface UserFormData {
   username: string;
+  fullName?: string;
+  phone?: string;
   email: string;
   password?: string;
   role: string | 'ADMIN' | 'WAREHOUSE_MANAGER' | 'STAFF';

@@ -131,6 +131,8 @@ model TransferItem {
 model User {
   id            String         @id @default(uuid())
   username      String         @unique
+  fullName      String?
+  phone         String?
   password      String
   role          Role           @default(WAREHOUSE_MANAGER)
   createdAt     DateTime       @default(now())
