@@ -162,7 +162,7 @@ return (
         </div>
 
         <div className="flex justify-end">
-          <button type="button" onClick={() => router.push('/forgot-password')} className="text-sm sm:text-base font-bold text-[#2563eb] hover:text-blue-700 transition-colors">
+          <button type="button" onClick={() => setIsForgotOpen(true)} className="text-sm sm:text-base font-bold text-[#2563eb] hover:text-blue-700 transition-colors">
             Quên mật khẩu?
           </button>
         </div>

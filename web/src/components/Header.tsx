@@ -654,7 +654,10 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
               </div>
 
               <button
-                onClick={() => setIsProfileOpen(false)}
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  router.push('/profile');
+                }}
                 className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors"
               >
                 <User className="w-3.5 h-3.5" />
