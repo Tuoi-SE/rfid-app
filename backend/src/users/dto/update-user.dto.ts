@@ -1,7 +1,11 @@
-import { IsOptional, IsString, IsEnum, MinLength, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsEnum, MinLength, MaxLength, IsEmail } from 'class-validator';
 import { Role } from '.prisma/client';
 
 export class UpdateUserDto {
+  @IsOptional()
+  @IsEmail({}, { message: 'Email không hợp lệ' })
+  email?: string;
+
   @IsOptional()
   @IsString()
   @MinLength(3)

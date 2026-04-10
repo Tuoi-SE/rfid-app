@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, ArrowLeft, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { forgotPassword } from '@/features/auth/api/forgot-password';
 
 const ForgotPasswordPage = () => {
   const router = useRouter();
@@ -14,19 +15,23 @@ const ForgotPasswordPage = () => {
     e.preventDefault();
     setError('');
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
       setError('Vui lòng nhập địa chỉ Email');
       return;
     }
+    if (!emailRegex.test(email)) {
+      setError('Địa chỉ Email không hợp lệ');
+      return;
+    }
 
     setIsSubmitLoading(true);
-
-    // Giả lập gửi email reset mật khẩu
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await forgotPassword(email);
       setIsSuccess(true);
     } catch {
-      setError('Đã có lỗi xảy ra. Vui lòng thử lại sau.');
+      // Even on error from backend, show success to prevent email enumeration
+      setIsSuccess(true);
     } finally {
       setIsSubmitLoading(false);
     }

@@ -22,6 +22,7 @@ const AUDIT_USER_SELECT = { id: true, username: true };
 const USER_SELECT = {
   id: true,
   username: true,
+  email: true,
   role: true,
   locationId: true,
   location: { select: { id: true, code: true, name: true, type: true } },
@@ -46,8 +47,8 @@ const USER_SELECT = {
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    @Optional() private emailService?: EmailService,
-    private configService?: ConfigService,
+    private emailService: EmailService,
+    private configService: ConfigService,
   ) {}
 
   /**
@@ -94,6 +95,7 @@ export class UsersService {
       return {
         id: u.id,
         username: u.username,
+        email: u.email,
         role: u.role,
         locationId: u.locationId,
         location: u.location,
@@ -225,6 +227,7 @@ export class UsersService {
     const data: any = {};
     if (operatorId) data.updatedById = operatorId;
     if (dto.username) data.username = dto.username;
+    if (dto.email) data.email = dto.email;
     if (dto.role) data.role = dto.role;
     if (dto.locationId !== undefined) data.locationId = dto.locationId;
     if (dto.password) data.password = await bcrypt.hash(dto.password, SALT_ROUNDS);

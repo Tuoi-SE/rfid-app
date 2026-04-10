@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
+import * as ejs from 'ejs';
+import { join } from 'path';
 
 @Injectable()
 export class EmailService {
@@ -18,8 +20,15 @@ export class EmailService {
     });
   }
 
+  /**
+   * Gửi email khôi phục mật khẩu.
+   * @param to Địa chỉ email người nhận.
+   * @param rawToken Mã token khôi phục.
+   * @param username Tên người dùng.
+   * @param resetUrl Đường dẫn đặt lại mật khẩu.
+   */
   async sendPasswordResetEmail(to: string, rawToken: string, username: string, resetUrl: string): Promise<void> {
-    const html = this.buildPasswordResetHtml(rawToken, username, resetUrl);
+    const html = await this.buildPasswordResetHtml(rawToken, username, resetUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
       to,
@@ -28,8 +37,13 @@ export class EmailService {
     });
   }
 
+  /**
+   * Gửi email xác thực tải khoản.
+   * @param to Địa chỉ email người nhận.
+   * @param verificationUrl Đường dẫn xác thực email.
+   */
   async sendVerificationEmail(to: string, verificationUrl: string): Promise<void> {
-    const html = this.buildVerificationHtml(verificationUrl);
+    const html = await this.buildVerificationHtml(verificationUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
       to,
@@ -38,8 +52,15 @@ export class EmailService {
     });
   }
 
+  /**
+   * Gửi email chào mừng cùng mật khẩu tạm thời.
+   * @param to Địa chỉ email người nhận.
+   * @param username Tên người dùng.
+   * @param tempPassword Mật khẩu tạm thời.
+   * @param baseUrl Đường dẫn gốc của ứng dụng.
+   */
   async sendWelcomeEmail(to: string, username: string, tempPassword: string, baseUrl: string): Promise<void> {
-    const html = this.buildWelcomeHtml(username, tempPassword, baseUrl);
+    const html = await this.buildWelcomeHtml(username, tempPassword, baseUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
       to,
@@ -48,89 +69,38 @@ export class EmailService {
     });
   }
 
-  private buildPasswordResetHtml(rawToken: string, username: string, resetUrl: string): string {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #4c59a8; padding: 24px; text-align: center;">
-          <h1 style="color: white; margin: 0;">RFID Inventory</h1>
-        </div>
-        <div style="padding: 32px 24px;">
-          <h2 style="color: #1e293b; margin-bottom: 16px;">Khôi phục mật khẩu</h2>
-          <p style="color: #475569; line-height: 1.6;">
-            Xin chào <strong>${username}</strong>, chúng tôi đã nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn.
-          </p>
-          <p style="color: #475569; line-height: 1.6; text-align: center; font-size: 18px; letter-spacing: 4px; background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 24px 0;">
-            Mã khôi phục: <strong>${rawToken}</strong>
-          </p>
-          <p style="color: #475569; line-height: 1.6;">
-            Nhấn vào nút bên dưới để đặt mật khẩu mới:
-          </p>
-          <div style="text-align: center; margin: 24px 0;">
-            <a href="${resetUrl}" style="background: #4c59a8; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Đặt lại mật khẩu
-            </a>
-          </div>
-          <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
-            Liên kết này sẽ hết hạn sau <strong>15 phút</strong>. Nếu bạn không yêu cầu khôi phục mật khẩu, vui lòng bỏ qua email này.
-          </p>
-        </div>
-      </div>
-    `;
+  /**
+   * Tạo nội dung HTML cho email khôi phục mật khẩu.
+   * @param rawToken Mã token khôi phục.
+   * @param username Tên người dùng.
+   * @param resetUrl Đường dẫn đặt lại mật khẩu.
+   * @returns Chuỗi HTML nội dung email.
+   */
+  private async buildPasswordResetHtml(rawToken: string, username: string, resetUrl: string): Promise<string> {
+    const templatePath = join(__dirname, 'templates', 'password-reset.ejs');
+    return ejs.renderFile(templatePath, { rawToken, username, resetUrl });
   }
 
-  private buildWelcomeHtml(username: string, tempPassword: string, baseUrl: string): string {
+  /**
+   * Tạo nội dung HTML cho email chào mừng.
+   * @param username Tên người dùng.
+   * @param tempPassword Mật khẩu tạm thời.
+   * @param baseUrl Đường dẫn gốc của ứng dụng.
+   * @returns Chuỗi HTML nội dung email.
+   */
+  private async buildWelcomeHtml(username: string, tempPassword: string, baseUrl: string): Promise<string> {
     const loginUrl = `${baseUrl}/login`;
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #4c59a8; padding: 24px; text-align: center;">
-          <h1 style="color: white; margin: 0;">RFID Inventory</h1>
-        </div>
-        <div style="padding: 32px 24px;">
-          <h2 style="color: #1e293b; margin-bottom: 16px;">Chào mừng bạn!</h2>
-          <p style="color: #475569; line-height: 1.6;">
-            Tài khoản của bạn đã được tạo thành công. Dưới đây là thông tin đăng nhập tạm thời:
-          </p>
-          <div style="background: #f1f5f9; border-radius: 8px; padding: 20px; margin: 24px 0;">
-            <p style="margin: 0 0 8px; color: #475569;"><strong>Tên đăng nhập:</strong> ${username}</p>
-            <p style="margin: 0 0 8px; color: #475569;"><strong>Mật khẩu tạm thời:</strong> ${tempPassword}</p>
-          </div>
-          <p style="color: #475569; line-height: 1.6;">
-            <strong>Quan trọng:</strong> Bạn phải đổi mật khẩu ngay sau khi đăng nhập lần đầu.
-          </p>
-          <div style="text-align: center; margin: 24px 0;">
-            <a href="${loginUrl}" style="background: #4c59a8; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Đăng nhập ngay
-            </a>
-          </div>
-          <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
-            Nếu bạn không yêu cầu tài khoản này, vui lòng bỏ qua email.
-          </p>
-        </div>
-      </div>
-    `;
+    const templatePath = join(__dirname, 'templates', 'welcome.ejs');
+    return ejs.renderFile(templatePath, { username, tempPassword, loginUrl });
   }
 
-  private buildVerificationHtml(verificationUrl: string): string {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #4c59a8; padding: 24px; text-align: center;">
-          <h1 style="color: white; margin: 0;">RFID Inventory</h1>
-        </div>
-        <div style="padding: 32px 24px;">
-          <h2 style="color: #1e293b; margin-bottom: 16px;">Xác thực email</h2>
-          <p style="color: #475569; line-height: 1.6;">
-            Cảm ơn bạn đã đăng ký! Nhấn vào nút bên dưới để xác thực email và kích hoạt tài khoản:
-          </p>
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="${verificationUrl}" style="background: #4c59a8; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Xác thực email
-            </a>
-          </div>
-          <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
-            Liên kết này sẽ hết hạn sau <strong>24 giờ</strong>.
-          </p>
-        </div>
-      </div>
-    `;
+  /**
+   * Tạo nội dung HTML cho email xác thực.
+   * @param verificationUrl Đường dẫn xác thực email.
+   * @returns Chuỗi HTML nội dung email.
+   */
+  private async buildVerificationHtml(verificationUrl: string): Promise<string> {
+    const templatePath = join(__dirname, 'templates', 'verification.ejs');
+    return ejs.renderFile(templatePath, { verificationUrl });
   }
 }

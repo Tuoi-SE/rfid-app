@@ -11,7 +11,10 @@ import { BusinessException } from '@common/exceptions/business.exception';
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
-    super();
+    super({
+      usernameField: 'loginKey',
+      passwordField: 'password',
+    });
   }
 
   /** Validate và trả user info cho req.user */
