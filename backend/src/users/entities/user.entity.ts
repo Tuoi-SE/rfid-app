@@ -13,6 +13,7 @@ class AuditUserEntity {
 
 export class UserEntity extends BaseEntity {
   username: string;
+  email?: string;
   role: Role;
 
   @Exclude()

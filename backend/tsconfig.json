@@ -31,7 +31,8 @@
       "@tags/*": ["src/tags/*"],
       "@locations/*": ["src/locations/*"],
       "@inventory/*": ["src/inventory/*"],
-      "@orders/*": ["src/orders/*"]
+      "@orders/*": ["src/orders/*"],
+      "@common/email/*": ["src/common/email/*"]
     }
   }
 }

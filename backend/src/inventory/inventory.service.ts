@@ -131,23 +131,28 @@ export class InventoryService {
 
     // 1.1 In-stock tags grouped by physical location type
     // Helps FE separate "Kho Admin" vs "Kho Trung Tâm" vs "Xưởng"
-    const stockTagsByLocation = await this.prisma.tag.findMany({
+    // Use groupBy to aggregate at DB level (D-02, D-03: replace findMany + JS reduce)
+    const locationGrouped = await this.prisma.tag.groupBy({
+      by: ['locationId'],
       where: {
         deletedAt: null,
         status: { in: [TagStatus.IN_WAREHOUSE, TagStatus.IN_WORKSHOP] },
         locationId: { not: null },
       },
-      select: {
-        locationRel: {
-          select: { type: true },
-        },
-      },
+      _count: { _all: true },
     });
 
-    const locationTypeCounts = stockTagsByLocation.reduce<Record<string, number>>((acc, row) => {
-      const locationType = row.locationRel?.type;
-      if (!locationType) return acc;
-      acc[locationType] = (acc[locationType] || 0) + 1;
+    // Fetch locations to get type for each locationId
+    const groupedLocationIds = locationGrouped.map(g => g.locationId).filter((id) => id !== null);
+    const groupedLocations = await this.prisma.location.findMany({
+      where: { id: { in: groupedLocationIds } },
+      select: { id: true, type: true },
+    });
+    const locationMap = new Map(groupedLocations.map(l => [l.id, l.type]));
+    // Sum counts by location type at DB level
+    const locationTypeCounts = locationGrouped.reduce<Record<string, number>>((acc, g) => {
+      const type = g.locationId ? locationMap.get(g.locationId) : undefined;
+      if (type) acc[type] = (acc[type] || 0) + g._count._all;
       return acc;
     }, {});
 
@@ -244,7 +249,7 @@ export class InventoryService {
     const locations = locationIds.length
       ? await this.prisma.location.findMany({
           where: {
-            id: { in: locationIds },
+            id: { in: groupedLocationIds },
             deletedAt: null,
           },
           select: {

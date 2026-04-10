@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   username: string;
+  email?: string;
   role: 'ADMIN' | 'WAREHOUSE_MANAGER' | 'STAFF';
   locationId?: string | null;
   location?: {
@@ -17,6 +18,7 @@ export interface User {
 
 export interface UserFormData {
   username: string;
+  email: string;
   password?: string;
   role: string | 'ADMIN' | 'WAREHOUSE_MANAGER' | 'STAFF';
   locationId?: string | null;

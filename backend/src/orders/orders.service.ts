@@ -3,119 +3,24 @@ import { PrismaService } from '@prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
 import { MobileQuickSubmitDto } from './dto/mobile-quick-submit.dto';
-import { EventsGateway } from '../events/events.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ORDER_UPDATED_EVENT } from '@common/interfaces/scan.interface';
 import { randomBytes } from 'crypto';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
-import { LocationType, OrderStatus, Prisma, TagStatus } from '.prisma/client';
+import { OrderStatus, Prisma } from '.prisma/client';
 import { OrderEntity } from './entities/order.entity';
+import { OrderValidationService } from './order-validation.service';
+import { OrderLocationService } from './order-location.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private events: EventsGateway,
+    private eventEmitter: EventEmitter2,
+    private orderValidation: OrderValidationService,
+    private orderLocation: OrderLocationService,
   ) {}
-
-  private readonly outboundAllowedDestinationTypes: LocationType[] = [
-    LocationType.WAREHOUSE,
-    LocationType.WORKSHOP,
-    LocationType.HOTEL,
-    LocationType.RESORT,
-    LocationType.SPA,
-    LocationType.CUSTOMER,
-  ];
-
-  private readonly inboundAllowedDestinationTypes: LocationType[] = [
-    LocationType.WORKSHOP,
-    LocationType.WORKSHOP_WAREHOUSE,
-    LocationType.WAREHOUSE,
-  ];
-
-  private async validateInboundDestination(
-    locationId?: string,
-    fallbackLocationId?: string,
-  ) {
-    const resolvedLocationId = locationId || fallbackLocationId;
-    if (!resolvedLocationId) {
-      throw new BusinessException(
-        'Phiếu nhập kho bắt buộc chọn nơi nhập.',
-        'INBOUND_DESTINATION_REQUIRED',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    const destination = await this.prisma.location.findFirst({
-      where: { id: resolvedLocationId, deletedAt: null },
-      select: { id: true, type: true },
-    });
-
-    if (!destination) {
-      throw new BusinessException(
-        'Không tìm thấy vị trí nhận hàng cho phiếu nhập kho.',
-        'LOCATION_NOT_FOUND',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (!this.inboundAllowedDestinationTypes.includes(destination.type)) {
-      throw new BusinessException(
-        'Nơi nhập kho không hợp lệ. Chỉ hỗ trợ: kho xưởng hoặc kho tổng.',
-        'INBOUND_DESTINATION_INVALID',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return destination.id;
-  }
-
-  private async validateOutboundDestination(locationId?: string) {
-    if (!locationId) {
-      throw new BusinessException(
-        'Phiếu xuất kho bắt buộc chọn nơi xuất đến.',
-        'OUTBOUND_DESTINATION_REQUIRED',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    const destination = await this.prisma.location.findFirst({
-      where: { id: locationId, deletedAt: null },
-      select: { id: true, type: true },
-    });
-
-    if (!destination) {
-      throw new BusinessException(
-        'Không tìm thấy vị trí đích cho phiếu xuất kho.',
-        'LOCATION_NOT_FOUND',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (!this.outboundAllowedDestinationTypes.includes(destination.type)) {
-      throw new BusinessException(
-        'Nơi xuất đến không hợp lệ. Chỉ hỗ trợ: kho tổng, kho xưởng hoặc khách hàng.',
-        'OUTBOUND_DESTINATION_INVALID',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return destination.id;
-  }
-
-  private async ensureManagerCanAccessOrder(
-    order: { createdById?: string | null },
-    user: { id: string; role: string; locationId?: string },
-  ) {
-    if (user.role !== 'WAREHOUSE_MANAGER') return;
-
-    if (order.createdById !== user.id) {
-      throw new BusinessException(
-        'Không có quyền truy cập đơn hàng của manager khác',
-        'ORDER_FORBIDDEN',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-  }
 
   async create(createOrderDto: CreateOrderDto, user: { id: string; role: string; locationId?: string }) {
     const code = `${createOrderDto.type === 'INBOUND' ? 'IN' : 'OUT'}-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
@@ -123,18 +28,18 @@ export class OrdersService {
     // Resolve destination/location by order type.
     let mappedLocationId = createOrderDto.locationId;
     if (createOrderDto.type === 'INBOUND') {
-      mappedLocationId = await this.validateInboundDestination(
+      mappedLocationId = await this.orderValidation.validateInboundDestination(
         createOrderDto.locationId,
         user.role === 'WAREHOUSE_MANAGER' ? user.locationId : undefined,
       );
     } else if (createOrderDto.type === 'OUTBOUND') {
-      mappedLocationId = await this.validateOutboundDestination(
+      mappedLocationId = await this.orderValidation.validateOutboundDestination(
         createOrderDto.locationId,
       );
     }
 
     if (user.role === 'WAREHOUSE_MANAGER') {
-      const inboundAllowedIds = await this.getManagerInboundAllowedLocationIds(user.locationId);
+      const inboundAllowedIds = await this.orderLocation.getManagerInboundAllowedLocationIds(user.locationId);
       if (createOrderDto.type === 'INBOUND') {
         if (!mappedLocationId || !inboundAllowedIds.includes(mappedLocationId)) {
           throw new BusinessException(
@@ -188,29 +93,8 @@ export class OrdersService {
     });
 
     const entity = new OrderEntity(order as any);
-    this.events.server.emit('orderUpdate', entity);
+    this.eventEmitter.emit(ORDER_UPDATED_EVENT, entity);
     return entity;
-  }
-
-  private async getAuthorizedLocationIds(locationId?: string): Promise<string[]> {
-    if (!locationId) return [];
-    const locs = await this.prisma.location.findMany({
-      where: { OR: [{ id: locationId }, { parentId: locationId }], deletedAt: null },
-      select: { id: true }
-    });
-    return locs.map(l => l.id);
-  }
-
-  private async getManagerInboundAllowedLocationIds(locationId?: string): Promise<string[]> {
-    const [ownedAndChildren, centralWarehouses] = await Promise.all([
-      this.getAuthorizedLocationIds(locationId),
-      this.prisma.location.findMany({
-        where: { type: LocationType.WAREHOUSE, deletedAt: null },
-        select: { id: true },
-      }),
-    ]);
-
-    return Array.from(new Set([...ownedAndChildren, ...centralWarehouses.map((loc) => loc.id)]));
   }
 
   async findAll(
@@ -280,14 +164,14 @@ export class OrdersService {
         },
       },
     });
-    
+
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
-    await this.ensureManagerCanAccessOrder(order, user);
+    await this.orderValidation.ensureManagerCanAccessOrder(order, user);
 
     const targetItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
     const scannedItems = order.items.reduce((sum, item) => sum + Math.min(item.scannedQuantity, item.quantity), 0);
-    
+
     return new OrderEntity({
       ...order,
       progress: targetItems > 0 ? Math.round((scannedItems / targetItems) * 100) : 0,
@@ -302,7 +186,7 @@ export class OrdersService {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
-    await this.ensureManagerCanAccessOrder(order, user);
+    await this.orderValidation.ensureManagerCanAccessOrder(order, user);
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BusinessException(`Không thể sửa đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
@@ -338,7 +222,7 @@ export class OrdersService {
     });
 
     const mapped = new OrderEntity(updated as any);
-    this.events.server.emit('orderUpdate', mapped);
+    this.eventEmitter.emit(ORDER_UPDATED_EVENT, mapped);
     return mapped;
   }
 
@@ -350,7 +234,7 @@ export class OrdersService {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
-    await this.ensureManagerCanAccessOrder(order, user);
+    await this.orderValidation.ensureManagerCanAccessOrder(order, user);
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BusinessException(`Không thể hủy đơn hàng đang ở trạng thái ${order.status}`, 'INVALID_STATUS_TRANSITION', HttpStatus.BAD_REQUEST);
@@ -362,7 +246,7 @@ export class OrdersService {
     });
 
     const mapped = new OrderEntity(updated);
-    this.events.server.emit('orderUpdate', mapped);
+    this.eventEmitter.emit(ORDER_UPDATED_EVENT, mapped);
     return mapped;
   }
 
@@ -374,7 +258,7 @@ export class OrdersService {
     const order = await this.prisma.order.findFirst({ where: { id, deletedAt: null } });
     if (!order) throw new BusinessException('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND', HttpStatus.NOT_FOUND);
 
-    await this.ensureManagerCanAccessOrder(order, user);
+    await this.orderValidation.ensureManagerCanAccessOrder(order, user);
 
     const updated = await this.prisma.order.update({
       where: { id },
@@ -382,7 +266,7 @@ export class OrdersService {
     });
 
     const mapped = new OrderEntity(updated);
-    this.events.server.emit('orderUpdate', mapped);
+    this.eventEmitter.emit(ORDER_UPDATED_EVENT, mapped);
     return mapped;
   }
 
@@ -396,11 +280,11 @@ export class OrdersService {
 
     let mappedLocationId = dto.locationId;
     if (dto.type === 'INBOUND') {
-      mappedLocationId = await this.validateInboundDestination(
+      mappedLocationId = await this.orderValidation.validateInboundDestination(
         user.role === 'WAREHOUSE_MANAGER' ? user.locationId : dto.locationId,
       );
     } else if (dto.type === 'OUTBOUND') {
-      mappedLocationId = await this.validateOutboundDestination(dto.locationId);
+      mappedLocationId = await this.orderValidation.validateOutboundDestination(dto.locationId);
       if (user.role === 'WAREHOUSE_MANAGER') {
         if (!user.locationId) {
           throw new BusinessException('Tài khoản quản lý chưa được gán kho.', 'NO_LOCATION', HttpStatus.BAD_REQUEST);
@@ -428,7 +312,7 @@ export class OrdersService {
         productCounts[tag.productId] = (productCounts[tag.productId] || 0) + 1;
       }
     }
-    
+
     const items = Object.entries(productCounts).map(([productId, quantity]) => ({ productId, quantity }));
     if (items.length === 0) {
       throw new BusinessException('Các dữ liệu thẻ quét được chưa được gán sản phẩm.', 'NO_VALID_PRODUCTS', HttpStatus.BAD_REQUEST);
@@ -437,34 +321,10 @@ export class OrdersService {
     const code = `${dto.type === 'INBOUND' ? 'IN' : 'OUT'}-M-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
 
     // 2. Determine target status
-    let tagsToUpdateStatus: TagStatus;
-    let finalLocationId = mappedLocationId;
-
-    if (dto.type === 'OUTBOUND') {
-      const dest = await this.prisma.location.findUnique({ where: { id: mappedLocationId } });
-      if (dest?.type === 'WORKSHOP') {
-        tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
-      } else if (dest?.type === 'WAREHOUSE' || dest?.type === 'WORKSHOP_WAREHOUSE' || dest?.type === 'ADMIN') {
-        tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
-      } else {
-        tagsToUpdateStatus = TagStatus.COMPLETED;
-      }
-    } else {
-      const dest = await this.prisma.location.findUnique({ where: { id: mappedLocationId } });
-      if (dest?.type === 'WORKSHOP') {
-        const workshopWarehouse = await this.prisma.location.findFirst({
-          where: { parentId: mappedLocationId, type: 'WORKSHOP_WAREHOUSE', deletedAt: null },
-        });
-        if (workshopWarehouse) {
-          tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
-          finalLocationId = workshopWarehouse.id;
-        } else {
-          tagsToUpdateStatus = TagStatus.IN_WORKSHOP;
-        }
-      } else {
-        tagsToUpdateStatus = TagStatus.IN_WAREHOUSE;
-      }
-    }
+    const { status: tagsToUpdateStatus, finalLocationId } = await this.orderLocation.determineTagStatusAndLocation(
+      dto.type,
+      mappedLocationId!,
+    );
 
     // 3. Execute Transaction
     const order = await this.prisma.$transaction(async (tx) => {
@@ -530,7 +390,7 @@ export class OrdersService {
     });
 
     const entity = new OrderEntity(order as any);
-    this.events.server.emit('orderUpdate', entity);
+    this.eventEmitter.emit(ORDER_UPDATED_EVENT, entity);
     return entity;
   }
 }

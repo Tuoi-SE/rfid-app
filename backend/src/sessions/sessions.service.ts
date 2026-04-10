@@ -2,7 +2,8 @@ import { Injectable, HttpStatus, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
-import { EventsGateway } from '../events/events.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ORDER_UPDATED_EVENT } from '@common/interfaces/scan.interface';
 import { Prisma, TagStatus, TransferStatus } from '.prisma/client';
 import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
@@ -16,7 +17,7 @@ import { Cache } from 'cache-manager';
 export class SessionsService {
   constructor(
     private prisma: PrismaService,
-    private events: EventsGateway,
+    private eventEmitter: EventEmitter2,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -536,7 +537,7 @@ export class SessionsService {
          include: { items: { include: { product: true } } }
        });
        if (updatedOrder) {
-         this.events.server.emit('orderUpdate', updatedOrder);
+         this.eventEmitter.emit(ORDER_UPDATED_EVENT, updatedOrder);
        }
     }
 

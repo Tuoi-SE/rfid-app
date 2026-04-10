@@ -49,7 +49,7 @@ export class TransfersController {
   }
 
   @Post(':id/destination')
-  @RolesDecorator.allow(Role.ADMIN)
+  @RolesDecorator.allow(Role.SUPER_ADMIN)
   updateDestination(
     @Param('id') id: string,
     @Body('destinationId') destinationId: string,

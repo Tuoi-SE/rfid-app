@@ -24,12 +24,13 @@ const { data: locationsData } = useLocations();
 const responseData = (locationsData as Record<string, unknown>)?.data ?? locationsData;
 const locations: any[] = Array.isArray(responseData) ? responseData : ((responseData as Record<string, unknown>)?.items as any[] || []);
 
-const [formData, setFormData] = useState<UserFormData>({ username: '', password: '', role: 'STAFF', locationId: '' });
+const [formData, setFormData] = useState<UserFormData>({ username: '', email: '', password: '', role: 'STAFF', locationId: '' });
 
 useEffect(() => {
 if (isOpen) {
   setFormData({
     username: editItem?.username || '',
+    email: editItem?.email || '',
     password: '',
     role: editItem?.role || 'STAFF',
     locationId: editItem?.locationId || '',
@@ -42,7 +43,7 @@ if (!isOpen) return null;
 const handleSubmit = (e: React.FormEvent) => {
 e.preventDefault();
 const payload = { ...formData };
-if (editItem && !payload.password) {
+if (!payload.password) {
   delete payload.password;
 }
 if (payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN') {
@@ -73,15 +74,26 @@ return (
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Mật khẩu {editItem && '(Bỏ trống nếu không đổi)'}</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Email *</label>
         <input
-          type="password"
-          value={formData.password || ''}
-          onChange={e => setFormData({ ...formData, password: e.target.value })}
-          required={!editItem}
+          type="email"
+          value={formData.email}
+          onChange={e => setFormData({ ...formData, email: e.target.value })}
+          required
           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
         />
       </div>
+      {editItem && (
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Mật khẩu mới (Bỏ trống nếu không đổi)</label>
+          <input
+            type="password"
+            value={formData.password || ''}
+            onChange={e => setFormData({ ...formData, password: e.target.value })}
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+          />
+        </div>
+      )}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Vai trò *</label>
         <select

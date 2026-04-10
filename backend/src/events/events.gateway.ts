@@ -8,13 +8,14 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
+import { WsException } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { BatchScanService, MAX_BUFFER_SIZE } from '../scanning/batch-scan.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { TAGS_UPDATED_EVENT } from '@common/interfaces/scan.interface';
+import { TAGS_UPDATED_EVENT, ORDER_UPDATED_EVENT, TRANSFER_UPDATED_EVENT, SESSION_CREATED_EVENT } from '@common/interfaces/scan.interface';
 
 interface ScanPayload {
   epc: string;
@@ -22,7 +23,12 @@ interface ScanPayload {
 }
 
 @WebSocketGateway({
-  cors: true, // CORS sẽ được inject động qua afterInit
+  cors: {
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+      : ['http://localhost:3001'],
+    credentials: true,
+  },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
@@ -37,9 +43,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   ) {}
 
   afterInit() {
-    // Subscribe to tags:updated event from InventoryService via EventEmitter2 (D-01, D-03)
+    // Phase 11 - tags updated (already existing)
     this.eventEmitter.on(TAGS_UPDATED_EVENT, () => {
       this.emitTagsUpdated();
+    });
+
+    // Phase 12 - domain events
+    this.eventEmitter.on(ORDER_UPDATED_EVENT, (order) => {
+      this.server.emit('orderUpdate', order);
+    });
+
+    this.eventEmitter.on(TRANSFER_UPDATED_EVENT, (transfer) => {
+      this.server.emit('transferUpdate', transfer);
+    });
+
+    this.eventEmitter.on(SESSION_CREATED_EVENT, (session) => {
+      this.server.emit('sessionCreated', session);
     });
   }
 
@@ -78,6 +97,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   ) {
     if (!scans?.length) return;
 
+    // D-05: Use user attached in handleConnection instead of re-verifying JWT
+    const user = (client as any).user;
+    if (!user) throw new WsException('Unauthorized');
+
     const epcs = scans.map((s) => s.epc);
 
     // 1. Find existing tags
@@ -115,15 +138,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     }
 
     // 3. Build enriched response with SYSTEM IDs (not raw EPCs)
+    // Track seen EPCs within this batch to prevent duplicate isNew flags
+    const seenNewEpcs = new Set<string>();
     const enrichedScans = scans.map((scan) => {
       const tag = tagMap.get(scan.epc)!;
+      const isNew = unknownEpcs.includes(scan.epc) && !seenNewEpcs.has(scan.epc);
+      if (isNew) {
+        seenNewEpcs.add(scan.epc);
+      }
       return {
         tagId: tag.id,          // ← System UUID (hiển thị trên web)
         epc: scan.epc,          // ← Mã gốc RFID (tham khảo)
         rssi: scan.rssi,
         status: tag.status,
         product: tag.product,   // ← null nếu chưa gắn sản phẩm
-        isNew: unknownEpcs.includes(scan.epc),
+        isNew,
       };
     });
 
@@ -151,8 +180,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return { success: false, error: 'No EPCs provided' };
     }
 
-    // Extract userId from JWT payload
-    const userId = (client as any).user?.id || (client as any).user?.sub || 'system';
+    // D-05: Use user attached in handleConnection instead of re-verifying JWT
+    const user = (client as any).user;
+    if (!user) throw new WsException('Unauthorized');
+    const userId = user.id || user.sub || 'system';
 
     // D-05: Process EPCs through buffer - auto-flush triggers at 500
     // Track total processed including auto-flushes

@@ -1,5 +1,7 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Optional } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@prisma/prisma.service';
 import { CreateUserDto } from '@users/dto/create-user.dto';
 import { UpdateUserDto } from '@users/dto/update-user.dto';
@@ -9,9 +11,10 @@ import { BusinessException } from '@common/exceptions/business.exception';
 import { PaginationHelper } from '@common/helpers/pagination.helper';
 import { plainToInstance } from 'class-transformer';
 import { UserEntity } from './entities/user.entity';
+import { EmailService } from '@common/email/email.service';
 
 /** Số vòng bcrypt để hash password */
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 /** Select fields cho audit user (chỉ lấy id + username) */
 const AUDIT_USER_SELECT = { id: true, username: true };
@@ -19,6 +22,7 @@ const AUDIT_USER_SELECT = { id: true, username: true };
 const USER_SELECT = {
   id: true,
   username: true,
+  email: true,
   role: true,
   locationId: true,
   location: { select: { id: true, code: true, name: true, type: true } },
@@ -36,12 +40,16 @@ const USER_SELECT = {
  * Chức năng:
  * - CRUD với audit tracking (created_by, updated_by, deleted_by)
  * - Soft delete + Restore
- * - Password hashing: bcrypt 10 rounds
+ * - Password hashing: bcrypt 12 rounds
  * - Response format: snake_case, dùng PaginationHelper.paginate() helper
  */
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Lấy danh sách người dùng có phân trang và lọc.
@@ -87,6 +95,7 @@ export class UsersService {
       return {
         id: u.id,
         username: u.username,
+        email: u.email,
         role: u.role,
         locationId: u.locationId,
         location: u.location,
@@ -106,25 +115,59 @@ export class UsersService {
    * @throws USER_USERNAME_EXISTS (409)
    */
   async create(dto: CreateUserDto, operatorId?: string) {
-    const existing = await this.prisma.user.findUnique({ where: { username: dto.username } });
+    // Check username uniqueness
+    const existing = await this.prisma.user.findFirst({ where: { username: dto.username, deletedAt: null } });
     if (existing) {
       throw new BusinessException('Tên đăng nhập đã tồn tại', 'USER_USERNAME_EXISTS', HttpStatus.CONFLICT);
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    // Check email uniqueness
+    const existingEmail = await this.prisma.user.findFirst({ where: { email: dto.email, deletedAt: null } });
+    if (existingEmail) {
+      throw new BusinessException('Email đã được sử dụng bởi tài khoản khác', 'AUTH_EMAIL_ALREADY_EXISTS', HttpStatus.CONFLICT);
+    }
+
+    // Generate temp password if not provided
+    let tempPassword = dto.password;
+    if (!tempPassword) {
+      tempPassword = this.generateTempPassword();
+    }
+
+    const hashedPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
     const user = await this.prisma.user.create({
       data: {
         username: dto.username,
+        email: dto.email,
         password: hashedPassword,
         role: (dto.role as Role) || Role.WAREHOUSE_MANAGER,
         locationId: dto.locationId || undefined,
         createdById: operatorId || undefined,
         updatedById: operatorId || undefined,
+        passwordChangedAt: null, // null = first password (never changed by user)
       },
       select: USER_SELECT,
     });
 
+    // Send welcome email (non-blocking — don't fail user creation if email fails)
+    if (this.emailService && !dto.password) {
+      const baseUrl = this.configService?.get('APP_BASE_URL', 'http://localhost:3000') || 'http://localhost:3000';
+      this.emailService.sendWelcomeEmail(dto.email, dto.username, tempPassword, baseUrl).catch((err) => {
+        console.error('Failed to send welcome email:', err);
+      });
+    }
+
     return plainToInstance(UserEntity, user);
+  }
+
+  /** Generate a secure temporary password: 12 chars, alphanumeric + special */
+  private generateTempPassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    const random = crypto.randomBytes(12);
+    for (let i = 0; i < 12; i++) {
+      password += chars[random[i] % chars.length];
+    }
+    return password;
   }
 
   /**
@@ -132,7 +175,21 @@ export class UsersService {
    * KHÔNG dùng cho API response.
    */
   async findByUsername(username: string) {
-    return this.prisma.user.findUnique({ where: { username } });
+    return this.prisma.user.findUnique({
+      where: { username, deletedAt: null },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true,
+        role: true,
+        locationId: true,
+        deletedAt: true,
+        failedLoginAttempts: true,
+        lockedUntil: true,
+        passwordChangedAt: true,
+      },
+    });
   }
 
   /**
@@ -170,6 +227,7 @@ export class UsersService {
     const data: any = {};
     if (operatorId) data.updatedById = operatorId;
     if (dto.username) data.username = dto.username;
+    if (dto.email) data.email = dto.email;
     if (dto.role) data.role = dto.role;
     if (dto.locationId !== undefined) data.locationId = dto.locationId;
     if (dto.password) data.password = await bcrypt.hash(dto.password, SALT_ROUNDS);

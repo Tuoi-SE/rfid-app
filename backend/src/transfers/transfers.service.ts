@@ -1,14 +1,14 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { BusinessException } from '@common/exceptions/business.exception';
+import { TRANSFER_ERROR_CODES } from '@common/constants/error-codes';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { ConfirmTransferDto } from './dto/confirm-transfer.dto';
 import { QueryTransfersDto } from './dto/query-transfers.dto';
-import { EventsGateway } from '../events/events.gateway';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TRANSFER_UPDATED_EVENT } from '@common/interfaces/scan.interface';
+import { TransferValidationService } from './transfer-validation.service';
+import { TransferLocationService } from './transfer-location.service';
 import { randomBytes } from 'crypto';
 import {
   LocationType,
@@ -16,249 +16,16 @@ import {
   TagStatus,
   Prisma,
 } from '@prisma/client';
+import { TRANSFER_CODE_PREFIX, TAG_CONDITIONS } from '@common/constants/error-codes';
 
 @Injectable()
 export class TransfersService {
   constructor(
     private prisma: PrismaService,
-    private events: EventsGateway,
+    private eventEmitter: EventEmitter2,
+    private transferValidation: TransferValidationService,
+    private transferLocation: TransferLocationService,
   ) {}
-
-  private buildTransferTagValidationError(
-    blockedTags: Array<{
-      tagId: string;
-      epc?: string;
-      reason:
-        | 'TAG_NOT_FOUND'
-        | 'TAG_IN_PENDING_TRANSFER'
-        | 'TAG_NOT_AT_SOURCE'
-        | 'TAG_ALREADY_COMPLETED_ROUTE';
-      message: string;
-      currentLocationId?: string | null;
-      pendingTransferId?: string;
-      pendingTransferCode?: string;
-      completedTransferId?: string;
-      completedTransferCode?: string;
-    }>,
-    acceptedTagCount: number,
-    totalTagCount: number,
-  ) {
-    return new BadRequestException({
-      success: false,
-      message: `Có ${blockedTags.length}/${totalTagCount} tag không hợp lệ để tạo phiếu điều chuyển.`,
-      error: {
-        code: 'TRANSFER_TAG_VALIDATION_FAILED',
-        details: {
-          blockedTags,
-          acceptedTagCount,
-          totalTagCount,
-        },
-      },
-    });
-  }
-
-  private async validateTagsForCreateTransfer(
-    tagIds: string[],
-    dto: CreateTransferDto,
-    user: { id: string; role: string },
-  ): Promise<string[]> {
-    const uniqueTagIds = Array.from(new Set(tagIds));
-    if (uniqueTagIds.length === 0) {
-      throw new BadRequestException('Danh sách tag trống');
-    }
-
-    const tags = await this.prisma.tag.findMany({
-      where: { id: { in: uniqueTagIds } },
-      select: { id: true, epc: true, locationId: true },
-    });
-    const tagById = new Map(tags.map((tag) => [tag.id, tag]));
-
-    const pendingItems = await this.prisma.transferItem.findMany({
-      where: {
-        tagId: { in: uniqueTagIds },
-        transfer: { status: TransferStatus.PENDING },
-      },
-      select: {
-        tagId: true,
-        transfer: {
-          select: {
-            id: true,
-            code: true,
-          },
-        },
-      },
-    });
-    const pendingByTagId = new Map(
-      pendingItems.map((item) => [item.tagId, item.transfer]),
-    );
-
-    const completedItems = await this.prisma.transferItem.findMany({
-      where: {
-        tagId: { in: uniqueTagIds },
-        transfer: { status: TransferStatus.COMPLETED },
-      },
-      orderBy: [{ transfer: { completedAt: 'desc' } }, { createdAt: 'desc' }],
-      select: {
-        tagId: true,
-        transfer: {
-          select: {
-            id: true,
-            code: true,
-            type: true,
-            sourceId: true,
-            destinationId: true,
-          },
-        },
-      },
-    });
-    const latestCompletedByTagId = new Map<
-      string,
-      (typeof completedItems)[number]['transfer']
-    >();
-    completedItems.forEach((item) => {
-      if (!latestCompletedByTagId.has(item.tagId)) {
-        latestCompletedByTagId.set(item.tagId, item.transfer);
-      }
-    });
-
-    const blockedTags: Array<{
-      tagId: string;
-      epc?: string;
-      reason:
-        | 'TAG_NOT_FOUND'
-        | 'TAG_IN_PENDING_TRANSFER'
-        | 'TAG_NOT_AT_SOURCE'
-        | 'TAG_ALREADY_COMPLETED_ROUTE';
-      message: string;
-      currentLocationId?: string | null;
-      pendingTransferId?: string;
-      pendingTransferCode?: string;
-      completedTransferId?: string;
-      completedTransferCode?: string;
-    }> = [];
-    const acceptedTagIds: string[] = [];
-    const tagsToRecall: Array<{ id: string; epc: string; fromLocationId: string }> = [];
-
-    for (const tagId of uniqueTagIds) {
-      const tag = tagById.get(tagId);
-      if (!tag) {
-        blockedTags.push({
-          tagId,
-          reason: 'TAG_NOT_FOUND',
-          message: 'Tag không tồn tại trong hệ thống.',
-        });
-        continue;
-      }
-
-      const pendingTransfer = pendingByTagId.get(tagId);
-      if (pendingTransfer) {
-        blockedTags.push({
-          tagId,
-          epc: tag.epc,
-          reason: 'TAG_IN_PENDING_TRANSFER',
-          message: 'Tag đang nằm trong phiếu điều chuyển PENDING khác.',
-          pendingTransferId: pendingTransfer.id,
-          pendingTransferCode: pendingTransfer.code,
-        });
-        continue;
-      }
-
-      const latestCompleted = latestCompletedByTagId.get(tagId);
-      const alreadyCompletedCurrentRoute =
-        !!latestCompleted &&
-        latestCompleted.type === dto.type &&
-        latestCompleted.sourceId === dto.sourceId &&
-        latestCompleted.destinationId === dto.destinationId &&
-        tag.locationId === dto.destinationId;
-
-      if (alreadyCompletedCurrentRoute) {
-        blockedTags.push({
-          tagId,
-          epc: tag.epc,
-          reason: 'TAG_ALREADY_COMPLETED_ROUTE',
-          message: 'Tag đã hoàn tất điều chuyển theo đúng tuyến này trước đó.',
-          completedTransferId: latestCompleted.id,
-          completedTransferCode: latestCompleted.code,
-          currentLocationId: tag.locationId,
-        });
-        continue;
-      }
-
-      const allowUnknownSourceForAdminFlow =
-        dto.type === 'ADMIN_TO_WORKSHOP' && !tag.locationId;
-
-      if (tag.locationId !== dto.sourceId && !allowUnknownSourceForAdminFlow) {
-        // SUPER_ADMIN: auto-recall tag về source thay vì block
-        if (user.role === 'SUPER_ADMIN') {
-          tagsToRecall.push({
-            id: tagId,
-            epc: tag.epc,
-            fromLocationId: tag.locationId || 'UNKNOWN',
-          });
-          acceptedTagIds.push(tagId);
-          continue;
-        }
-
-        blockedTags.push({
-          tagId,
-          epc: tag.epc,
-          reason: 'TAG_NOT_AT_SOURCE',
-          message:
-            'Tag không nằm tại kho nguồn hiện tại nên không thể tạo phiếu.',
-          currentLocationId: tag.locationId,
-        });
-        continue;
-      }
-
-      acceptedTagIds.push(tagId);
-    }
-
-    if (blockedTags.length > 0) {
-      throw this.buildTransferTagValidationError(
-        blockedTags,
-        acceptedTagIds.length,
-        uniqueTagIds.length,
-      );
-    }
-
-    // Auto-recall: batch update tags about source + ghi audit trail
-    if (tagsToRecall.length > 0) {
-      await this.prisma.tag.updateMany({
-        where: { id: { in: tagsToRecall.map((t) => t.id) } },
-        data: {
-          locationId: dto.sourceId,
-          status: TagStatus.UNASSIGNED,
-        },
-      });
-
-      // Ghi TagEvent cho mỗi tag được recall
-      await this.prisma.tagEvent.createMany({
-        data: tagsToRecall.map((t) => ({
-          tagId: t.id,
-          type: 'RECALLED',
-          location: `${t.fromLocationId} → ${dto.sourceId}`,
-          description: `SUPER_ADMIN thu hồi tag ${t.epc} để điều chuyển lại`,
-          userId: user.id,
-        })),
-      });
-    }
-
-    return acceptedTagIds;
-  }
-
-  private async getAuthorizedLocationIds(
-    locationId?: string,
-  ): Promise<string[]> {
-    if (!locationId) return [];
-    const locs = await this.prisma.location.findMany({
-      where: {
-        OR: [{ id: locationId }, { parentId: locationId }],
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-    return locs.map((l) => l.id);
-  }
 
   async create(
     dto: CreateTransferDto,
@@ -268,33 +35,33 @@ export class TransfersService {
     const source = await this.prisma.location.findUnique({
       where: { id: dto.sourceId },
     });
-    if (!source) throw new NotFoundException('Không tìm thấy vị trí nguồn');
+    if (!source) throw new BusinessException('Không tìm thấy vị trí nguồn', TRANSFER_ERROR_CODES.SOURCE_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     // Validate destination location based on transfer type (per D-13)
     const destination = await this.prisma.location.findUnique({
       where: { id: dto.destinationId },
     });
-    if (!destination) throw new NotFoundException('Không tìm thấy vị trí đích');
+    if (!destination) throw new BusinessException('Không tìm thấy vị trí đích', TRANSFER_ERROR_CODES.DEST_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     // Type-specific validation
     if (dto.type === 'ADMIN_TO_WORKSHOP') {
       if (source.type !== LocationType.ADMIN) {
-        throw new BadRequestException('Vị trí nguồn phải là ADMIN');
+        throw new BusinessException('Vị trí nguồn phải là ADMIN', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (destination.type !== LocationType.WORKSHOP) {
-        throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+        throw new BusinessException('Vị trí đích phải là WORKSHOP', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
     } else if (dto.type === 'WORKSHOP_TO_WAREHOUSE') {
       if (source.type !== LocationType.WORKSHOP_WAREHOUSE) {
-        throw new BadRequestException('Vị trí xuất điều chuyển bắt buộc phải là Kho Xưởng (không được xuất trực tiếp từ Xưởng)');
+        throw new BusinessException('Vị trí xuất điều chuyển bắt buộc phải là Kho Xưởng (không được xuất trực tiếp từ Xưởng)', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (destination.type !== LocationType.WAREHOUSE) {
-        throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+        throw new BusinessException('Vị trí đích phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
     } else if (dto.type === 'WAREHOUSE_TO_CUSTOMER') {
       // D-18: WAREHOUSE_TO_CUSTOMER: source=WAREHOUSE, destination=HOTEL/RESORT/SPA
       if (source.type !== LocationType.WAREHOUSE) {
-        throw new BadRequestException('Vị trí nguồn phải là WAREHOUSE');
+        throw new BusinessException('Vị trí nguồn phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
       if (
         destination.type !== LocationType.HOTEL &&
@@ -302,23 +69,25 @@ export class TransfersService {
         destination.type !== LocationType.SPA &&
         destination.type !== 'CUSTOMER' // backward compat
       ) {
-        throw new BadRequestException(
+        throw new BusinessException(
           'Vị trí đích phải là HOTEL, RESORT, hoặc SPA',
+          TRANSFER_ERROR_CODES.INVALID_REQUEST,
+          HttpStatus.BAD_REQUEST,
         );
       }
     } else {
-      throw new BadRequestException('Loại transfer không hợp lệ');
+      throw new BusinessException('Loại transfer không hợp lệ', TRANSFER_ERROR_CODES.INVALID_TYPE, HttpStatus.BAD_REQUEST);
     }
 
     // Hard-rule validation across full history/current state before creating transfer
-    const validatedTagIds = await this.validateTagsForCreateTransfer(
+    const { acceptedTagIds: validatedTagIds } = await this.transferValidation.validateTagsForCreateTransfer(
       dto.tagIds,
       dto,
       user,
     );
 
     // Generate unique code: TRF-{timestamp}-{random}
-    const code = `TRF-${Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
+    const code = `${TRANSFER_CODE_PREFIX}Date.now().toString().slice(-6)}-${randomBytes(2).toString('hex').toUpperCase()}`;
 
     // D-20: WAREHOUSE_TO_CUSTOMER - 1-step workflow (tạo = COMPLETED ngay)
     const isWarehouseToCustomer = dto.type === 'WAREHOUSE_TO_CUSTOMER';
@@ -339,7 +108,7 @@ export class TransfersService {
           create: validatedTagIds.map((tagId) => ({
             tagId,
             scannedAt: isWarehouseToCustomer ? new Date() : null, // D-20: Mark as scanned
-            condition: isWarehouseToCustomer ? 'GOOD' : undefined,
+            condition: isWarehouseToCustomer ? TAG_CONDITIONS.GOOD : undefined,
           })),
         },
       },
@@ -361,7 +130,7 @@ export class TransfersService {
           status: TagStatus.COMPLETED,
         },
       });
-      this.events.server.emit('transferUpdate', transfer);
+      this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, transfer);
       return transfer;
     }
 
@@ -374,7 +143,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', transfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, transfer);
     return transfer;
   }
 
@@ -383,15 +152,30 @@ export class TransfersService {
     dto: ConfirmTransferDto,
     user: { id: string; role: string; locationId?: string },
   ) {
-    void user;
     const transfer = await this.prisma.transfer.findUnique({
       where: { id: transferId },
       include: { items: { include: { tag: true } }, destination: true },
     });
 
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
+
+    // LBAC check for WAREHOUSE_MANAGER
+    if (user.role === 'WAREHOUSE_MANAGER') {
+      const allowedIds = await this.transferLocation.getAuthorizedLocationIds(user.locationId);
+      if (
+        (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) ||
+        (!transfer.destinationId || !allowedIds.includes(transfer.destinationId))
+      ) {
+        throw new BusinessException(
+          'Không có quyền xác nhận phiếu điều chuyển này',
+          TRANSFER_ERROR_CODES.ACCESS_DENIED,
+          HttpStatus.FORBIDDEN,
+        );
+      }
+    }
+
     if (transfer.status !== TransferStatus.PENDING) {
-      throw new BadRequestException('Transfer không ở trạng thái PENDING');
+      throw new BusinessException('Transfer không ở trạng thái PENDING', TRANSFER_ERROR_CODES.INVALID_STATUS, HttpStatus.BAD_REQUEST);
     }
 
     // Identify scanned tags vs missing tags
@@ -440,7 +224,7 @@ export class TransfersService {
         where: { transferId, tagId: { in: scannedTagIds } },
         data: {
           scannedAt: new Date(),
-          condition: 'GOOD',
+          condition: TAG_CONDITIONS.GOOD,
         },
       });
     }
@@ -470,7 +254,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', completedTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, completedTransfer);
     return completedTransfer;
   }
 
@@ -495,7 +279,7 @@ export class TransfersService {
     if (destinationId) where.destinationId = destinationId;
 
     if (user.role === 'WAREHOUSE_MANAGER') {
-      const allowedIds = await this.getAuthorizedLocationIds(user.locationId);
+      const allowedIds = await this.transferLocation.getAuthorizedLocationIds(user.locationId);
       if (allowedIds.length > 0) {
         where.OR = [
           { sourceId: { in: allowedIds } },
@@ -538,17 +322,19 @@ export class TransfersService {
         items: { include: { tag: true } },
       },
     });
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (user.role === 'WAREHOUSE_MANAGER') {
-      const allowedIds = await this.getAuthorizedLocationIds(user.locationId);
+      const allowedIds = await this.transferLocation.getAuthorizedLocationIds(user.locationId);
       if (
         (!transfer.sourceId || !allowedIds.includes(transfer.sourceId)) &&
         (!transfer.destinationId ||
           !allowedIds.includes(transfer.destinationId))
       ) {
-        throw new ForbiddenException(
+        throw new BusinessException(
           'Không có quyền truy cập phiếu luân chuyển này',
+          TRANSFER_ERROR_CODES.ACCESS_DENIED,
+          HttpStatus.FORBIDDEN,
         );
       }
     }
@@ -560,9 +346,11 @@ export class TransfersService {
     id: string,
     user: { id: string; role: string; locationId?: string },
   ) {
-    if (user.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Chỉ ADMIN có quyền hủy phiếu điều chuyển.',
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
+      throw new BusinessException(
+        'Chỉ ADMIN và SUPER_ADMIN có quyền hủy phiếu điều chuyển.',
+        TRANSFER_ERROR_CODES.ACCESS_DENIED,
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -570,14 +358,16 @@ export class TransfersService {
       where: { id },
       include: { source: true, items: true },
     });
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (
       transfer.status !== TransferStatus.PENDING &&
       transfer.status !== TransferStatus.COMPLETED
     ) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Chỉ transfer PENDING hoặc COMPLETED mới có thể hủy',
+        TRANSFER_ERROR_CODES.INVALID_STATUS,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -611,7 +401,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', cancelledTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, cancelledTransfer);
     return cancelledTransfer;
   }
 
@@ -620,9 +410,11 @@ export class TransfersService {
     destinationId: string,
     user: { id: string; role: string; locationId?: string },
   ) {
-    if (user.role === 'ADMIN') {
-      throw new ForbiddenException(
-        'Admin chỉ có quyền xem, không được chỉnh sửa phiếu luân chuyển.',
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new BusinessException(
+        'Chỉ SUPER_ADMIN mới được chỉnh sửa xưởng nhận của phiếu luân chuyển.',
+        TRANSFER_ERROR_CODES.ACCESS_DENIED,
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -631,35 +423,39 @@ export class TransfersService {
       include: { source: true, items: true },
     });
 
-    if (!transfer) throw new NotFoundException('Không tìm thấy transfer');
+    if (!transfer) throw new BusinessException('Không tìm thấy transfer', TRANSFER_ERROR_CODES.NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (transfer.status !== TransferStatus.PENDING) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Chỉ transfer ở trạng thái PENDING mới có thể chỉnh sửa xưởng nhận.',
+        TRANSFER_ERROR_CODES.INVALID_STATUS,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     const newDest = await this.prisma.location.findUnique({
       where: { id: destinationId },
     });
-    if (!newDest) throw new NotFoundException('Vị trí đích mới không tồn tại');
+    if (!newDest) throw new BusinessException('Vị trí đích mới không tồn tại', TRANSFER_ERROR_CODES.DEST_NOT_FOUND, HttpStatus.NOT_FOUND);
 
     if (
       transfer.type === 'ADMIN_TO_WORKSHOP' &&
       newDest.type !== LocationType.WORKSHOP
     ) {
-      throw new BadRequestException('Vị trí đích phải là WORKSHOP');
+      throw new BusinessException('Vị trí đích phải là WORKSHOP', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     } else if (
       transfer.type === 'WORKSHOP_TO_WAREHOUSE' &&
       newDest.type !== LocationType.WAREHOUSE
     ) {
-      throw new BadRequestException('Vị trí đích phải là WAREHOUSE');
+      throw new BusinessException('Vị trí đích phải là WAREHOUSE', TRANSFER_ERROR_CODES.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     } else if (
       transfer.type === 'WAREHOUSE_TO_CUSTOMER' &&
       !['HOTEL', 'RESORT', 'SPA', 'CUSTOMER'].includes(newDest.type)
     ) {
-      throw new BadRequestException(
+      throw new BusinessException(
         'Vị trí đích phải là khách hàng (HOTEL, RESORT, SPA)',
+        TRANSFER_ERROR_CODES.INVALID_REQUEST,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -674,7 +470,7 @@ export class TransfersService {
       },
     });
 
-    this.events.server.emit('transferUpdate', updatedTransfer);
+    this.eventEmitter.emit(TRANSFER_UPDATED_EVENT, updatedTransfer);
     return updatedTransfer;
   }
 }

@@ -24,11 +24,11 @@ export class EnvironmentVariables {
   
   @IsString()
   @IsOptional()
-  JWT_EXPIRES_IN?: string;
+  JWT_ACCESS_EXPIRATION?: string;
 
   @IsString()
   @IsOptional()
-  JWT_REFRESH_EXPIRES_IN?: string;
+  JWT_REFRESH_EXPIRATION_DAYS?: string;
 
   @IsNumber()
   @IsOptional()

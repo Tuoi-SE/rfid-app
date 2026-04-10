@@ -67,13 +67,13 @@ export class CaslAbilityFactory {
         break;
 
       case Role.WAREHOUSE_MANAGER:
+        can('read', 'Transfer');
+        can('create', 'Transfer');
+
         can('read', 'Category');
         can('read', 'Product');
         can('read', 'Tag');
         can('read', 'Order');
-        can('create', 'Order');
-        can('update', 'Order');
-        can('delete', 'Order');
 
         can('read', 'Location');
         can('read', 'Inventory');
@@ -90,7 +90,6 @@ export class CaslAbilityFactory {
         can('read', 'Product');
         can('read', 'Tag');
         can('read', 'Order');
-        can('create', 'Order');
 
         can('read', 'Location');
         can('read', 'Inventory');

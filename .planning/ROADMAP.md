@@ -210,6 +210,73 @@ Plans:
 Plans:
 - [x] 11-01-PLAN.md — Extract ScanningModule, create @app/common/interfaces/scan.interface.ts, refactor InventoryService to use EventEmitter2, break circular dependency
 
+### Phase 12: backend-refactor
+
+**Goal:** Decouple EventsGateway from domain services, split oversized services, fix type safety
+
+**Depends on:** Phase 11
+
+**Plans:** 4/4 plans complete
+
+Plans:
+- [x] 12-01-PLAN.md — P0: EventsGateway decoupling (EventEmitter2 pattern)
+- [x] 12-02-PLAN.md — P1: AuthenticatedRequest fix + OrdersService split
+- [x] 12-03-PLAN.md — P1: TransfersService split
+- [x] 12-04-PLAN.md — P2: Cleanup stale .bak file
+
+### Phase 13: backend-quality-improvement
+
+**Goal:** Backend quality improvements: BusinessException consistency, performance optimization, missing indexes, env var alignment, test coverage
+
+**Requirements:** D-01 through D-12 (from backend-evaluation.md findings)
+
+**Depends on:** Phase 12
+
+**Success Criteria** (what must be TRUE):
+1. TransfersService uses BusinessException for all error responses (D-01)
+2. buildStockSummary() uses groupBy at DB level (D-02, D-03)
+3. Cache TTL increased to 60-120 seconds (D-04)
+4. JWT re-verification eliminated in WebSocket handlers (D-05)
+5. User table has indexes on failedLoginAttempts, lockedUntil, role, locationId (D-06)
+6. env.validation.ts aligned with auth.service.ts (D-07)
+7. Unit tests for TransfersService and UsersService (D-08)
+8. Magic strings extracted to constants (D-09)
+9. getAuthorizedLocationIds cached in request context (D-10)
+
+**Plans:** 1/4 plans executed
+
+Plans:
+- [x] 13-01-PLAN.md — D-01: BusinessException in TransfersService + D-02/D-03: buildStockSummary refactor with groupBy
+- [x] 13-02-PLAN.md — D-04: Cache TTL increase + D-05: JWT re-verify elimination + D-06: User table indexes
+- [x] 13-03-PLAN.md — D-07: Env var alignment + D-09: Magic strings extraction + D-10: Location ID caching
+- [x] 13-04-PLAN.md — D-08: Unit tests for TransfersService and UsersService
+
+**Deferred:** D-11 (processBulkScan batch update), D-12 (TransferItem parallelization) - deferred after buildStockSummary refactor
+
+---
+
+## Phase 14: Email-Based Authentication
+
+**Goal:** Email-based authentication with SuperAdmin user creation workflow: SuperAdmin creates users (sends welcome email with temp password), users log in and must change password on first login, forgot password via 6-digit code email.
+
+**Depends on:** Phase 12, Phase 13
+
+**Success Criteria** (what must be TRUE):
+1. SuperAdmin can create user via existing /api/users with email → system generates temp password → sends welcome email
+2. Login accepts both email and username (single loginKey field)
+3. First-time login returns `mustChangePassword: true` → frontend redirects to change-password page
+4. User can request forgot password → receives 6-digit numeric code via email → resets password
+5. All token flows use SHA-256 hashed tokens (15-min expiry for reset)
+6. Email service sends branded HTML emails (welcome + reset) via nodemailer
+7. SuperAdmin CLI reset script enhanced with random temp password generation
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Prisma migration (email + passwordChangedAt + token tables), nodemailer EmailService (welcome + reset email)
+- [ ] 14-02-PLAN.md — Backend auth endpoints (SuperAdmin creates user, forgot-password, reset-password, change-password, login with mustChangePassword)
+- [ ] 14-03-PLAN.md — Frontend (login/forgot/reset/change-password pages) + SuperAdmin CLI script enhancement
+
 ---
 
 ## Progress
@@ -227,3 +294,6 @@ Plans:
 | 9. Cache Integration - Inventory Summary | 1/1 | Complete    | 2026-03-27 |
 | 10. Batch Scan Buffer | 1/1 | Complete    | 2026-03-27 |
 | 11. Service Boundary Cleanup | 1/1 | Complete   | 2026-03-27 |
+| 12. backend-refactor | 4/4 | Complete    | 2026-04-08 |
+| 13. backend-quality-improvement | 1/4 | In Progress|  |
+| 14. Email-Based Authentication | 0/3 | Not Started|  |

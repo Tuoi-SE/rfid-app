@@ -157,6 +157,10 @@ model User {
   sessions      Session[]
   transfers     Transfer[]
 
+  // Reverse relations for auth tokens
+  passwordResetTokens      PasswordResetToken[]
+  emailVerificationTokens  EmailVerificationToken[]
+
   // Reverse relations for Category audit
   createdCategories Category[] @relation("CategoryCreatedBy")
   updatedCategories Category[] @relation("CategoryUpdatedBy")
@@ -181,6 +185,50 @@ model User {
   createdOrders     Order[]    @relation("OrderCreatedBy")
   updatedOrders     Order[]    @relation("OrderUpdatedBy")
   deletedOrders     Order[]    @relation("OrderDeletedBy")
+
+  // Account lockout fields
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+
+  // Email fields for email-based authentication
+  email           String?    @unique
+  isEmailVerified Boolean    @default(false)
+
+  // Password management
+  passwordChangedAt DateTime? // null = temp password never changed by user
+
+  @@index([failedLoginAttempts])
+  @@index([lockedUntil])
+  @@index([role])
+  @@index([locationId])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique           // SHA-256 hash of reset token
+  type      String   @default("RESET") // RESET | etc.
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique           // SHA-256 hash of verification token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model RefreshToken {

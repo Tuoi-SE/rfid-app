@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '@users/users.service';
 import { PrismaService } from '@prisma/prisma.service';
 import { BusinessException } from '@common/exceptions/business.exception';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -25,6 +26,10 @@ describe('AuthService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+    },
+    user: {
+      update: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn(),
     },
   };
 
@@ -50,6 +55,10 @@ describe('AuthService', () => {
     getOrThrow: jest.fn().mockReturnValue('test-secret'),
   };
 
+  const mockActivityLogService = {
+    log: jest.fn().mockResolvedValue({}),
+  };
+
   beforeAll(async () => {
     mockUser.password = await bcrypt.hash('admin123', 10);
   });
@@ -62,6 +71,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: ActivityLogService, useValue: mockActivityLogService },
       ],
     }).compile();
 
@@ -94,6 +104,7 @@ describe('AuthService', () => {
         id: 'user-1',
         username: 'admin',
         role: 'ADMIN',
+        locationId: undefined,
       });
     });
 
@@ -128,7 +139,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('refresh_token');
       expect(result).toHaveProperty('token_type', 'Bearer');
       expect(result).toHaveProperty('expires_in');
-      expect(result.user).toEqual({ id: 'user-1', username: 'admin', role: 'ADMIN' });
+      expect(result.user).toEqual({ id: 'user-1', username: 'admin', role: 'ADMIN', locationId: undefined });
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
     });
   });
@@ -143,7 +154,9 @@ describe('AuthService', () => {
       mockPrisma.refreshToken.findFirst.mockResolvedValue({
         id: 'rt-1',
         revoked: false,
+        userId: 'user-1',
       });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1', deletedAt: null });
       mockPrisma.refreshToken.update.mockResolvedValue({});
       mockPrisma.refreshToken.create.mockResolvedValue({});
 

@@ -49,6 +49,5 @@ venv/
 # Claude
 .claude/
 .agent/
-.gitnexus
 .vercel
 .env*.local
