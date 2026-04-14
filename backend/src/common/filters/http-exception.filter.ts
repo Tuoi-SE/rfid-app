@@ -29,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let body: any = {
       success: false,
       message: 'Lỗi hệ thống nội bộ',
-      error: { code: 'INTERNAL_SERVER_ERROR' },
+      error: { code: 'INTERNAL_SERVER_ERROR', detail: exception instanceof Error ? exception.message : String(exception) },
     };
 
     if (exception instanceof HttpException) {
