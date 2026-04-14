@@ -9,15 +9,20 @@ export class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.config.getOrThrow<string>('SMTP_HOST'),
-      port: Number(this.config.get<number>('SMTP_PORT', 587)),
-      secure: Number(this.config.get<number>('SMTP_PORT', 587)) === 465,
-      auth: {
-        user: this.config.getOrThrow<string>('SMTP_USER'),
-        pass: this.config.getOrThrow<string>('SMTP_PASS'),
-      },
-    });
+    const host = this.config.get<string>('SMTP_HOST');
+    if (host) {
+      this.transporter = nodemailer.createTransport({
+        host,
+        port: Number(this.config.get<number>('SMTP_PORT', 587)),
+        secure: Number(this.config.get<number>('SMTP_PORT', 587)) === 465,
+        auth: {
+          user: this.config.get<string>('SMTP_USER'),
+          pass: this.config.get<string>('SMTP_PASS'),
+        },
+      });
+    } else {
+      console.warn('SMTP_HOST is not configured. Email service is disabled.');
+    }
   }
 
   /**
@@ -28,6 +33,7 @@ export class EmailService {
    * @param resetUrl Đường dẫn đặt lại mật khẩu.
    */
   async sendPasswordResetEmail(to: string, rawToken: string, username: string, resetUrl: string): Promise<void> {
+    if (!this.transporter) return console.warn('Email disabled: Cannot send password reset to', to);
     const html = await this.buildPasswordResetHtml(rawToken, username, resetUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
@@ -43,6 +49,7 @@ export class EmailService {
    * @param verificationUrl Đường dẫn xác thực email.
    */
   async sendVerificationEmail(to: string, verificationUrl: string): Promise<void> {
+    if (!this.transporter) return console.warn('Email disabled: Cannot send verification to', to);
     const html = await this.buildVerificationHtml(verificationUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
@@ -60,6 +67,7 @@ export class EmailService {
    * @param baseUrl Đường dẫn gốc của ứng dụng.
    */
   async sendWelcomeEmail(to: string, username: string, tempPassword: string, baseUrl: string): Promise<void> {
+    if (!this.transporter) return console.warn('Email disabled: Cannot send welcome to', to);
     const html = await this.buildWelcomeHtml(username, tempPassword, baseUrl);
     await this.transporter.sendMail({
       from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
@@ -75,6 +83,7 @@ export class EmailService {
    * @param otp Mã xác thực 6 số.
    */
   async sendEmailChangeOtp(to: string, otp: string): Promise<void> {
+    if (!this.transporter) return console.warn('Email disabled: Cannot send OTP to', to);
     const html = `<h2>Yêu cầu thay đổi Email</h2>
 <p>Bạn đã yêu cầu thay đổi địa chỉ email của tài khoản. Đây là mã xác nhận (OTP) của bạn:</p>
 <h3 style="background:#f4f4f4;padding:12px;letter-spacing:4px;display:inline-block;">${otp}</h3>
