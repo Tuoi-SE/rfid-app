@@ -65,6 +65,14 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SMTP_FROM?: string;
+
+  @IsString()
+  @IsOptional()
+  CORS_ORIGINS?: string;
+
+  @IsString()
+  @IsOptional()
+  APP_BASE_URL?: string;
 }
 
 export class EnvironmentValidator {
