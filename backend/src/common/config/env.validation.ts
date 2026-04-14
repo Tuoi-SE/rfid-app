@@ -45,6 +45,26 @@ export class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   REDIS_PORT?: number;
+
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SMTP_PORT?: number;
+
+  @IsString()
+  @IsOptional()
+  SMTP_USER?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_PASS?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_FROM?: string;
 }
 
 export class EnvironmentValidator {
