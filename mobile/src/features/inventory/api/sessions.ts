@@ -57,10 +57,4 @@ export const inventoryApi = {
     return items;
   },
 
-  assignTags: async (productId: string, epcs: string[]) => {
-    return httpClient(`/products/${productId}/assign-tags`, {
-      method: "POST",
-      body: JSON.stringify({ epcs }),
-    });
-  },
 };

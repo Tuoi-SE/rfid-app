@@ -19,7 +19,7 @@ export function LoginScreen() {
 
     setLoading(true);
     try {
-      const response: any = await loginApi({ username, password, deviceType: 'MOBILE' });
+      const response: any = await loginApi({ loginKey: username, password, deviceType: 'MOBILE' });
       const token = response.data?.access_token || response.access_token;
       const role = response.data?.user?.role || response.user?.role || null;
 

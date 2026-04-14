@@ -1,11 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Settings, ScanLine, Tag, LocateFixed, LogOut, ClipboardList, Truck } from 'lucide-react-native';
+import { Settings, ScanLine, LocateFixed, LogOut, ClipboardList, Truck } from 'lucide-react-native';
 import { TouchableOpacity, Alert, View, Text } from 'react-native';
 
 import { ConnectReaderScreen } from '../../features/reader/connect/screens/connect-reader-screen';
 import { InventoryScanScreen } from '../../features/inventory/scan/screens/inventory-scan-screen';
-import { AssignTagsScreen } from '../../features/inventory/assign/screens/assign-tags-screen';
 import { FindTagScreen } from '../../features/inventory/find/screens/find-tag-screen';
 import { TransactionsScreen } from '../../features/transactions/screens/transactions-screen';
 import { TransfersScreen } from '../../features/transfers/screens/transfers-screen';
@@ -82,16 +81,6 @@ export function AppTabs() {
           tabBarIcon: ({ color, size }) => <ScanLine color={color} size={size} />
         }}
       />
-      {role === 'ADMIN' && (
-        <Tab.Screen
-          name="CapThe"
-          component={AssignTagsScreen}
-          options={{
-            tabBarLabel: 'Cấp Thẻ',
-            tabBarIcon: ({ color, size }) => <Tag color={color} size={size} />
-          }}
-        />
-      )}
       <Tab.Screen
         name="TimThe"
         component={FindTagScreen}

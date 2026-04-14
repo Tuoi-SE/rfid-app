@@ -14,7 +14,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       connectionString: databaseUrl,
       max: Math.min(poolSize, 10),            // POOL-01: cap at 10 for Supabase free tier
       idleTimeoutMillis: 30_000,             // 30 seconds idle before closing
-      connectionTimeoutMillis: 15_000,       // 15 seconds to acquire connection (cross-region)
+      connectionTimeoutMillis: 30_000,       // 30 seconds to acquire connection
     });
     super({ adapter });
 
