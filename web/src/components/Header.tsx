@@ -22,7 +22,7 @@ interface SearchResultItem {
 const STATIC_SEARCH_ITEMS: SearchResultItem[] = [
   {
     id: 'page-dashboard',
-    title: 'Tổng quan Dashboard',
+    title: 'Thống kê',
     subtitle: 'Theo dõi chỉ số hệ thống',
     href: '/',
     section: 'Điều hướng',

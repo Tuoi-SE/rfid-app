@@ -76,7 +76,7 @@ Sidebar hiện được chia thành 3 nhóm chính:
 - `Kho Thẻ RFID` -> `/tags`
 
 #### ĐIỀU HÀNH & HỆ THỐNG
-- `Tổng quan Dashboard` -> `/`
+- `Thống kê` -> `/`
 - `Tài khoản nội bộ` -> `/users`
 - `Phân quyền hệ thống` -> `/permissions`
 - `Nhật ký hoạt động` -> `/activity-logs`
