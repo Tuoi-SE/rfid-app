@@ -315,6 +315,7 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
     if (path.startsWith('/activity-logs')) return 'Nhật ký hệ thống';
     if (path.startsWith('/locations')) return 'Địa điểm';
     if (path.startsWith('/transfers')) return 'Điều chuyển';
+    if (path.startsWith('/profile')) return 'Hồ sơ cá nhân';
     return 'Quản trị';
   };
 
@@ -654,7 +655,10 @@ export const Header = ({ onMenuClick }: { onMenuClick?: () => void }) => {
               </div>
 
               <button
-                onClick={() => setIsProfileOpen(false)}
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  router.push('/profile');
+                }}
                 className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors"
               >
                 <User className="w-3.5 h-3.5" />

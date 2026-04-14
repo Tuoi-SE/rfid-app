@@ -5,7 +5,7 @@ import { AuthStorage } from '@/lib/http/auth-storage';
 
 interface AuthContextType {
   token: string | null;
-  user: { id: string; username: string; role: string; locationId?: string | null } | null;
+  user: { id: string; username: string; fullName?: string | null; phone?: string | null; email?: string | null; role: string; locationId?: string | null } | null;
   login: (accessToken: string, refreshToken: string, remember?: boolean) => void;
   logout: () => void;
   isLoading: boolean;
@@ -35,6 +35,9 @@ if (stored) {
     setUser({
       id: payload.sub,
       username: payload.username,
+      fullName: payload.fullName,
+      phone: payload.phone,
+      email: payload.email,
       role: payload.role,
       locationId: payload.locationId,
     });
@@ -52,6 +55,9 @@ try {
   setUser({
     id: payload.sub,
     username: payload.username,
+    fullName: payload.fullName,
+    phone: payload.phone,
+    email: payload.email,
     role: payload.role,
     locationId: payload.locationId,
   });

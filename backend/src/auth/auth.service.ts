@@ -74,6 +74,8 @@ export class AuthService {
         select: {
           id: true,
           username: true,
+          fullName: true,
+          phone: true,
           email: true,
           password: true,
           role: true,
@@ -142,6 +144,9 @@ export class AuthService {
     return {
       id: user.id,
       username: user.username,
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
       role: user.role,
       locationId: user.locationId,
       passwordChangedAt: user.passwordChangedAt,
@@ -153,7 +158,7 @@ export class AuthService {
    * Lưu hash của refresh token vào bảng RefreshToken.
    * Interceptor sẽ auto-wrap thành { success, message, data }.
    */
-  async login(user: { id: string; username: string; role: string; locationId?: string | null; passwordChangedAt?: Date | null }, deviceType: string = DEVICE_TYPES.WEB, ipAddress?: string) {
+  async login(user: { id: string; username: string; email?: string | null; role: string; locationId?: string | null; fullName?: string | null; phone?: string | null; passwordChangedAt?: Date | null }, deviceType: string = DEVICE_TYPES.WEB, ipAddress?: string) {
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
 
@@ -200,6 +205,9 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
+        phone: user.phone,
+        email: user.email,
         role: user.role,
         locationId: user.locationId,
       },
@@ -217,7 +225,7 @@ export class AuthService {
    */
   async refresh(refreshToken: string) {
     // Bước 1: Verify chữ ký JWT
-    let payload: { sub: string; username: string; role: string; locationId?: string | null };
+    let payload: { sub: string; username: string; fullName?: string | null; phone?: string | null; email?: string | null; role: string; locationId?: string | null };
     try {
       payload = this.jwtService.verify(refreshToken, { secret: this.refreshSecret });
     } catch {
@@ -254,7 +262,7 @@ export class AuthService {
     }
 
     // Bước 4: Cấp cặp token mới
-    const user = { id: payload.sub, username: payload.username, role: payload.role, locationId: payload.locationId };
+    const user = { id: payload.sub, username: payload.username, fullName: payload.fullName, phone: payload.phone, email: payload.email, role: payload.role, locationId: payload.locationId };
     const newAccessToken = this.generateAccessToken(user);
     const newRefreshToken = this.generateRefreshToken(user);
 
@@ -401,10 +409,10 @@ export class AuthService {
     });
   }
 
-  /** Tạo access token JWT. Payload: { sub, username, role, locationId } */
-  private generateAccessToken(user: { id: string; username: string; role: string; locationId?: string | null }) {
+  /** Tạo access token JWT. Payload: { sub, username, email, role, locationId } */
+  private generateAccessToken(user: { id: string; username: string; fullName?: string | null; phone?: string | null; email?: string | null; role: string; locationId?: string | null }) {
     return this.jwtService.sign(
-      { sub: user.id, username: user.username, role: user.role, locationId: user.locationId },
+      { sub: user.id, username: user.username, fullName: user.fullName, phone: user.phone, email: user.email, role: user.role, locationId: user.locationId },
     );
   }
 
@@ -427,9 +435,9 @@ export class AuthService {
   }
 
   /** Tạo refresh token JWT. Dùng secret riêng, thời hạn dài hơn (7 ngày). */
-  private generateRefreshToken(user: { id: string; username: string; role: string; locationId?: string | null }) {
+  private generateRefreshToken(user: { id: string; username: string; fullName?: string | null; phone?: string | null; email?: string | null; role: string; locationId?: string | null }) {
     return this.jwtService.sign(
-      { sub: user.id, username: user.username, role: user.role, locationId: user.locationId, jti: crypto.randomUUID() },
+      { sub: user.id, username: user.username, fullName: user.fullName, phone: user.phone, email: user.email, role: user.role, locationId: user.locationId, jti: crypto.randomUUID() },
       { secret: this.refreshSecret, expiresIn: `${this.refreshExpDays}d` },
     );
   }
