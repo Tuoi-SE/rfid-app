@@ -12,9 +12,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     const adapter = new PrismaPg({
       connectionString: databaseUrl,
-      max: poolSize,                          // POOL-01: 20 connections default
+      max: Math.min(poolSize, 10),            // POOL-01: cap at 10 for Supabase free tier
       idleTimeoutMillis: 30_000,             // 30 seconds idle before closing
-      connectionTimeoutMillis: 5_000,        // 5 seconds to acquire connection
+      connectionTimeoutMillis: 15_000,       // 15 seconds to acquire connection (cross-region)
     });
     super({ adapter });
 
