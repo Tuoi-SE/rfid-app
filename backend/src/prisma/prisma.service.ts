@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '.prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import { softDeleteExtension } from './soft-delete.extension';
 
 @Injectable()
@@ -10,13 +11,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const databaseUrl = config.get('DATABASE_URL');
     const poolSize = PrismaService.parsePoolSize(databaseUrl);
 
-    const adapter = new PrismaPg({
+    const pool = new Pool({
       connectionString: databaseUrl,
-      max: Math.min(poolSize, 10),            
-      idleTimeoutMillis: 30_000,             
-      connectionTimeoutMillis: 30_000,       
-      ssl: { rejectUnauthorized: false },    // Cho phép chứng chỉ tự ký (cần thiết cho Supabase trên cloud)
+      max: Math.min(poolSize, 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 30_000,
+      ssl: { rejectUnauthorized: false }, // Cho phép chứng chỉ tự ký cho Supabase
     });
+
+    const adapter = new PrismaPg(pool);
     super({ adapter });
 
     // Apply soft-delete extension — auto filter records có deletedAt != null
