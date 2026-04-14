@@ -59,12 +59,12 @@ export function LoginScreen() {
         <View style={styles.formSection}>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>TÊN ĐĂNG NHẬP</Text>
+            <Text style={styles.inputLabel}>TÀI KHOẢN</Text>
             <View style={styles.inputBox}>
               <User size={18} color="#94A3B8" style={{ marginLeft: 16 }} />
               <TextInput
                 style={styles.input}
-                placeholder="Nhập mã nhân viên"
+                placeholder="Nhập tài khoản"
                 placeholderTextColor="rgba(119, 117, 135, 0.5)"
                 value={username}
                 onChangeText={setUsername}
@@ -129,11 +129,11 @@ export function LoginScreen() {
             <TouchableOpacity style={styles.bioBtn}>
               <Fingerprint size={28} color="#3525CD" />
             </TouchableOpacity>
-            <Text style={styles.bioText}>ĐĂNG NHẬP VÂN TAY</Text>
+            <Text style={styles.bioText}>ĐĂNG NHẬP SINH TRẮC</Text>
           </View>
 
           <View style={styles.modeContainer}>
-            <Text style={styles.modeLabel}>Chế độ quét:</Text>
+            <Text style={styles.modeLabel}>Phiên bản:</Text>
             <View style={styles.modeBadge}>
               <Text style={styles.modeBadgeText}>RFID_v4.2.0</Text>
             </View>
