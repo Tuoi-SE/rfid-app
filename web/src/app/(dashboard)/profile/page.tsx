@@ -2,12 +2,17 @@
 
 import { useAuth } from '@/providers/AuthProvider';
 import { getRoleDisplayName } from '@/utils/role-helpers';
-import { Mail, ArrowRight, Edit, X, User, LogOut, Camera } from 'lucide-react';
-import { useState } from 'react';
+import { Mail, ArrowRight, Edit, X, User, LogOut, Camera, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { changePassword } from '@/features/auth/api/change-password';
+import { requestChangeEmail } from '@/features/auth/api/change-email';
+import { updateProfile } from '@/features/auth/api/update-profile';
+import { AuthStorage } from '@/lib/http/auth-storage';
+import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, login } = useAuth();
   const router = useRouter();
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -20,10 +25,17 @@ export default function ProfilePage() {
 
   const roleText = getRoleDisplayName(user?.role);
 
-  const [isUpdateProfileOpen, setIsUpdateProfileOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFullName, setEditFullName] = useState(user?.fullName || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingProfile) {
+      setEditFullName(user?.fullName || '');
+      setEditPhone(user?.phone || '');
+    }
+  }, [user, isEditingProfile]);
 
   // Avatar handling
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -42,35 +54,70 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsChangePasswordOpen(false);
-    alert('Đổi mật khẩu thành công!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  };
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsChangeEmailOpen(false);
-    alert('Yêu cầu đổi email thành công. Vui lòng xác nhận qua email mới của bạn.');
-    setNewEmail('');
-    setCurrentPassword('');
-  };
+    if (newPassword !== confirmPassword) return;
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    setIsChangingPassword(true);
     try {
-      // Giả lập gọi API update
-      // await updateUser(user!.id, { fullName: editFullName, phone: editPhone });
-      alert('Cập nhật thông tin thành công! Vui lòng đăng nhập lại để làm mới dữ liệu.');
-      setIsUpdateProfileOpen(false);
-    } catch (error) {
-      alert('Có lỗi xảy ra khi cập nhật thông tin.');
+      await changePassword({ currentPassword, newPassword });
+      toast.success('Đổi mật khẩu thành công!');
+      setIsChangePasswordOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Lỗi xảy ra khi đổi mật khẩu.');
     } finally {
-      setIsSubmitting(false);
+      setIsChangingPassword(false);
+    }
+  };
+
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsChangingEmail(true);
+    try {
+      await requestChangeEmail({ currentPassword, newEmail });
+      toast.success('Đã gửi mã OTP. Vui lòng kiểm tra email cũ của bạn.');
+      setIsChangeEmailOpen(false);
+      
+      const email = user?.email || '';
+      AuthStorage.removeToken(); // Force local logout without triggering AuthProvider's immediate /login redirect
+      window.location.href = `/verify-email-change?email=${encodeURIComponent(email)}`;
+    } catch (error: any) {
+      toast.error(error?.message || 'Có lỗi xảy ra khi yêu cầu đổi email.');
+    } finally {
+      setIsChangingEmail(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editFullName.trim()) {
+      toast.error('Họ và tên không được để trống');
+      return;
+    }
+    if (editPhone && !/(84|0[3|5|7|8|9])+([0-9]{8})\b/.test(editPhone)) {
+      toast.error('Số điện thoại không hợp lệ');
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
+      const res = await updateProfile({ fullName: editFullName, phone: editPhone });
+      if (res && res.access_token) {
+        // Gọi login để cập nhật token & decode lại thông tin mới, không redirect
+        login(res.access_token, res.refresh_token, true, true);
+      }
+      toast.success('Cập nhật thông tin thành công!');
+      setIsEditingProfile(false);
+    } catch (error: any) {
+      toast.error(error?.message || 'Có lỗi xảy ra khi cập nhật thông tin.');
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -130,31 +177,66 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex items-center gap-3 sm:mb-3">
-              <button onClick={logout} className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-[12px] border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm text-[14px]">
-                <LogOut className="w-[18px] h-[18px]" />
-                Đăng xuất
-              </button>
-              <button onClick={() => {
-                setEditFullName(user?.fullName || '');
-                setEditPhone(user?.phone || '');
-                setIsUpdateProfileOpen(true);
-              }} className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-[12px] bg-[#4c59a8] hover:bg-[#3f4a8c] text-white font-bold transition-colors shadow-sm text-[14px]">
-                <Edit className="w-[18px] h-[18px]" />
-                Chỉnh sửa
-              </button>
+              {!isEditingProfile ? (
+                 <button 
+                   onClick={() => setIsEditingProfile(true)} 
+                   className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-[12px] bg-[#4c59a8] hover:bg-[#3f4a8c] text-white font-bold transition-colors shadow-sm text-[14px]"
+                 >
+                   <Edit className="w-[18px] h-[18px]" />
+                   Chỉnh sửa hồ sơ
+                 </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => setIsEditingProfile(false)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-[12px] border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm text-[14px]"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    onClick={handleSaveProfile}
+                    disabled={isUpdatingProfile}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-[12px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm text-[14px]"
+                  >
+                    {isUpdatingProfile ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : 'Lưu thay đổi'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-7 mb-14">
             <div>
               <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Họ và Tên</label>
-              <input type="text" readOnly value={user?.fullName || 'Chưa cập nhật'} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] text-slate-500 font-medium text-sm focus:outline-none transition-colors" />
+              <input 
+                type="text" 
+                readOnly={!isEditingProfile} 
+                value={editFullName} 
+                onChange={(e) => setEditFullName(e.target.value)}
+                className={`w-full px-4 py-2.5 border rounded-[12px] font-medium text-sm focus:outline-none transition-colors ${
+                  isEditingProfile 
+                    ? 'bg-white border-blue-500 focus:ring-4 focus:ring-blue-100 text-slate-800' 
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
+              />
             </div>
             <div>
-              <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Số điện thoại (Cố định)</label>
+              <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Số điện thoại {isEditingProfile ? '' : '(Cố định)'}</label>
               <div className="relative">
-                <input type="text" readOnly value={user?.phone || '0923478272'} className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-[12px] text-slate-400 font-bold text-sm focus:outline-none transition-colors cursor-not-allowed" />
-                <p className="mt-1.5 text-[11px] text-slate-400 italic text-right">* Liên hệ quản trị viên để thay đổi số điện thoại.</p>
+                <input 
+                  type="text" 
+                  readOnly={!isEditingProfile} 
+                  value={editPhone} 
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className={`w-full px-4 py-2.5 border rounded-[12px] font-bold text-sm focus:outline-none transition-colors ${
+                    isEditingProfile 
+                      ? 'bg-white border-blue-500 focus:ring-4 focus:ring-blue-100 text-slate-800' 
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                />
+                {!isEditingProfile && (
+                  <p className="mt-1.5 text-[11px] text-slate-400 italic text-right">* Bấm 'Chỉnh sửa hồ sơ' để thay đổi thông tin.</p>
+                )}
               </div>
             </div>
             <div className="md:col-span-2 md:w-full">
@@ -270,9 +352,10 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!currentPassword || !newEmail}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-blue-600/20 shrink-0"
+                  disabled={!currentPassword || !newEmail || isChangingEmail}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-blue-600/20 shrink-0 flex items-center justify-center gap-2"
                 >
+                  {isChangingEmail && <Loader2 className="w-4 h-4 animate-spin" />}
                   Xác nhận thay đổi
                 </button>
               </div>
@@ -377,9 +460,10 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-[#4c59a8] hover:bg-[#3f4a8c] disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-primary/20 shrink-0"
+                  disabled={!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || isChangingPassword}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-[#4c59a8] hover:bg-[#3f4a8c] disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-primary/20 shrink-0 flex items-center justify-center gap-2"
                 >
+                  {isChangingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
                   Lưu thay đổi
                 </button>
               </div>
@@ -387,51 +471,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      {/* Update Profile Modal */}
-      {isUpdateProfileOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsUpdateProfileOpen(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800">Chỉnh sửa thông tin</h3>
-              <button onClick={() => setIsUpdateProfileOpen(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-50 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Họ và Tên</label>
-                <input
-                  type="text"
-                  value={editFullName}
-                  onChange={(e) => setEditFullName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
-                  placeholder="Nhập họ và tên của bạn"
-                />
-                <p className="mt-2 text-xs text-slate-400 italic">Lưu ý: Bạn chỉ có thể tự thay đổi Họ và Tên. Các thông tin khác vui lòng liên hệ Admin.</p>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsUpdateProfileOpen(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-[12px] transition-colors shrink-0"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-[#4c59a8] hover:bg-[#3f4a8c] rounded-[12px] transition-colors shadow-md shadow-primary/20 shrink-0"
-                >
-                  Cập nhật
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

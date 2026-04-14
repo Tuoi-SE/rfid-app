@@ -409,6 +409,148 @@ export class AuthService {
     });
   }
 
+  /**
+   * Yêu cầu đổi email: Xác nhận mk, gửi OTP, đăng xuất.
+   */
+  async requestChangeEmail(userId: string, currentPassword: string, newEmail: string): Promise < void> {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if(!user) {
+        throw new BusinessException('Không tìm thấy tài khoản', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+      }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if(!isMatch) {
+        throw new BusinessException(
+          'Mật khẩu hiện tại không đúng',
+          'AUTH_INVALID_PASSWORD',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+    const existingEmail = await this.prisma.user.findFirst({ where: { email: newEmail, deletedAt: null } });
+      if(existingEmail && existingEmail.id !== userId) {
+      throw new BusinessException(
+        'Email đã được sử dụng bởi tài khoản khác',
+        'AUTH_EMAIL_TAKEN',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Huỷ các mã cũ
+    await this.prisma.emailVerificationToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const rawToken = String(crypto.randomInt(100000, 999999));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        token: rawToken,
+        userId: user.id,
+        newEmail,
+        expiresAt,
+      },
+    });
+
+    if (this.emailService && user.email) {
+      await this.emailService.sendEmailChangeOtp(user.email, rawToken);
+    }
+
+    // Force logout (cấp Server-side)
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revoked: false },
+      data: { revoked: true },
+    });
+  }
+
+  /**
+   * Cập nhật thông tin profile (Tên, SĐT).
+   */
+  async updateProfile(userId: string, fullName: string, phone?: string): Promise<{ access_token: string, refresh_token: string }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BusinessException('Không tìm thấy tài khoản', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+
+    if (phone) {
+      const existingPhone = await this.prisma.user.findFirst({ where: { phone, deletedAt: null } });
+      if (existingPhone && existingPhone.id !== userId) {
+        throw new BusinessException('Số điện thoại đã được đăng ký', 'AUTH_PHONE_TAKEN', HttpStatus.BAD_REQUEST);
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { fullName, phone: phone || null },
+    });
+
+    const payload = {
+      username: updatedUser.username,
+      sub: updatedUser.id,
+      role: updatedUser.role,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      fullName: updatedUser.fullName,
+      locationId: updatedUser.locationId,
+    };
+
+    const days = parseInt(this.config.get<string>('JWT_REFRESH_EXPIRATION_DAYS') || '7');
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(payload),
+      this.jwtService.signAsync(payload, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: `${days}d`,
+      }),
+    ]);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: refresh_token,
+        userId: user.id,
+        deviceType: DEVICE_TYPES.WEB,
+        expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return { access_token, refresh_token };
+  }
+
+  /**
+   * Xác nhận đổi email bằng OTP
+   */
+  async confirmChangeEmail(oldEmail: string, otp: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({ where: { email: oldEmail, deletedAt: null } });
+    if (!user) throw new BusinessException('Không tìm thấy tài khoản', 'USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+
+    const checkToken = await this.prisma.emailVerificationToken.findFirst({
+      where: {
+        token: otp,
+        userId: user.id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!checkToken) {
+      throw new BusinessException('Mã xác thực không hợp lệ hoặc đã hết hạn', 'AUTH_INVALID_OTP', HttpStatus.BAD_REQUEST);
+    }
+
+    if (!checkToken.newEmail) {
+      throw new BusinessException('Lỗi dữ liệu hệ thống (thiếu newEmail)', 'AUTH_ERROR', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { email: checkToken.newEmail },
+      }),
+      this.prisma.emailVerificationToken.update({
+        where: { id: checkToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  }
+
   /** Tạo access token JWT. Payload: { sub, username, email, role, locationId } */
   private generateAccessToken(user: { id: string; username: string; fullName?: string | null; phone?: string | null; email?: string | null; role: string; locationId?: string | null }) {
     return this.jwtService.sign(

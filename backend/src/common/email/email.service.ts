@@ -70,6 +70,24 @@ export class EmailService {
   }
 
   /**
+   * Gửi OTP xác nhận đổi email (gửi về email cũ).
+   * @param to Địa chỉ email hiện tại.
+   * @param otp Mã xác thực 6 số.
+   */
+  async sendEmailChangeOtp(to: string, otp: string): Promise<void> {
+    const html = `<h2>Yêu cầu thay đổi Email</h2>
+<p>Bạn đã yêu cầu thay đổi địa chỉ email của tài khoản. Đây là mã xác nhận (OTP) của bạn:</p>
+<h3 style="background:#f4f4f4;padding:12px;letter-spacing:4px;display:inline-block;">${otp}</h3>
+<p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email và kiểm tra lại bảo mật tài khoản.</p>`;
+    await this.transporter.sendMail({
+      from: this.config.get('SMTP_FROM', 'noreply@rfidinventory.com'),
+      to,
+      subject: 'Xác nhận thay đổi email — RFID Inventory',
+      html,
+    });
+  }
+
+  /**
    * Tạo nội dung HTML cho email khôi phục mật khẩu.
    * @param rawToken Mã token khôi phục.
    * @param username Tên người dùng.
