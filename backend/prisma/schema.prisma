@@ -7,10 +7,341 @@ datasource db {
   provider = "postgresql"
 }
 
+model Location {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  name          String
+  type          LocationType
+  address       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+  parentId      String?
+  createdById   String?
+  updatedById   String?
+  deletedById   String?
+  createdBy     User?        @relation("LocationCreatedBy", fields: [createdById], references: [id])
+  deletedBy     User?        @relation("LocationDeletedBy", fields: [deletedById], references: [id])
+  parent        Location?    @relation("LocationChildren", fields: [parentId], references: [id])
+  children      Location[]   @relation("LocationChildren")
+  updatedBy     User?        @relation("LocationUpdatedBy", fields: [updatedById], references: [id])
+  orders        Order[]      @relation("OrderLocation")
+  tags          Tag[]
+  transfersTo   Transfer[]   @relation("TransferDestination")
+  transfersFrom Transfer[]   @relation("TransferSource")
+  users         User[]       @relation("UserLocation")
+
+  @@index([type])
+  @@index([code])
+  @@index([deletedAt])
+}
+
+model Transfer {
+  id            String         @id @default(uuid())
+  code          String         @unique
+  type          TransferType   @default(ADMIN_TO_WORKSHOP)
+  status        TransferStatus @default(PENDING)
+  sourceId      String
+  destinationId String
+  createdById   String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  completedAt   DateTime?
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  destination   Location       @relation("TransferDestination", fields: [destinationId], references: [id])
+  source        Location       @relation("TransferSource", fields: [sourceId], references: [id])
+  items         TransferItem[]
+
+  @@index([status])
+  @@index([type])
+  @@index([sourceId])
+  @@index([destinationId])
+  @@index([createdById])
+}
+
+model TransferItem {
+  id         String    @id @default(uuid())
+  transferId String
+  tagId      String
+  condition  String?
+  scannedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  tag        Tag       @relation(fields: [tagId], references: [id])
+  transfer   Transfer  @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([tagId])
+}
+
+model User {
+  id                      String                   @id @default(uuid())
+  username                String                   @unique
+  fullName                String?
+  phone                   String?
+  password                String
+  role                    Role                     @default(WAREHOUSE_MANAGER)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  createdById             String?
+  deletedAt               DateTime?
+  deletedById             String?
+  locationId              String?
+  updatedById             String?
+  failedLoginAttempts     Int                      @default(0)
+  lockedUntil             DateTime?
+  email                   String?                  @unique
+  isEmailVerified         Boolean                  @default(false)
+  passwordChangedAt       DateTime?
+  activityLogs            ActivityLog[]
+  createdCategories       Category[]               @relation("CategoryCreatedBy")
+  deletedCategories       Category[]               @relation("CategoryDeletedBy")
+  updatedCategories       Category[]               @relation("CategoryUpdatedBy")
+  emailVerificationTokens EmailVerificationToken[]
+  createdLocations        Location[]               @relation("LocationCreatedBy")
+  deletedLocations        Location[]               @relation("LocationDeletedBy")
+  updatedLocations        Location[]               @relation("LocationUpdatedBy")
+  createdOrders           Order[]                  @relation("OrderCreatedBy")
+  deletedOrders           Order[]                  @relation("OrderDeletedBy")
+  updatedOrders           Order[]                  @relation("OrderUpdatedBy")
+  passwordResetTokens     PasswordResetToken[]
+  createdProducts         Product[]                @relation("ProductCreatedBy")
+  deletedProducts         Product[]                @relation("ProductDeletedBy")
+  updatedProducts         Product[]                @relation("ProductUpdatedBy")
+  refreshTokens           RefreshToken[]
+  sessions                Session[]
+  createdTags             Tag[]                    @relation("TagCreatedBy")
+  deletedTags             Tag[]                    @relation("TagDeletedBy")
+  updatedTags             Tag[]                    @relation("TagUpdatedBy")
+  transfers               Transfer[]
+  createdBy               User?                    @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers            User[]                   @relation("UserCreatedBy")
+  deletedBy               User?                    @relation("UserDeletedBy", fields: [deletedById], references: [id])
+  deletedUsers            User[]                   @relation("UserDeletedBy")
+  location                Location?                @relation("UserLocation", fields: [locationId], references: [id])
+  updatedBy               User?                    @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  updatedUsers            User[]                   @relation("UserUpdatedBy")
+
+  @@index([failedLoginAttempts])
+  @@index([lockedUntil])
+  @@index([role])
+  @@index([locationId])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  type      String    @default("RESET")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  userId     String
+  revoked    Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  deviceType String   @default("WEB")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String?
+  deletedAt   DateTime?
+  deletedById String?
+  updatedById String?
+  createdBy   User?     @relation("CategoryCreatedBy", fields: [createdById], references: [id])
+  deletedBy   User?     @relation("CategoryDeletedBy", fields: [deletedById], references: [id])
+  updatedBy   User?     @relation("CategoryUpdatedBy", fields: [updatedById], references: [id])
+  products    Product[]
+
+  @@index([deletedAt])
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  sku         String?     @unique
+  description String?
+  categoryId  String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  createdById String?
+  deletedAt   DateTime?
+  deletedById String?
+  updatedById String?
+  orderItems  OrderItem[]
+  category    Category    @relation(fields: [categoryId], references: [id])
+  createdBy   User?       @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  deletedBy   User?       @relation("ProductDeletedBy", fields: [deletedById], references: [id])
+  updatedBy   User?       @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  tags        Tag[]
+
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+model Tag {
+  id            String         @id @default(uuid())
+  epc           String         @unique
+  productId     String?
+  status        TagStatus      @default(UNASSIGNED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  createdById   String?
+  deletedAt     DateTime?
+  deletedById   String?
+  lastSeenAt    DateTime?
+  location      String?
+  locationId    String?
+  updatedById   String?
+  scans         Scan[]
+  createdBy     User?          @relation("TagCreatedBy", fields: [createdById], references: [id])
+  deletedBy     User?          @relation("TagDeletedBy", fields: [deletedById], references: [id])
+  locationRel   Location?      @relation(fields: [locationId], references: [id])
+  product       Product?       @relation(fields: [productId], references: [id])
+  updatedBy     User?          @relation("TagUpdatedBy", fields: [updatedById], references: [id])
+  events        TagEvent[]
+  transferItems TransferItem[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([locationId])
+  @@index([deletedAt])
+}
+
+model TagEvent {
+  id          String   @id @default(uuid())
+  tagId       String
+  type        String
+  location    String?
+  description String?
+  userId      String?
+  createdAt   DateTime @default(now())
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([tagId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+  createdById String?
+  updatedById String?
+  deletedById String?
+  locationId  String?
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  createdBy   User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  deletedBy   User?       @relation("OrderDeletedBy", fields: [deletedById], references: [id])
+  location    Location?   @relation("OrderLocation", fields: [locationId], references: [id])
+  updatedBy   User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  items       OrderItem[]
+  sessions    Session[]
+
+  @@index([type])
+  @@index([status])
+  @@index([createdById])
+  @@index([locationId])
+}
+
+model OrderItem {
+  id              String  @id @default(uuid())
+  orderId         String
+  productId       String
+  quantity        Int
+  scannedQuantity Int     @default(0)
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Session {
+  id        String    @id @default(uuid())
+  name      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  totalTags Int       @default(0)
+  orderId   String?
+  userId    String?
+  scans     Scan[]
+  order     Order?    @relation(fields: [orderId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([orderId])
+}
+
+model Scan {
+  id        String   @id @default(uuid())
+  tagEpc    String
+  sessionId String
+  rssi      Int
+  scannedAt DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagEpc], references: [epc], onDelete: Cascade)
+
+  @@index([tagEpc])
+  @@index([sessionId])
+  @@index([scannedAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
 enum Role {
-  SUPER_ADMIN
   ADMIN
   WAREHOUSE_MANAGER
+  SUPER_ADMIN
   STAFF
 }
 
@@ -38,389 +369,22 @@ enum OrderStatus {
 enum LocationType {
   ADMIN
   WORKSHOP
-  WORKSHOP_WAREHOUSE // Kho chuyên dụng tại xưởng
+  WORKSHOP_WAREHOUSE
   WAREHOUSE
-  HOTEL       // Phase 4 - D-17
-  RESORT      // Phase 4 - D-17
-  SPA         // Phase 4 - D-17
-  CUSTOMER    // kept for backward compat
+  HOTEL
+  RESORT
+  SPA
+  CUSTOMER
 }
 
 enum TransferType {
   ADMIN_TO_WORKSHOP
-  WORKSHOP_TO_WAREHOUSE  // Phase 3
-  WAREHOUSE_TO_CUSTOMER  // Phase 4 - D-18
+  WORKSHOP_TO_WAREHOUSE
+  WAREHOUSE_TO_CUSTOMER
 }
 
 enum TransferStatus {
   PENDING
   COMPLETED
   CANCELLED
-}
-
-model Location {
-  id        String       @id @default(uuid())
-  code      String       @unique
-  name      String
-  type      LocationType
-  address   String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  deletedAt DateTime?
-
-  parentId  String?
-  parent    Location?  @relation("LocationChildren", fields: [parentId], references: [id])
-  children  Location[] @relation("LocationChildren")
-
-  createdById String?
-  createdBy   User?     @relation("LocationCreatedBy", fields: [createdById], references: [id])
-  updatedById String?
-  updatedBy   User?     @relation("LocationUpdatedBy", fields: [updatedById], references: [id])
-  deletedById String?
-  deletedBy   User?     @relation("LocationDeletedBy", fields: [deletedById], references: [id])
-
-  tags      Tag[]
-  transfersFrom Transfer[] @relation("TransferSource")
-  transfersTo   Transfer[] @relation("TransferDestination")
-  orders        Order[]    @relation("OrderLocation")
-
-  users     User[]         @relation("UserLocation")
-
-  @@index([type])
-  @@index([code])
-  @@index([deletedAt])
-}
-
-model Transfer {
-  id              String          @id @default(uuid())
-  code            String          @unique
-  type            TransferType    @default(ADMIN_TO_WORKSHOP)
-  status          TransferStatus  @default(PENDING)
-  sourceId        String
-  source          Location        @relation("TransferSource", fields: [sourceId], references: [id])
-  destinationId   String
-  destination     Location        @relation("TransferDestination", fields: [destinationId], references: [id])
-  createdById     String
-  createdBy       User            @relation(fields: [createdById], references: [id])
-  items           TransferItem[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  completedAt     DateTime?
-
-  @@index([status])
-  @@index([type])
-  @@index([sourceId])
-  @@index([destinationId])
-  @@index([createdById])
-}
-
-model TransferItem {
-  id          String    @id @default(uuid())
-  transferId  String
-  transfer    Transfer  @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  tagId       String
-  tag         Tag       @relation(fields: [tagId], references: [id])
-  condition   String?
-  scannedAt   DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([transferId])
-  @@index([tagId])
-}
-
-model User {
-  id            String         @id @default(uuid())
-  username      String         @unique
-  fullName      String?
-  phone         String?
-  password      String
-  role          Role           @default(WAREHOUSE_MANAGER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  deletedAt     DateTime?
-
-  locationId    String?
-  location      Location?      @relation("UserLocation", fields: [locationId], references: [id])
-
-  createdById   String?
-  createdBy     User?          @relation("UserCreatedBy", fields: [createdById], references: [id])
-  createdUsers  User[]         @relation("UserCreatedBy")
-
-  updatedById   String?
-  updatedBy     User?          @relation("UserUpdatedBy", fields: [updatedById], references: [id])
-  updatedUsers  User[]         @relation("UserUpdatedBy")
-
-  deletedById   String?
-  deletedBy     User?          @relation("UserDeletedBy", fields: [deletedById], references: [id])
-  deletedUsers  User[]         @relation("UserDeletedBy")
-
-  activityLogs  ActivityLog[]
-  refreshTokens RefreshToken[]
-  sessions      Session[]
-  transfers     Transfer[]
-
-  // Reverse relations for auth tokens
-  passwordResetTokens      PasswordResetToken[]
-  emailVerificationTokens  EmailVerificationToken[]
-
-  // Reverse relations for Category audit
-  createdCategories Category[] @relation("CategoryCreatedBy")
-  updatedCategories Category[] @relation("CategoryUpdatedBy")
-  deletedCategories Category[] @relation("CategoryDeletedBy")
-
-  // Reverse relations for Product audit
-  createdProducts   Product[]  @relation("ProductCreatedBy")
-  updatedProducts   Product[]  @relation("ProductUpdatedBy")
-  deletedProducts   Product[]  @relation("ProductDeletedBy")
-
-  // Reverse relations for Tag audit
-  createdTags       Tag[]      @relation("TagCreatedBy")
-  updatedTags       Tag[]      @relation("TagUpdatedBy")
-  deletedTags       Tag[]      @relation("TagDeletedBy")
-
-  // Reverse relations for Location audit
-  createdLocations  Location[] @relation("LocationCreatedBy")
-  updatedLocations  Location[] @relation("LocationUpdatedBy")
-  deletedLocations  Location[] @relation("LocationDeletedBy")
-
-  // Reverse relations for Order audit
-  createdOrders     Order[]    @relation("OrderCreatedBy")
-  updatedOrders     Order[]    @relation("OrderUpdatedBy")
-  deletedOrders     Order[]    @relation("OrderDeletedBy")
-
-  // Account lockout fields
-  failedLoginAttempts Int      @default(0)
-  lockedUntil         DateTime?
-
-  // Email fields for email-based authentication
-  email           String?    @unique
-  isEmailVerified Boolean    @default(false)
-
-  // Password management
-  passwordChangedAt DateTime? // null = temp password never changed by user
-
-  @@index([failedLoginAttempts])
-  @@index([lockedUntil])
-  @@index([role])
-  @@index([locationId])
-  @@index([email])
-}
-
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  token     String   @unique           // SHA-256 hash of reset token
-  type      String   @default("RESET") // RESET | etc.
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([userId])
-}
-
-model EmailVerificationToken {
-  id        String   @id @default(uuid())
-  token     String   @unique           // SHA-256 hash of verification token
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([userId])
-}
-
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  revoked    Boolean  @default(false)
-  deviceType String   @default("WEB")
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@index([token])
-}
-
-model Category {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-
-  createdById String?
-  createdBy   User?     @relation("CategoryCreatedBy", fields: [createdById], references: [id])
-  updatedById String?
-  updatedBy   User?     @relation("CategoryUpdatedBy", fields: [updatedById], references: [id])
-  deletedById String?
-  deletedBy   User?     @relation("CategoryDeletedBy", fields: [deletedById], references: [id])
-
-  products    Product[]
-
-  @@index([deletedAt])
-}
-
-model Product {
-  id          String   @id @default(uuid())
-  name        String
-  sku         String?  @unique
-  description String?
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-
-  createdById String?
-  createdBy   User?    @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  updatedById String?
-  updatedBy   User?    @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
-  deletedById String?
-  deletedBy   User?    @relation("ProductDeletedBy", fields: [deletedById], references: [id])
-
-  tags        Tag[]
-  orderItems  OrderItem[]
-
-  @@index([categoryId])
-  @@index([deletedAt])
-}
-
-model Tag {
-  id        String    @id @default(uuid())
-  epc       String    @unique
-  productId String?
-  product   Product?  @relation(fields: [productId], references: [id])
-  status    TagStatus @default(UNASSIGNED)
-  location    String?
-  locationId  String?
-  locationRel Location?  @relation(fields: [locationId], references: [id])
-  lastSeenAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt   DateTime?
-
-  createdById String?
-  createdBy   User?     @relation("TagCreatedBy", fields: [createdById], references: [id])
-  updatedById String?
-  updatedBy   User?     @relation("TagUpdatedBy", fields: [updatedById], references: [id])
-  deletedById String?
-  deletedBy   User?     @relation("TagDeletedBy", fields: [deletedById], references: [id])
-
-  scans     Scan[]
-  events    TagEvent[]
-  transferItems TransferItem[]
-
-  @@index([productId])
-  @@index([status])
-  @@index([locationId])
-  @@index([deletedAt])
-}
-
-model TagEvent {
-  id          String   @id @default(uuid())
-  tagId       String
-  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  type        String   // "CREATED", "ASSIGNED", "SCANNED", "MOVED", "MISSING"
-  location    String?
-  description String?
-  userId      String?
-  createdAt   DateTime @default(now())
-
-  @@index([tagId])
-  @@index([type])
-  @@index([createdAt])
-}
-
-model Order {
-  id          String      @id @default(uuid())
-  code        String      @unique
-  type        OrderType
-  status      OrderStatus @default(PENDING)
-  
-  createdById String?
-  createdBy   User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  updatedById String?
-  updatedBy   User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
-  deletedById String?
-  deletedBy   User?       @relation("OrderDeletedBy", fields: [deletedById], references: [id])
-  
-  locationId  String?
-  location    Location?   @relation("OrderLocation", fields: [locationId], references: [id])
-
-  deletedAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  items       OrderItem[]
-  sessions    Session[]
-
-  @@index([type])
-  @@index([status])
-  @@index([createdById])
-  @@index([locationId])
-}
-
-model OrderItem {
-  id              String   @id @default(uuid())
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  quantity        Int
-  scannedQuantity Int      @default(0)
-  
-  @@index([orderId])
-  @@index([productId])
-}
-
-model Session {
-  id        String    @id @default(uuid())
-  name      String
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
-  totalTags Int       @default(0)
-  scans     Scan[]
-  userId    String?
-  user      User?     @relation(fields: [userId], references: [id])
-  orderId   String?
-  order     Order?    @relation(fields: [orderId], references: [id])
-
-  @@index([userId])
-  @@index([orderId])
-}
-
-model Scan {
-  id        String   @id @default(uuid())
-  tagEpc    String
-  tag       Tag      @relation(fields: [tagEpc], references: [epc], onDelete: Cascade)
-  sessionId String
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  rssi      Int
-  scannedAt DateTime @default(now())
-
-  @@index([tagEpc])
-  @@index([sessionId])
-  @@index([scannedAt])
-}
-
-model ActivityLog {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String?
-  details   Json?
-  ipAddress String?
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([entity])
-  @@index([createdAt])
 }

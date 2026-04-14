@@ -2,29 +2,46 @@
 
 import { useAuth } from '@/providers/AuthProvider';
 import { getRoleDisplayName } from '@/utils/role-helpers';
-import { Mail, ArrowRight, Edit, X, User, LogOut } from 'lucide-react';
+import { Mail, ArrowRight, Edit, X, User, LogOut, Camera } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  
+
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  
+
   const roleText = getRoleDisplayName(user?.role);
-  
+
   const [isUpdateProfileOpen, setIsUpdateProfileOpen] = useState(false);
   const [editFullName, setEditFullName] = useState(user?.fullName || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
+  // Avatar handling
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const fileInputRef = import('react').then(m => null); // Temporarily until I add useRef
+
+  const handleAvatarClick = () => {
+    const input = document.getElementById('avatar-input') as HTMLInputElement;
+    input?.click();
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarUrl(url);
+    }
+  };
+
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsChangePasswordOpen(false);
@@ -61,7 +78,7 @@ export default function ProfilePage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
       {/* Header Layout */}
       <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-black text-[#4c59a8] tracking-widest uppercase">Trang cá nhân</h1>
+        <h1 className="text-2xl font-black text-[#4c59a8] tracking-widest uppercase">Hồ sơ cá nhân</h1>
         <p className="text-slate-500 text-sm font-medium">Tất cả thông tin của bạn đều được bảo mật và an toàn.</p>
       </div>
 
@@ -80,13 +97,34 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row sm:items-end gap-5">
               {/* Avatar */}
               <div className="relative group z-10 shrink-0">
-                <div className="w-[132px] h-[132px] rounded-full border-[6px] border-white bg-[#30A62A] flex items-center justify-center shadow-md relative overflow-hidden">
-                  <User className="text-white w-[60px] h-[60px]" strokeWidth={2} />
+                <div className="w-[132px] h-[132px] rounded-full border-[6px] border-white bg-[#30A62A] flex items-center justify-center shadow-md relative overflow-hidden group">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="text-white w-[60px] h-[60px]" strokeWidth={2} />
+                  )}
+
+                  {/* Camera Overlay */}
+                  <div
+                    onClick={handleAvatarClick}
+                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <Camera className="text-white w-8 h-8" />
+                  </div>
                 </div>
+
+                {/* Hidden File Input */}
+                <input
+                  id="avatar-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
               </div>
-              
-              <div className="mb-2 sm:mb-3">
-                <h2 className="text-[32px] font-extrabold text-slate-800 tracking-tight leading-none mb-1.5">{user?.fullName || user?.username || 'Chưa đặt tên'}</h2>
+
+              <div className="translate-y-2 sm:translate-y-3">
+                <h2 className="text-[32px] font-extrabold text-slate-800 tracking-tight leading-none mb-1">{user?.fullName || user?.username || 'Chưa đặt tên'}</h2>
                 <p className="text-slate-500 font-medium text-[15px]">{user?.email || 'Chưa thiết lập email'}</p>
               </div>
             </div>
@@ -109,21 +147,21 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-7 mb-14">
             <div>
-              <label className="block text-[14.5px] font-bold text-slate-700 mb-2.5">Họ và Tên</label>
-              <input type="text" readOnly value={user?.fullName || 'Chưa cập nhật'} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-[14px] text-slate-500 font-medium focus:outline-none transition-colors" />
+              <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Họ và Tên</label>
+              <input type="text" readOnly value={user?.fullName || 'Chưa cập nhật'} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] text-slate-500 font-medium text-sm focus:outline-none transition-colors" />
             </div>
             <div>
-              <label className="block text-[14.5px] font-bold text-slate-700 mb-2.5">Số điện thoại (Cố định)</label>
+              <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Số điện thoại (Cố định)</label>
               <div className="relative">
-                <input type="text" readOnly value={user?.phone || '0923478272'} className="w-full px-5 py-4 bg-slate-100 border border-slate-200 rounded-[14px] text-slate-400 font-bold focus:outline-none transition-colors cursor-not-allowed" />
-                <p className="mt-2 text-xs text-slate-400 italic text-right">* Liên hệ quản trị viên để thay đổi số điện thoại.</p>
+                <input type="text" readOnly value={user?.phone || '0923478272'} className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-[12px] text-slate-400 font-bold text-sm focus:outline-none transition-colors cursor-not-allowed" />
+                <p className="mt-1.5 text-[11px] text-slate-400 italic text-right">* Liên hệ quản trị viên để thay đổi số điện thoại.</p>
               </div>
             </div>
             <div className="md:col-span-2 md:w-full">
-              <label className="block text-[14.5px] font-bold text-slate-700 mb-2.5">Vai trò (Cố định)</label>
+              <label className="block text-[13px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Vai trò (Cố định)</label>
               <div className="relative">
-                <input type="text" readOnly value={roleText || 'QUẢN TRỊ VIÊN'} className="w-full px-5 py-4 bg-slate-100 border border-slate-200 rounded-[14px] text-slate-400 font-bold focus:outline-none transition-colors uppercase cursor-not-allowed" />
-                <p className="mt-2 text-xs text-slate-400 italic">* Vai trò được thiết lập bởi quản trị viên hệ thống để đảm bảo bảo mật.</p>
+                <input type="text" readOnly value={roleText || 'QUẢN TRỊ VIÊN'} className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-[12px] text-slate-400 font-bold text-sm focus:outline-none transition-colors uppercase cursor-not-allowed" />
+                <p className="mt-1.5 text-[11px] text-slate-400 italic">* Vai trò được thiết lập bởi quản trị viên hệ thống để đảm bảo bảo mật.</p>
               </div>
             </div>
           </div>
@@ -131,9 +169,9 @@ export default function ProfilePage() {
           {/* Email và Bảo mật */}
           <div>
             <h3 className="text-[22px] font-bold text-slate-800 mb-7">Email và Bảo mật</h3>
-            
+
             <div className="space-y-1">
-              
+
               {/* Email component */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-5 border-b border-slate-100">
                 <div className="flex items-start gap-5">
@@ -182,15 +220,15 @@ export default function ProfilePage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleEmailSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Mật khẩu hiện tại</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
                   placeholder="Nhập mật khẩu hiện tại để xác thực"
                   required
                 />
@@ -198,11 +236,11 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Địa chỉ Email mới</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
                   placeholder="Nhập email mới của bạn"
                   required
                 />
@@ -210,8 +248,8 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex justify-end pt-1">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setIsChangeEmailOpen(false);
                     router.push('/forgot-password');
@@ -223,15 +261,15 @@ export default function ProfilePage() {
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsChangeEmailOpen(false)}
                   className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-[12px] transition-colors shrink-0"
                 >
                   Hủy bỏ
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={!currentPassword || !newEmail}
                   className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-blue-600/20 shrink-0"
                 >
@@ -254,47 +292,71 @@ export default function ProfilePage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Mật khẩu hiện tại</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
                   placeholder="Nhập mật khẩu hiện tại"
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Mật khẩu mới</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
                   placeholder="Nhập mật khẩu mới"
                   required
                 />
+
+                {/* Password Strength Meter */}
+                {newPassword && (
+                  <div className="mt-2 px-1 max-w-[160px]">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-medium text-slate-400">Độ mạnh</span>
+                      <span className={`text-[10px] font-bold ${newPassword.length < 6 ? 'text-red-400' :
+                        newPassword.length < 10 ? 'text-amber-400' : 'text-emerald-500'
+                        }`}>
+                        {newPassword.length < 6 ? 'yếu' : newPassword.length < 10 ? 'trung bình' : 'mạnh'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 h-[2px]">
+                      <div className={`flex-1 rounded-full transition-all duration-300 ${newPassword.length > 0 ? (newPassword.length < 6 ? 'bg-red-400' : 'bg-amber-400') : 'bg-slate-100'} ${newPassword.length >= 10 ? 'bg-emerald-500' : ''}`}></div>
+                      <div className={`flex-1 rounded-full transition-all duration-300 ${newPassword.length >= 6 ? (newPassword.length < 10 ? 'bg-amber-400' : 'bg-emerald-500') : 'bg-slate-100'}`}></div>
+                      <div className={`flex-1 rounded-full transition-all duration-300 ${newPassword.length >= 10 ? 'bg-emerald-500' : 'bg-slate-100'}`}></div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Xác nhận mật khẩu mới</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className={`w-full px-4 py-2.5 bg-slate-50 border ${confirmPassword && newPassword !== confirmPassword ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:ring-primary/20'} rounded-[12px] focus:outline-none focus:ring-2 focus:border-primary transition-all text-sm font-medium`}
                   placeholder="Nhập lại mật khẩu mới"
                   required
                 />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="mt-1.5 text-xs text-red-500 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                    Mật khẩu chưa khớp
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end pt-1">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setIsChangePasswordOpen(false);
                     router.push('/forgot-password');
@@ -306,15 +368,15 @@ export default function ProfilePage() {
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsChangePasswordOpen(false)}
                   className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-[12px] transition-colors shrink-0"
                 >
                   Hủy bỏ
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
                   className="px-5 py-2.5 text-sm font-bold text-white bg-[#4c59a8] hover:bg-[#3f4a8c] disabled:opacity-50 disabled:cursor-not-allowed rounded-[12px] transition-colors shadow-md shadow-primary/20 shrink-0"
                 >
@@ -336,30 +398,30 @@ export default function ProfilePage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Họ và Tên</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={editFullName}
                   onChange={(e) => setEditFullName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
                   placeholder="Nhập họ và tên của bạn"
                 />
                 <p className="mt-2 text-xs text-slate-400 italic">Lưu ý: Bạn chỉ có thể tự thay đổi Họ và Tên. Các thông tin khác vui lòng liên hệ Admin.</p>
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsUpdateProfileOpen(false)}
                   className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-[12px] transition-colors shrink-0"
                 >
                   Hủy bỏ
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isSubmitting}
                   className="px-5 py-2.5 text-sm font-bold text-white bg-[#4c59a8] hover:bg-[#3f4a8c] rounded-[12px] transition-colors shadow-md shadow-primary/20 shrink-0"
                 >
