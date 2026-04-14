@@ -15,7 +15,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       max: Math.min(poolSize, 10),            
       idleTimeoutMillis: 30_000,             
       connectionTimeoutMillis: 30_000,       
-      ssl: true,                             // Quan trọng: Supabase yêu cầu SSL
+      ssl: { rejectUnauthorized: false },    // Cho phép chứng chỉ tự ký (cần thiết cho Supabase trên cloud)
     });
     super({ adapter });
 
